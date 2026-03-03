@@ -12,3 +12,20 @@ wheels/
 .coverage
 *.coverage
 .coverage.*
+
+# test/cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.uv_cache/
+.snapshot_*/
+
+# local db / temp / logs
+*.db
+*.sqlite
+*.sqlite3
+*.log
+*.pid
+*.tmp
+*.bak
+.DS_Store
