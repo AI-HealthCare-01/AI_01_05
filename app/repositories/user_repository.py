@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import EmailStr
 
@@ -65,3 +65,16 @@ class UserRepository:
             user.updated_at = datetime.now(config.TIMEZONE)
             update_fields.append(UPDATED_AT_FIELD)
             await user.save(update_fields=update_fields)
+
+    async def get_user_by_kakao_id(self, kakao_id: str) -> Optional[User]:
+        """
+        카카오 ID로 가입된 유저가 있는지 DB에서 조회합니다.
+        Tortoise ORM의 get_or_none을 사용해 없으면 None을 반환합니다.
+        """
+        return await User.get_or_none(kakao_id=kakao_id)
+
+    async def create_kakao_user(self, user_data: dict) -> User:
+        """
+        새로운 카카오 유저를 DB에 생성합니다.
+        """
+        return await User.create(**user_data)

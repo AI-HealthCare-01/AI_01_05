@@ -12,3 +12,8 @@ wheels/
 .coverage
 *.coverage
 .coverage.*
+.DS_Store
+*.env
+.env*
+!*example*.env
+!*template*.env
