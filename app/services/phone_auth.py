@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import logging
-import random
+import secrets
 import uuid
 from datetime import UTC, datetime
 from typing import Annotated
@@ -24,14 +24,9 @@ class PhoneAuthService:
         self.token_ttl = 1800  # 인증 완료 토큰 유효시간 (30분)
 
     def _get_solapi_headers(self) -> dict:
-        """
-        [핵심 로직] 솔라피 공식 SDK를 쓰지 않고 비동기 통신을 하기 위해,
-        솔라피 API 스펙에 맞춰 HMAC-SHA256 서명(Signature)을 직접 생성합니다.
-        """
         api_key = config.SOLAPI_API_KEY
         api_secret = config.SOLAPI_API_SECRET
 
-        # 반드시 UTC 시간으로 생성해야 합니다.
         date = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         salt = uuid.uuid4().hex
         data = date + salt
@@ -44,23 +39,31 @@ class PhoneAuthService:
         }
 
     async def send_verification_code(self, phone_number: str) -> dict:
-        """
-        6자리 난수를 생성하여 Redis에 저장하고 솔라피 API를 통해 SMS를 발송합니다.
-        """
         # 1. 어뷰징 방지: 1일 최대 발송 횟수 제한 (Rate Limiting)
         daily_limit_key = f"sms_limit:{phone_number}"
-        send_count = await self.redis.incr(daily_limit_key)
-        if send_count == 1:
+
+        async with self.redis.pipeline(transaction=True) as pipe:
+            pipe.incr(daily_limit_key)
+            pipe.ttl(daily_limit_key)
+            results = await pipe.execute()
+
+        send_count = results[0]
+        current_ttl = results[1]
+
+        # 처음 요청했거나, 서버 에러로 인해 만료시간(TTL)이 세팅되지 않은 좀비 데이터(-1)인 경우
+        if send_count == 1 or current_ttl == -1:
             await self.redis.expire(daily_limit_key, 86400)  # 24시간 후 만료
 
         if send_count > 5:
+            logger.warning(f"[Rate Limit Exceeded] {phone_number} 일일 인증 횟수 5회 초과")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="일일 인증번호 발송 횟수(5회)를 초과했습니다.",
+                detail="일일 인증번호 발송 횟수(5회)를 초과했습니다. 내일 다시 시도해주세요.",
             )
 
         # 2. 6자리 난수 생성 및 Redis 저장
-        code = f"{random.randint(0, 999999):06d}"
+        code = f"{secrets.randbelow(1000000):06d}"
+
         redis_key = f"auth_code:{phone_number}"
         await self.redis.setex(redis_key, self.code_ttl, code)
 
@@ -90,11 +93,11 @@ class PhoneAuthService:
 
                 # 에러 코드에 따른 명확한 프론트엔드 피드백
                 if e.response.status_code == 402:
-                    detail_msg = "SMS 발송 잔액이 부족합니다. 서버 관리자에게 문의하세요."
+                    detail_msg = "시스템 오류가 발생했습니다. (관리자: SMS 잔액 부족)"
                 elif e.response.status_code == 400:
-                    detail_msg = "잘못된 전화번호 형식이거나, 솔라피에 등록되지 않은 발신번호입니다."
+                    detail_msg = "잘못된 전화번호 형식이거나 지원하지 않는 번호입니다."
                 else:
-                    detail_msg = "SMS 발송 중 외부 서버 오류가 발생했습니다."
+                    detail_msg = "인증번호 발송 중 일시적인 오류가 발생했습니다."
 
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -104,7 +107,7 @@ class PhoneAuthService:
             except httpx.RequestError as e:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="SMS 발송 서버(Solapi)와의 통신에 실패했습니다.",
+                    detail="통신사 네트워크 지연으로 발송에 실패했습니다. 잠시 후 다시 시도해주세요.",
                 ) from e
 
         return {
@@ -113,10 +116,6 @@ class PhoneAuthService:
         }
 
     async def verify_code(self, phone_number: str, code: str) -> str:
-        """
-        2. 사용자가 입력한 인증번호를 Redis에 저장된 값과 대조합니다.
-        성공 시 최종 가입에 쓸 증명 토큰(UUID)을 발급합니다.
-        """
         redis_key = f"auth_code:{phone_number}"
         stored_code = await self.redis.get(redis_key)
 
@@ -133,15 +132,11 @@ class PhoneAuthService:
         verification_token = str(uuid.uuid4())
         token_key = f"verified_phone:{verification_token}"
 
-        # Redis에 '토큰: 전화번호' 저장 (30분 후 자동 소멸)
         await self.redis.setex(token_key, self.token_ttl, phone_number)
 
         return verification_token
 
     async def validate_verified_token(self, phone_number: str, verification_token: str) -> None:
-        """
-        3. [최종 회원가입 시 호출] 프론트엔드가 제출한 인증 증명 토큰이 유효한지 봅니다.
-        """
         if (
             config.ENV != Env.PROD
             and config.TEST_VERIFICATION_TOKEN
