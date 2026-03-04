@@ -50,3 +50,26 @@ class KakaoSignUpRequest(BaseModel):
     gender: str = Field(..., description="성별 (필수)")
     birthday: str | None = Field(None, description="생년월일 (선택)")
     agreements: AgreementStatus
+
+
+class SendPhoneCodeRequest(BaseModel):
+    phone_number: Annotated[
+        str,
+        AfterValidator(validate_phone_number),
+        Field(description="인증번호를 받을 휴대폰 번호"),
+    ]
+
+
+class VerifyPhoneCodeRequest(BaseModel):
+    phone_number: Annotated[str, AfterValidator(validate_phone_number)]
+    code: str = Field(..., min_length=6, max_length=6, description="6자리 숫자 인증번호")
+
+
+class SendPhoneCodeResponse(BaseModel):
+    ttl: int
+    message: str
+
+
+class VerifyPhoneCodeResponse(BaseModel):
+    verification_token: str
+    message: str
