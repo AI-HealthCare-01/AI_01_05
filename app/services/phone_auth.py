@@ -36,9 +36,7 @@ class PhoneAuthService:
         salt = uuid.uuid4().hex
         data = date + salt
 
-        signature = hmac.new(
-            api_secret.encode("utf-8"), data.encode("utf-8"), hashlib.sha256
-        ).hexdigest()
+        signature = hmac.new(api_secret.encode("utf-8"), data.encode("utf-8"), hashlib.sha256).hexdigest()
 
         return {
             "Authorization": f"HMAC-SHA256 apiKey={api_key}, date={date}, salt={salt}, signature={signature}",
@@ -80,9 +78,7 @@ class PhoneAuthService:
         # 동기식 requests 대신 비동기 httpx 클라이언트를 사용하여 서버 블로킹을 막습니다.
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.post(
-                    solapi_url, json=payload, headers=headers, timeout=5.0
-                )
+                response = await client.post(solapi_url, json=payload, headers=headers, timeout=5.0)
                 response.raise_for_status()
 
             except httpx.HTTPStatusError as e:
@@ -142,9 +138,7 @@ class PhoneAuthService:
 
         return verification_token
 
-    async def validate_verified_token(
-        self, phone_number: str, verification_token: str
-    ) -> None:
+    async def validate_verified_token(self, phone_number: str, verification_token: str) -> None:
         """
         3. [최종 회원가입 시 호출] 프론트엔드가 제출한 인증 증명 토큰이 유효한지 봅니다.
         """

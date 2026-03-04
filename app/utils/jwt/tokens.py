@@ -38,9 +38,7 @@ class Token:
                 if verify:
                     token_type = self.payload.get("type")
                     if token_type != self.token_type:
-                        raise TokenError(
-                            f"토큰 타입 불일치 (기대값: {self.token_type}, 실제값: {token_type})"
-                        )
+                        raise TokenError(f"토큰 타입 불일치 (기대값: {self.token_type}, 실제값: {token_type})")
 
             except TokenBackendExpiredError as err:
                 raise ExpiredTokenError("Token is expired") from err
