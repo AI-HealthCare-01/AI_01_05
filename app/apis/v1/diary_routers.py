@@ -28,6 +28,7 @@ from app.services.diary_report_service import DiaryReportService
 
 router = APIRouter(prefix="/diary", tags=["diary"])
 service = DiaryReportService()
+UPLOAD_IMAGE = File(...)
 
 
 @router.get("/calendar", response_model=DiaryCalendarResponse)
@@ -60,7 +61,7 @@ async def create_diary_text(
 async def extract_ocr_text(
     entry_date: date,
     _user: Annotated[User, Depends(get_request_user)],
-    image: UploadFile = File(...),
+    image: UploadFile = UPLOAD_IMAGE,
 ):
     file_type = (image.content_type or "").lower()
     file_bytes = await image.read()
@@ -85,7 +86,7 @@ async def confirm_ocr_text(
         return await service.confirm_ocr_text(
             user_id=user.user_id,
             entry_date=entry_date,
-            entry_id=request.entryId,
+            entry_id=request.entry_id,
             title=request.title,
             content=request.content,
         )
@@ -111,7 +112,7 @@ async def save_chatbot_summary(
         return await service.save_chatbot_summary(
             user_id=user.user_id,
             entry_date=entry_date,
-            entry_id=request.entryId,
+            entry_id=request.entry_id,
             title=request.title,
             content=request.content,
         )
@@ -163,8 +164,8 @@ async def create_report(
     try:
         return await service.create_report(
             user_id=user.user_id,
-            start_date=request.startDate,
-            end_date=request.endDate,
+            start_date=request.start_date,
+            end_date=request.end_date,
         )
     except ValueError as e:
         return ORJSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"error": str(e)})
