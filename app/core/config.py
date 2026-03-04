@@ -36,3 +36,11 @@ class Config(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 14 * 24 * 60
     JWT_LEEWAY: int = 5
+
+    KAKAO_REST_API_KEY: str
+    KAKAO_REDIRECT_URI: str
+    KAKAO_CLIENT_SECRET: str
+
+    SOLAPI_API_KEY: str
+    SOLAPI_API_SECRET: str
+    SOLAPI_SENDER_NUMBER: str
