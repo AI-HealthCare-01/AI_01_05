@@ -1,0 +1,101 @@
+from tortoise import BaseDBAsyncClient
+
+RUN_IN_TRANSACTION = True
+
+
+async def upgrade(db: BaseDBAsyncClient) -> str:
+    return """
+        CREATE TABLE IF NOT EXISTS `aerich` (
+    `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `version` VARCHAR(255) NOT NULL,
+    `app` VARCHAR(100) NOT NULL,
+    `content` JSON NOT NULL
+) CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS `users` (
+    `id` BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `email` VARCHAR(40) NOT NULL,
+    `hashed_password` VARCHAR(128) NOT NULL,
+    `name` VARCHAR(20) NOT NULL,
+    `gender` VARCHAR(6) NOT NULL COMMENT 'MALE: MALE\nFEMALE: FEMALE',
+    `birthday` DATE NOT NULL,
+    `phone_number` VARCHAR(11) NOT NULL,
+    `is_active` BOOL NOT NULL DEFAULT 1,
+    `is_admin` BOOL NOT NULL DEFAULT 0,
+    `last_login` DATETIME(6),
+    `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
+) CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS `appointments` (
+    `appointment_id` BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `appointment_date` DATE,
+    `hospital_name` VARCHAR(255),
+    `notes` LONGTEXT,
+    `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    `user_id` BIGINT NOT NULL,
+    CONSTRAINT `fk_appointm_users_e238cba7` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS `diaries` (
+    `diary_id` BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `content` LONGTEXT,
+    `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    `user_id` BIGINT NOT NULL,
+    CONSTRAINT `fk_diaries_users_fdac245e` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS `moods` (
+    `mood_id` BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `mood_score` INT,
+    `note` LONGTEXT,
+    `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    `user_id` BIGINT NOT NULL,
+    CONSTRAINT `fk_moods_users_f10e6d57` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) CHARACTER SET utf8mb4;
+CREATE TABLE IF NOT EXISTS `reports` (
+    `report_id` BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `start_date` DATE NOT NULL,
+    `end_date` DATE NOT NULL,
+    `summary` LONGTEXT,
+    `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    `user_id` BIGINT NOT NULL,
+    CONSTRAINT `fk_reports_users_fdbb0d89` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) CHARACTER SET utf8mb4;"""
+
+
+async def downgrade(db: BaseDBAsyncClient) -> str:
+    return """
+        """
+
+
+MODELS_STATE = (
+    "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"
+)

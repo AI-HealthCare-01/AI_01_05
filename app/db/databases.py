@@ -6,7 +6,7 @@ from app.core import config
 
 TORTOISE_APP_MODELS = [
     "aerich.models",
-    "app.models.users",
+    "app.models",
 ]
 
 TORTOISE_ORM = {
@@ -28,6 +28,7 @@ TORTOISE_ORM = {
     "apps": {
         "models": {
             "models": TORTOISE_APP_MODELS,
+            "default_connection": "default",
         },
     },
     "timezone": "Asia/Seoul",

@@ -3,10 +3,7 @@ from app.models.report import Report
 
 
 async def create_report_service(request: ReportCreateRequest) -> Report:
-    fake_summary = (
-        f"{request.start_date}부터 {request.end_date}까지의 리포트입니다. "
-        f"현재는 임시 요약문입니다."
-    )
+    fake_summary = f"{request.start_date}부터 {request.end_date}까지의 리포트입니다. 현재는 임시 요약문입니다."
 
     report = await Report.create(
         user_id=request.user_id,

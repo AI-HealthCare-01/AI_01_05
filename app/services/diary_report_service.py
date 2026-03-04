@@ -36,7 +36,9 @@ class DiaryReportService:
         return {"year": year, "month": month, "days": days}
 
     async def get_diary_by_date(self, user_id: int, entry_date: date) -> dict:
-        diaries = await Diary.filter(user_id=user_id, diary_date=entry_date, deleted_at__isnull=True).order_by("-created_at")
+        diaries = await Diary.filter(user_id=user_id, diary_date=entry_date, deleted_at__isnull=True).order_by(
+            "-created_at"
+        )
         if not diaries:
             raise LookupError("DIARY_NOT_FOUND")
 
@@ -89,7 +91,9 @@ class DiaryReportService:
         return {"entryId": diary.diary_id, "message": "일기가 저장되었습니다."}
 
     async def get_chatbot_summary(self, user_id: int, entry_date: date) -> dict:
-        diaries = await Diary.filter(user_id=user_id, diary_date=entry_date, deleted_at__isnull=True).order_by("-created_at")
+        diaries = await Diary.filter(user_id=user_id, diary_date=entry_date, deleted_at__isnull=True).order_by(
+            "-created_at"
+        )
         if not diaries:
             return {"hasChatHistory": False, "entryId": None, "summary": None, "redirectToChatbot": True}
 
@@ -98,7 +102,9 @@ class DiaryReportService:
         memory_db.fake_chatbot_pending[pending_id] = {"date": entry_date, "summary": summary}
         return {"hasChatHistory": True, "entryId": pending_id, "summary": summary, "redirectToChatbot": False}
 
-    async def save_chatbot_summary(self, user_id: int, entry_date: date, entry_id: int, title: str, content: str) -> dict:
+    async def save_chatbot_summary(
+        self, user_id: int, entry_date: date, entry_id: int, title: str, content: str
+    ) -> dict:
         pending = memory_db.fake_chatbot_pending.get(entry_id)
         if not pending or pending["date"] != entry_date:
             raise LookupError("ENTRY_NOT_FOUND")
@@ -121,7 +127,9 @@ class DiaryReportService:
         title: str | None,
         content: str | None,
     ) -> dict:
-        diary = await Diary.get_or_none(user_id=user_id, diary_id=entry_id, diary_date=entry_date, deleted_at__isnull=True)
+        diary = await Diary.get_or_none(
+            user_id=user_id, diary_id=entry_id, diary_date=entry_date, deleted_at__isnull=True
+        )
         if not diary:
             raise LookupError("ENTRY_NOT_FOUND")
 
@@ -136,7 +144,9 @@ class DiaryReportService:
         return {"entryId": entry_id, "message": "일기가 수정되었습니다."}
 
     async def delete_diary_entry(self, user_id: int, entry_date: date, entry_id: int) -> dict:
-        diary = await Diary.get_or_none(user_id=user_id, diary_id=entry_id, diary_date=entry_date, deleted_at__isnull=True)
+        diary = await Diary.get_or_none(
+            user_id=user_id, diary_id=entry_id, diary_date=entry_date, deleted_at__isnull=True
+        )
         if not diary:
             raise LookupError("ENTRY_NOT_FOUND")
 
