@@ -31,9 +31,7 @@ class PhoneAuthService:
         salt = uuid.uuid4().hex
         data = date + salt
 
-        signature = hmac.new(
-            api_secret.encode("utf-8"), data.encode("utf-8"), hashlib.sha256
-        ).hexdigest()
+        signature = hmac.new(api_secret.encode("utf-8"), data.encode("utf-8"), hashlib.sha256).hexdigest()
 
         return {
             "Authorization": f"HMAC-SHA256 apiKey={api_key}, date={date}, salt={salt}, signature={signature}",
@@ -41,7 +39,6 @@ class PhoneAuthService:
         }
 
     async def send_verification_code(self, phone_number: str) -> dict:
-
         # 1. 어뷰징 방지: 1일 최대 발송 횟수 제한 (Rate Limiting)
         daily_limit_key = f"sms_limit:{phone_number}"
 
@@ -58,9 +55,7 @@ class PhoneAuthService:
             await self.redis.expire(daily_limit_key, 86400)  # 24시간 후 만료
 
         if send_count > 5:
-            logger.warning(
-                f"[Rate Limit Exceeded] {phone_number} 일일 인증 횟수 5회 초과"
-            )
+            logger.warning(f"[Rate Limit Exceeded] {phone_number} 일일 인증 횟수 5회 초과")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="일일 인증번호 발송 횟수(5회)를 초과했습니다. 내일 다시 시도해주세요.",
@@ -86,9 +81,7 @@ class PhoneAuthService:
         # 동기식 requests 대신 비동기 httpx 클라이언트를 사용하여 서버 블로킹을 막습니다.
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.post(
-                    solapi_url, json=payload, headers=headers, timeout=5.0
-                )
+                response = await client.post(solapi_url, json=payload, headers=headers, timeout=5.0)
                 response.raise_for_status()
 
             except httpx.HTTPStatusError as e:
@@ -100,17 +93,11 @@ class PhoneAuthService:
 
                 # 에러 코드에 따른 명확한 프론트엔드 피드백
                 if e.response.status_code == 402:
-                    detail_msg = (
-                        "시스템 오류가 발생했습니다. (관리자: SMS 잔액 부족)"
-                    )
+                    detail_msg = "시스템 오류가 발생했습니다. (관리자: SMS 잔액 부족)"
                 elif e.response.status_code == 400:
-                    detail_msg = (
-                        "잘못된 전화번호 형식이거나 지원하지 않는 번호입니다."
-                    )
+                    detail_msg = "잘못된 전화번호 형식이거나 지원하지 않는 번호입니다."
                 else:
-                    detail_msg = (
-                        "인증번호 발송 중 일시적인 오류가 발생했습니다."
-                    )
+                    detail_msg = "인증번호 발송 중 일시적인 오류가 발생했습니다."
 
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -149,10 +136,7 @@ class PhoneAuthService:
 
         return verification_token
 
-    async def validate_verified_token(
-        self, phone_number: str, verification_token: str
-    ) -> None:
-
+    async def validate_verified_token(self, phone_number: str, verification_token: str) -> None:
         if (
             config.ENV != Env.PROD
             and config.TEST_VERIFICATION_TOKEN
