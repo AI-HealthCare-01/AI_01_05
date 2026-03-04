@@ -2,54 +2,99 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, status
 from fastapi.responses import JSONResponse as Response
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core import config
 from app.core.config import Env
-from app.dtos.auth import LoginRequest, LoginResponse, SignUpRequest, TokenRefreshResponse
+from app.dtos.auth import (
+    KakaoLoginRequest,
+    KakaoLoginResponse,
+    KakaoSignUpRequest,
+    LoginResponse,
+    TokenRefreshResponse,
+)
 from app.services.auth import AuthService
 from app.services.jwt import JwtService
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
+security = HTTPBearer()
 
 
-@auth_router.post("/signup", status_code=status.HTTP_201_CREATED)
-async def signup(
-    request: SignUpRequest,
-    auth_service: Annotated[AuthService, Depends(AuthService)],
-) -> Response:
-    await auth_service.signup(request)
-    return Response(content={"detail": "회원가입이 성공적으로 완료되었습니다."}, status_code=status.HTTP_201_CREATED)
-
-
-@auth_router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
-async def login(
-    request: LoginRequest,
-    auth_service: Annotated[AuthService, Depends(AuthService)],
-) -> Response:
-    user = await auth_service.authenticate(request)
-    tokens = await auth_service.login(user)
-    resp = Response(
-        content=LoginResponse(access_token=str(tokens["access_token"])).model_dump(), status_code=status.HTTP_200_OK
-    )
-    resp.set_cookie(
-        key="refresh_token",
-        value=str(tokens["refresh_token"]),
-        httponly=True,
-        secure=True if config.ENV == Env.PROD else False,
-        domain=config.COOKIE_DOMAIN or None,
-        expires=tokens["access_token"].payload["exp"],
-    )
-    return resp
-
-
-@auth_router.get("/token/refresh", response_model=TokenRefreshResponse, status_code=status.HTTP_200_OK)
+# 1. 토큰 갱신
+@auth_router.get(
+    "/token/refresh",
+    response_model=TokenRefreshResponse,
+    status_code=status.HTTP_200_OK,
+)
 async def token_refresh(
     jwt_service: Annotated[JwtService, Depends(JwtService)],
     refresh_token: Annotated[str | None, Cookie()] = None,
 ) -> Response:
     if not refresh_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token is missing.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token is missing.",
+        )
     access_token = jwt_service.refresh_jwt(refresh_token)
     return Response(
-        content=TokenRefreshResponse(access_token=str(access_token)).model_dump(), status_code=status.HTTP_200_OK
+        content=TokenRefreshResponse(access_token=str(access_token)).model_dump(),
+        status_code=status.HTTP_200_OK,
     )
+
+
+# 2. 카카오 로그인 (인가코드 수신)
+@auth_router.post("/kakao", response_model=KakaoLoginResponse, status_code=status.HTTP_200_OK)
+async def kakao_login(
+    request: KakaoLoginRequest,
+    auth_service: Annotated[AuthService, Depends(AuthService)],
+) -> Response:
+    result_data = await auth_service.process_kakao_login(request.code)
+
+    resp = Response(
+        content=result_data.model_dump(),
+        status_code=status.HTTP_200_OK,
+    )
+
+    if not result_data.is_new_user and result_data.refresh_token:
+        refresh_max_age = 14 * 24 * 60 * 60
+        resp.set_cookie(
+            key="refresh_token",
+            value=result_data.refresh_token,
+            httponly=True,
+            secure=True if config.ENV == Env.PROD else False,
+            domain=config.COOKIE_DOMAIN or None,
+            max_age=refresh_max_age,
+        )
+    return resp
+
+
+# 3. 카카오 회원가입 (추가 정보 입력)
+@auth_router.post(
+    "/kakao/signup",
+    response_model=LoginResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def kakao_signup(
+    request: KakaoSignUpRequest,
+    auth_service: Annotated[AuthService, Depends(AuthService)],
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    response: Response,
+) -> LoginResponse:
+    temp_token = credentials.credentials
+
+    tokens = await auth_service.complete_kakao_signup(request, temp_token)
+
+    resp = Response(
+        content=tokens.model_dump(exclude={"refresh_token"}),
+        status_code=status.HTTP_201_CREATED,
+    )
+
+    resp.set_cookie(
+        key="refresh_token",
+        value=tokens.refresh_token,
+        httponly=True,
+        secure=True if config.ENV == Env.PROD else False,
+        domain=config.COOKIE_DOMAIN or None,
+        max_age=14 * 24 * 60 * 60,
+    )
+    return resp

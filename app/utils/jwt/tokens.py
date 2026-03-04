@@ -5,7 +5,12 @@ from uuid import uuid4
 
 from app.core import config
 from app.models.users import User
-from app.utils.jwt.exceptions import ExpiredTokenError, TokenBackendError, TokenBackendExpiredError, TokenError
+from app.utils.jwt.exceptions import (
+    ExpiredTokenError,
+    TokenBackendError,
+    TokenBackendExpiredError,
+    TokenError,
+)
 from app.utils.jwt.state import token_backend
 
 if TYPE_CHECKING:
@@ -30,6 +35,11 @@ class Token:
         if token is not None:
             try:
                 self.payload = token_backend.decode(token, verify=verify)
+                if verify:
+                    token_type = self.payload.get("type")
+                    if token_type != self.token_type:
+                        raise TokenError(f"토큰 타입 불일치 (기대값: {self.token_type}, 실제값: {token_type})")
+
             except TokenBackendExpiredError as err:
                 raise ExpiredTokenError("Token is expired") from err
             except TokenBackendError as err:
@@ -60,7 +70,11 @@ class Token:
         """
         return self._token_backend.encode(self.payload)
 
-    def set_exp(self, from_time: datetime | None = None, lifetime: timedelta | None = None) -> None:
+    def set_exp(
+        self,
+        from_time: datetime | None = None,
+        lifetime: timedelta | None = None,
+    ) -> None:
         if from_time is None:
             from_time = self.current_time
 
@@ -78,7 +92,7 @@ class Token:
     @classmethod
     def for_user(cls, user: User) -> Self:
         token = cls()
-        token["user_id"] = user.id
+        token["user_id"] = user.user_id
         return token
 
 
@@ -89,7 +103,7 @@ class AccessToken(Token):
 
 class RefreshToken(Token):
     token_type = "refresh"
-    lifetime = timedelta(days=config.REFRESH_TOKEN_EXPIRE_MINUTES)
+    lifetime = timedelta(minutes=config.REFRESH_TOKEN_EXPIRE_MINUTES)
     no_copy_claims = ("type", "exp", "jti")
 
     @property
@@ -104,3 +118,18 @@ class RefreshToken(Token):
             access[claim] = value
 
         return access
+
+
+class TempToken(Token):
+    token_type = "temp"
+    lifetime = timedelta(minutes=15)
+
+    @classmethod
+    def for_registration(cls, payload: dict[str, Any]) -> Self:
+        """
+        아직 가입되지 않은 신규 유저의 카카오 데이터를 담아 임시 토큰을 생성합니다.
+        """
+        token = cls()
+        for key, value in payload.items():
+            token[key] = value
+        return token
