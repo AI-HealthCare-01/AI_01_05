@@ -30,16 +30,19 @@ def validate_password(password: str) -> str:
 
 
 def validate_phone_number(phone_number: str) -> str:
-    patterns = [
-        r"010-\d{4}-\d{4}",  # 010-1234-5678
-        r"010\d{8}",  # 01012345678
-        r"\+8210\d{8}",  # +821012345678
-    ]
+    # 한국 국가코드면 일반 010 번호로 변환
+    if phone_number.startswith("+82"):
+        phone_number = "0" + phone_number[3:]
 
-    if not any(re.fullmatch(p, phone_number) for p in patterns):
+    # 숫자 이외의 문자(하이픈, 공백 등) 모두 제거
+    normalized_number = re.sub(r"\D", "", phone_number)
+
+    # 010으로 시작하는 11자리 숫자인지 확인
+    if not re.fullmatch(r"01[016789]\d{7,8}", normalized_number):
         raise ValueError("유효하지 않은 휴대폰 번호 형식입니다.")
 
-    return phone_number
+    # 정제된 번호 반환
+    return normalized_number
 
 
 def validate_birthday(birthday: date | str) -> date:

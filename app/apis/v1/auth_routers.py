@@ -11,10 +11,15 @@ from app.dtos.auth import (
     KakaoLoginResponse,
     KakaoSignUpRequest,
     LoginResponse,
+    SendPhoneCodeRequest,
+    SendPhoneCodeResponse,
     TokenRefreshResponse,
+    VerifyPhoneCodeRequest,
+    VerifyPhoneCodeResponse,
 )
 from app.services.auth import AuthService
 from app.services.jwt import JwtService
+from app.services.phone_auth import PhoneAuthService
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
@@ -98,3 +103,51 @@ async def kakao_signup(
         max_age=14 * 24 * 60 * 60,
     )
     return resp
+
+
+# 4. 휴대폰 인증번호 발송
+@auth_router.post(
+    "/phone/send-code",
+    response_model=SendPhoneCodeResponse,
+    status_code=status.HTTP_200_OK,
+    summary="휴대폰 인증번호 발송",
+)
+async def send_verification_code(
+    request: SendPhoneCodeRequest,
+    # 팀 컨벤션에 맞게 Annotated 사용
+    auth_service: Annotated[PhoneAuthService, Depends(PhoneAuthService)],
+) -> Response:  # 반환 타입도 팀 룰에 맞게 일치
+    """
+    휴대폰 번호를 입력받아 6자리 난수 인증번호를 SMS로 발송합니다.
+    (일일 최대 5회 제한)
+    """
+    result = await auth_service.send_verification_code(request.phone_number)
+
+    return Response(
+        content=result,
+        status_code=status.HTTP_200_OK,
+    )
+
+
+# 5. 휴대폰 인증번호 확인
+@auth_router.post(
+    "/phone/verify-code",
+    response_model=VerifyPhoneCodeResponse,
+    status_code=status.HTTP_200_OK,
+    summary="휴대폰 인증번호 검증",
+)
+async def verify_code(
+    request: VerifyPhoneCodeRequest,
+    auth_service: Annotated[PhoneAuthService, Depends(PhoneAuthService)],
+) -> Response:
+    """
+    사용자가 입력한 인증번호를 검증하고, 성공 시 회원가입에 사용할 임시 토큰을 반환합니다.
+    """
+    token = await auth_service.verify_code(request.phone_number, request.code)
+
+    response_data = VerifyPhoneCodeResponse(verification_token=token, message="인증이 완료되었습니다.")
+
+    return Response(
+        content=response_data.model_dump(),
+        status_code=status.HTTP_200_OK,
+    )
