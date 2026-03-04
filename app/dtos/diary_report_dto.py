@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MoodSticker(BaseModel):
@@ -10,9 +10,11 @@ class MoodSticker(BaseModel):
 
 
 class CalendarDay(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     date: date
-    hasDiary: bool
-    moodStickers: list[MoodSticker]
+    has_diary: bool = Field(alias="hasDiary")
+    mood_stickers: list[MoodSticker] = Field(alias="moodStickers")
 
 
 class DiaryCalendarResponse(BaseModel):
@@ -22,11 +24,13 @@ class DiaryCalendarResponse(BaseModel):
 
 
 class DiaryEntry(BaseModel):
-    entryId: int
+    model_config = ConfigDict(populate_by_name=True)
+
+    entry_id: int = Field(alias="entryId")
     source: str
     title: str
     content: str
-    createdAt: datetime
+    created_at: datetime = Field(alias="createdAt")
 
 
 class DiaryByDateResponse(BaseModel):
@@ -40,30 +44,40 @@ class DiaryTextSaveRequest(BaseModel):
 
 
 class DiarySaveResponse(BaseModel):
-    entryId: int
+    model_config = ConfigDict(populate_by_name=True)
+
+    entry_id: int = Field(alias="entryId")
     message: str
 
 
 class OcrUploadResponse(BaseModel):
-    entryId: int
-    extractedText: str
+    model_config = ConfigDict(populate_by_name=True)
+
+    entry_id: int = Field(alias="entryId")
+    extracted_text: str = Field(alias="extractedText")
 
 
 class OcrConfirmRequest(BaseModel):
-    entryId: int
+    model_config = ConfigDict(populate_by_name=True)
+
+    entry_id: int = Field(alias="entryId")
     title: str = Field(min_length=1)
     content: str = Field(min_length=1)
 
 
 class ChatbotSummaryResponse(BaseModel):
-    hasChatHistory: bool
-    entryId: int | None
+    model_config = ConfigDict(populate_by_name=True)
+
+    has_chat_history: bool = Field(alias="hasChatHistory")
+    entry_id: int | None = Field(alias="entryId")
     summary: str | None
-    redirectToChatbot: bool
+    redirect_to_chatbot: bool = Field(alias="redirectToChatbot")
 
 
 class ChatbotSummarySaveRequest(BaseModel):
-    entryId: int
+    model_config = ConfigDict(populate_by_name=True)
+
+    entry_id: int = Field(alias="entryId")
     title: str = Field(min_length=1)
     content: str = Field(min_length=1)
 
@@ -78,10 +92,12 @@ class DeleteDiaryResponse(BaseModel):
 
 
 class ReportListItem(BaseModel):
-    reportId: int
-    startDate: date
-    endDate: date
-    createdAt: date
+    model_config = ConfigDict(populate_by_name=True)
+
+    report_id: int = Field(alias="reportId")
+    start_date: date = Field(alias="startDate")
+    end_date: date = Field(alias="endDate")
+    created_at: date = Field(alias="createdAt")
 
 
 class ReportListResponse(BaseModel):
@@ -89,15 +105,19 @@ class ReportListResponse(BaseModel):
 
 
 class ReportCreateRequest(BaseModel):
-    startDate: date
-    endDate: date
+    model_config = ConfigDict(populate_by_name=True)
+
+    start_date: date = Field(alias="startDate")
+    end_date: date = Field(alias="endDate")
 
 
 class ReportDetailResponse(BaseModel):
-    reportId: int
-    startDate: date
-    endDate: date
-    createdAt: date
+    model_config = ConfigDict(populate_by_name=True)
+
+    report_id: int = Field(alias="reportId")
+    start_date: date = Field(alias="startDate")
+    end_date: date = Field(alias="endDate")
+    created_at: date = Field(alias="createdAt")
     summary: str
 
 
@@ -106,5 +126,7 @@ class ReportUpdateRequest(BaseModel):
 
 
 class ReportUpdateResponse(BaseModel):
-    reportId: int
+    model_config = ConfigDict(populate_by_name=True)
+
+    report_id: int = Field(alias="reportId")
     message: str
