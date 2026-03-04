@@ -15,5 +15,6 @@ wheels/
 .DS_Store
 *.env
 .env*
+envs/*.env
 !*example*.env
 !*template*.env

@@ -1,4 +1,5 @@
 from typing import Literal, overload
+
 from fastapi import HTTPException, status
 
 from app.models.users import User
@@ -32,14 +33,11 @@ class JwtService:
     ) -> RefreshToken: ...
 
     @overload
-    def verify_jwt(
-        self, token: str, token_type: Literal["temp"]
-    ) -> TempToken: ...
+    def verify_jwt(self, token: str, token_type: Literal["temp"]) -> TempToken: ...
 
     def verify_jwt(
         self, token: str, token_type: Literal["access", "refresh", "temp"]
     ) -> AccessToken | RefreshToken | TempToken:
-
         if token_type == "access":
             token_class = self.access_token_class
         elif token_type == "refresh":
@@ -70,9 +68,7 @@ class JwtService:
         verified_rt = self.verify_jwt(token=refresh_token, token_type="refresh")
         return verified_rt.access_token
 
-    def issue_jwt_pair(
-        self, user: User
-    ) -> dict[str, AccessToken | RefreshToken]:
+    def issue_jwt_pair(self, user: User) -> dict[str, AccessToken | RefreshToken]:
         rt = self.create_refresh_token(user)
         at = rt.access_token
         return {"access_token": at, "refresh_token": rt}

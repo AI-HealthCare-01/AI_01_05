@@ -21,9 +21,7 @@ class User(models.Model):
     last_login = fields.DatetimeField(null=True)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
-    kakao_id = fields.CharField(
-        max_length=255, unique=True, index=True
-    )
+    kakao_id = fields.CharField(max_length=255, unique=True, index=True)
     terms_agreed = fields.BooleanField(default=False)
     privacy_agreed = fields.BooleanField(default=False)
     sensitive_agreed = fields.BooleanField(default=False)

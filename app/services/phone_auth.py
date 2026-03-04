@@ -1,17 +1,24 @@
+import hashlib
+import hmac
+import logging
 import random
 import uuid
-import hmac
-import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Annotated
+
 import httpx
-from fastapi import HTTPException, status, Depends
+from fastapi import Depends, HTTPException, status
 from redis.asyncio import Redis
+
 from app.core import config
+from app.core.config import Env
 from app.dependencies.redis import get_redis
+
+logger = logging.getLogger(__name__)
 
 
 class PhoneAuthService:
-    def __init__(self, redis_client: Redis = Depends(get_redis)):
+    def __init__(self, redis_client: Annotated[Redis, Depends(get_redis)]):
         self.redis = redis_client
         self.code_ttl = 180  # 인증번호 유효시간 (3분)
         self.token_ttl = 1800  # 인증 완료 토큰 유효시간 (30분)
@@ -25,7 +32,7 @@ class PhoneAuthService:
         api_secret = config.SOLAPI_API_SECRET
 
         # 반드시 UTC 시간으로 생성해야 합니다.
-        date = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        date = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         salt = uuid.uuid4().hex
         data = date + salt
 
@@ -66,7 +73,7 @@ class PhoneAuthService:
             "message": {
                 "to": phone_number,
                 "from": config.SOLAPI_SENDER_NUMBER,
-                "text": f"[5FCV] 인증번호는 [{code}] 입니다. 타인에게 절대 공유하지 마세요.",
+                "text": f"[도닥톡] 인증번호는 [{code}] 입니다. 타인에게 절대 공유하지 마세요.",
             }
         }
 
@@ -80,9 +87,9 @@ class PhoneAuthService:
 
             except httpx.HTTPStatusError as e:
                 error_data = e.response.json()
-                # 실무에서는 print 대신 logging을 써야 합니다.
-                print(
-                    f"[Solapi Error] 상태코드: {e.response.status_code}, 상세: {error_data}"
+                logger.error(
+                    f"[Solapi Error] 상태코드: {e.response.status_code}, 상세: {error_data}",
+                    exc_info=True,
                 )
 
                 # 에러 코드에 따른 명확한 프론트엔드 피드백
@@ -96,13 +103,13 @@ class PhoneAuthService:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=detail_msg,
-                )
+                ) from e
 
-            except httpx.RequestError:
+            except httpx.RequestError as e:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail="SMS 발송 서버(Solapi)와의 통신에 실패했습니다.",
-                )
+                ) from e
 
         return {
             "ttl": self.code_ttl,
@@ -141,6 +148,13 @@ class PhoneAuthService:
         """
         3. [최종 회원가입 시 호출] 프론트엔드가 제출한 인증 증명 토큰이 유효한지 봅니다.
         """
+        if (
+            config.ENV != Env.PROD
+            and config.TEST_VERIFICATION_TOKEN
+            and verification_token == config.TEST_VERIFICATION_TOKEN
+        ):
+            return
+
         token_key = f"verified_phone:{verification_token}"
         stored_phone = await self.redis.get(token_key)
 

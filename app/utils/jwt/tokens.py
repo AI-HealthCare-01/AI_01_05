@@ -35,6 +35,13 @@ class Token:
         if token is not None:
             try:
                 self.payload = token_backend.decode(token, verify=verify)
+                if verify:
+                    token_type = self.payload.get("type")
+                    if token_type != self.token_type:
+                        raise TokenError(
+                            f"토큰 타입 불일치 (기대값: {self.token_type}, 실제값: {token_type})"
+                        )
+
             except TokenBackendExpiredError as err:
                 raise ExpiredTokenError("Token is expired") from err
             except TokenBackendError as err:
@@ -87,7 +94,7 @@ class Token:
     @classmethod
     def for_user(cls, user: User) -> Self:
         token = cls()
-        token["user_id"] = user.id
+        token["user_id"] = user.user_id
         return token
 
 
@@ -98,7 +105,7 @@ class AccessToken(Token):
 
 class RefreshToken(Token):
     token_type = "refresh"
-    lifetime = timedelta(days=config.REFRESH_TOKEN_EXPIRE_MINUTES)
+    lifetime = timedelta(minutes=config.REFRESH_TOKEN_EXPIRE_MINUTES)
     no_copy_claims = ("type", "exp", "jti")
 
     @property
