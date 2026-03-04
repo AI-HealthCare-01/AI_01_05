@@ -48,8 +48,8 @@ url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [tool.aerich]
-tortoise_orm = "app.db.databases.TORTOISE_ORM"
-location = "./app/db/migrations"
+tortoise_orm = "app.core.db.TORTOISE_ORM"
+location = "./migrations"
 src_folder = "./."
 
 [tool.pytest.ini_options]
