@@ -102,7 +102,9 @@ async def get_chatbot_summary(
     return await service.get_chatbot_summary(user_id=user.user_id, entry_date=entry_date)
 
 
-@router.post("/{entry_date}/chatbot/summary/save", response_model=DiarySaveResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{entry_date}/chatbot/summary/save", response_model=DiarySaveResponse, status_code=status.HTTP_201_CREATED
+)
 async def save_chatbot_summary(
     entry_date: date,
     request: ChatbotSummarySaveRequest,
