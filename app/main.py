@@ -1,20 +1,19 @@
-# ruff: noqa: E402
+import uvicorn
 from dotenv import load_dotenv
+from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
+
+# 1. 로컬 모듈 임포트 (환경 변수 로드 후에 가져와야 안전한 경우)
+from app.apis.v1 import v1_routers
+
+# 2. 환경 변수 로드 (가장 먼저 실행)
 load_dotenv("envs/.local.env")
 
-# ... 나머지 코드
-# 2. 환경 변수가 로드된 후, v1_routers를 가져옵니다.
-# (이 안에 chatbot, auth, user 라우터가 포함되어 있습니다.)
-
-# 아래와 같이 주석을 달면 에러가 사라집니다.
-from fastapi import FastAPI  # noqa: E402
-from starlette.middleware.cors import CORSMiddleware  # noqa: E402
-from app.apis.v1 import v1_routers  # noqa: E402
 
 # 3. FastAPI 앱 초기화
 app = FastAPI(title="AI Healthcare Chatbot Server")
 
-# 4. CORS 설정 (프론트엔드와 통신을 위해 허용)
+# 4. CORS 설정
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,8 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 5. v1 라우터 등록 (auth, users, chatbot 기능 통합)
-# 이제 모든 API는 /api/v1/... 경로로 작동합니다.
+# 5. v1 라우터 등록
 app.include_router(v1_routers)
 
 
@@ -34,9 +32,6 @@ async def root():
     return {"status": "running", "message": "HealthCare AI Server is alive!"}
 
 
-# 7. 파이썬 명령어로 직접 실행할 때 uvicorn 구동
+# 7. 실행부
 if __name__ == "__main__":
-    import uvicorn
-
-    # 8000번 포트에서 서버 실행
     uvicorn.run(app, host="0.0.0.0", port=8001)
