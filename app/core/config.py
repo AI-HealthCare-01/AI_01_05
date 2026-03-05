@@ -44,3 +44,5 @@ class Config(BaseSettings):
     SOLAPI_API_KEY: str
     SOLAPI_API_SECRET: str
     SOLAPI_SENDER_NUMBER: str
+
+    TEST_VERIFICATION_TOKEN: str = ""
