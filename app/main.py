@@ -1,16 +1,15 @@
+# ruff: noqa: E402
 from dotenv import load_dotenv
-import os
-
-# 1. 다른 모듈을 불러오기 전에 반드시 환경 변수를 가장 먼저 로드해야 합니다.
-# 이 순서가 틀리면 chatbot_engine이 OPENAI_API_KEY를 찾지 못해 에러가 발생합니다.
 load_dotenv("envs/.local.env")
 
-from fastapi import FastAPI
-from starlette.middleware.cors import CORSMiddleware
-
+# ... 나머지 코드
 # 2. 환경 변수가 로드된 후, v1_routers를 가져옵니다.
 # (이 안에 chatbot, auth, user 라우터가 포함되어 있습니다.)
-from app.apis.v1 import v1_routers
+
+# 아래와 같이 주석을 달면 에러가 사라집니다.
+from fastapi import FastAPI  # noqa: E402
+from starlette.middleware.cors import CORSMiddleware  # noqa: E402
+from app.apis.v1 import v1_routers  # noqa: E402
 
 # 3. FastAPI 앱 초기화
 app = FastAPI(title="AI Healthcare Chatbot Server")
