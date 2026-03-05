@@ -18,3 +18,12 @@ wheels/
 envs/*.env
 !*example*.env
 !*template*.env
+# 데이터베이스 관련 (로컬 테스트용 DB 파일이 생성될 경우 방지)
+*.db
+*.sqlite3
+
+# 로그 파일 (서버 실행 로그가 파일로 남을 경우)
+*.log
+
+# 의존성 관리 도구 (uv를 사용 중이시라면)
+.python-version
