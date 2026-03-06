@@ -89,3 +89,105 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 14px; font-weight: 500; }
 .form-stack { display: flex; flex-direction: column; gap: 18px; }
+
+/* ── CharacterSelectPage ── */
+.character-select-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  padding: 0 20px;
+}
+
+.cs-header {
+  padding: 48px 0 32px;
+  text-align: center;
+}
+.cs-main-copy {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.5;
+}
+.cs-sub-copy {
+  font-size: 14px;
+  color: var(--placeholder);
+  margin-top: 8px;
+  line-height: 1.6;
+}
+.cs-badge {
+  display: inline-block;
+  margin-top: 16px;
+  background: #f0f4ee;
+  color: var(--btn-bg);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 20px;
+}
+
+.cs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding-bottom: 120px;
+}
+
+.cs-card {
+  background: #fff;
+  border-radius: 20px;
+  border: 2.5px solid transparent;
+  padding: 24px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  animation: cardIn 0.35s ease both;
+}
+.cs-card:hover {
+  border-color: rgba(153,169,136,0.4);
+  box-shadow: 0 4px 16px rgba(153,169,136,0.2);
+  transform: translateY(-2px);
+}
+.cs-card.selected {
+  border-color: var(--btn-bg);
+  box-shadow: 0 4px 20px rgba(153,169,136,0.3);
+}
+.cs-card img { object-fit: contain; }
+.cs-card-name { font-size: 16px; font-weight: 700; color: var(--text); }
+.cs-card-desc {
+  font-size: 12px;
+  color: var(--placeholder);
+  text-align: center;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+.cs-card-check { font-size: 13px; font-weight: 600; color: var(--btn-bg); }
+
+.cs-footer {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  padding: 16px 20px 32px;
+  background: linear-gradient(to top, #F5F5F5 80%, transparent);
+}
+.cs-confirm-btn {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  height: 52px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 700;
+}
+.cs-confirm-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
