@@ -1,3 +1,4 @@
+# Python
 __pycache__/
 *.py[oc]
 build/
@@ -5,16 +6,31 @@ dist/
 wheels/
 *.egg-info
 .venv
-.*.env
+
+# Env files
 .env
-.idea/
-.vscode
-.coverage
-*.coverage
-.coverage.*
-.DS_Store
-*.env
 .env*
+*.env
+.*.env
 envs/*.env
 !*example*.env
 !*template*.env
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+.coverage
+*.coverage
+.coverage.*
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.production
