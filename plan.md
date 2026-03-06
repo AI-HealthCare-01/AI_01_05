@@ -637,8 +637,8 @@ const [error, setError] = useState('')
 
 ### Phase 4: 메인 화면 BFF API 및 고도화
 
-- [ ] **[Test]** BFF API 통합 테스트 작성
-- [ ] **[API]** `GET /api/v1/home/summary` — `asyncio.gather()` 병렬 조회 구현
+- [x] **[Test]** BFF API 통합 테스트 작성
+- [x] **[API]** `GET /api/v1/home/summary` — `asyncio.gather()` 병렬 조회 구현
 - [ ] **[FE]** `MainPage.tsx` 실제 데이터 연동
 - [ ] **[AI]** AI Worker와 챗봇 요약 기능 실제 연동
 - [ ] **[Infra]** Aerich 마이그레이션 파일 정리 및 운영 DB 적용
