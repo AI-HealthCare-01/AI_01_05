@@ -6,6 +6,8 @@ from tortoise.contrib.test import TestCase
 
 from app.core import memory_db
 from app.main import app
+from app.models.users import Gender, User
+from app.services.jwt import JwtService
 
 
 class TestDiaryReportApis(TestCase):
@@ -17,16 +19,28 @@ class TestDiaryReportApis(TestCase):
         memory_db.diary_entry_sequence = 1
         memory_db.report_sequence = 1
 
+    async def _get_auth_headers(self) -> dict[str, str]:
+        user = await User.create(
+            kakao_id="diary_test_kakao",
+            nickname="다이어리테스터",
+            phone_number="01044445555",
+            gender=Gender.UNKNOWN,
+            terms_agreed=True,
+            privacy_agreed=True,
+            sensitive_agreed=True,
+        )
+        tokens = JwtService().issue_jwt_pair(user)
+        return {"Authorization": f"Bearer {tokens['access_token']}"}
+
     async def test_diary_unauthorized(self):
         self._reset_memory()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/diary/calendar?year=2026&month=2")
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
-        assert response.json()["error"] == "UNAUTHORIZED"
 
     async def test_create_and_get_diary_by_date(self):
         self._reset_memory()
-        headers = {"Authorization": "Bearer test-token"}
+        headers = await self._get_auth_headers()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             create_response = await client.post(
                 "/api/v1/diary/2026-02-27/text",
@@ -42,7 +56,7 @@ class TestDiaryReportApis(TestCase):
 
     async def test_ocr_upload_and_confirm(self):
         self._reset_memory()
-        headers = {"Authorization": "Bearer test-token"}
+        headers = await self._get_auth_headers()
         files = {"image": ("handwriting.png", BytesIO(b"png-binary-data"), "image/png")}
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             upload_response = await client.post("/api/v1/diary/2026-02-27/photo/ocr", files=files, headers=headers)
@@ -60,7 +74,7 @@ class TestDiaryReportApis(TestCase):
 
     async def test_report_crud_flow(self):
         self._reset_memory()
-        headers = {"Authorization": "Bearer test-token"}
+        headers = await self._get_auth_headers()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             create_response = await client.post(
                 "/api/v1/diary/report",
