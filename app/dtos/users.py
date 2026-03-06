@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Annotated
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 from app.dtos.base import BaseSerializerModel
 from app.models.users import Gender
@@ -35,21 +35,24 @@ class UserInfoResponse(BaseSerializerModel):
     user_id: int
     nickname: str
     email: str | None = None
-    phone_number: str
+    phone_number: str = Field("")
     birthday: date | None = None
-    gender: Gender
-    created_at: datetime
+    gender: Gender = Field(Gender.UNKNOWN)
+    created_at: datetime = Field(default_factory=datetime.now)
     onboarding_completed: bool = False
 
+    @model_validator(mode="before")
     @classmethod
-    def model_validate(cls, obj, **kwargs):  # type: ignore[override]
-        return cls(
-            id=getattr(obj, "user_id", None),
-            name=getattr(obj, "nickname", ""),
-            email=getattr(obj, "email", None),
-            phone_number=getattr(obj, "phone_number", ""),
-            birthday=getattr(obj, "birthday", None),
-            gender=getattr(obj, "gender", None),
-            created_at=getattr(obj, "created_at", None),
-            onboarding_completed=getattr(obj, "onboarding_completed", False),
-        )
+    def _map_from_orm(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return {
+                "id": getattr(data, "user_id", 0),
+                "name": getattr(data, "nickname", ""),
+                "email": getattr(data, "email", None),
+                "phone_number": getattr(data, "phone_number", ""),
+                "birthday": getattr(data, "birthday", None),
+                "gender": getattr(data, "gender", Gender.UNKNOWN),
+                "created_at": getattr(data, "created_at", None),
+                "onboarding_completed": getattr(data, "onboarding_completed", False),
+            }
+        return data
