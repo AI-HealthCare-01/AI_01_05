@@ -1,4 +1,3 @@
-from unittest.mock import AsyncMock, patch
 
 from httpx import ASGITransport, AsyncClient
 from starlette import status
@@ -26,7 +25,7 @@ async def _create_user_and_get_refresh_token(kakao_id: str, phone: str) -> tuple
 
 class TestJWTTokenRefreshAPI(TestCase):
     async def test_token_refresh_success(self):
-        """유효한 refresh_token 쿠키로 새 access_token을 발급받는다."""
+        """유효한 refresh_token 쿠키로 새 access_token을 발급받고, 응답에 refresh_token은 없어야 한다."""
         user, refresh_token = await _create_user_and_get_refresh_token("rt_kakao_001", "01011112222")
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -35,17 +34,6 @@ class TestJWTTokenRefreshAPI(TestCase):
 
         assert response.status_code == status.HTTP_200_OK
         assert "access_token" in response.json()
-        await user.delete()
-
-    async def test_token_refresh_response_has_no_refresh_token_field(self):
-        """토큰 갱신 응답 body에 refresh_token 필드가 없어야 한다."""
-        user, refresh_token = await _create_user_and_get_refresh_token("rt_kakao_002", "01022223333")
-
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            client.cookies["refresh_token"] = refresh_token
-            response = await client.get("/api/v1/auth/token/refresh")
-
-        assert response.status_code == status.HTTP_200_OK
         assert "refresh_token" not in response.json()
         await user.delete()
 

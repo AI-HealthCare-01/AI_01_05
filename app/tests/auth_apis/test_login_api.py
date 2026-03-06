@@ -1,11 +1,12 @@
-import httpx
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 from httpx import ASGITransport, AsyncClient
 from starlette import status
 from tortoise.contrib.test import TestCase
 
 from app.main import app
+from app.models.users import Gender, User
 
 KAKAO_ID = "test_kakao_123"
 NICKNAME = "테스터"
@@ -35,8 +36,6 @@ def _make_kakao_mock(kakao_id: str = KAKAO_ID, nickname: str = NICKNAME):
 class TestKakaoLoginAPI(TestCase):
     async def test_existing_user_returns_access_token(self):
         """기존 회원 카카오 로그인 시 access_token과 refresh_token 쿠키를 반환한다."""
-        from app.models.users import Gender, User
-
         user = await User.create(
             kakao_id=KAKAO_ID,
             nickname=NICKNAME,
