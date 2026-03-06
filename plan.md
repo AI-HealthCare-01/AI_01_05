@@ -615,12 +615,11 @@ const [error, setError] = useState('')
 
 ### Phase 2: 인메모리 → 실제 DB 연동 전환
 
-- [ ] **[Test]** Mood, Appointment 서비스 테스트 작성 (실제 DB 기반)
-- [ ] **[Mood]** `MoodService` 클래스 작성 + Tortoise ORM 연동
-- [ ] **[Mood]** `mood_routers.py` 리팩터 — `dict` 타입 제거, DTO + 인증 적용
-- [ ] **[Mood]** `GET /moods/calendar` 엔드포인트 추가
-- [ ] **[Appointment]** `AppointmentService` 클래스 작성 + Tortoise ORM 연동
-- [ ] **[Appointment]** `appointment_routers.py` 리팩터 — 인증 적용, PATCH/DELETE 추가
+- [x] **[Test]** Mood, Appointment 서비스 테스트 작성 (실제 DB 기반)
+- [x] **[Mood]** `MoodService` 클래스 작성 + Tortoise ORM 연동
+- [x] **[Mood]** `mood_routers.py` 리팩터 — `dict` 타입 제거, DTO + 인증 적용
+- [x] **[Appointment]** `AppointmentService` 클래스 작성 + Tortoise ORM 연동
+- [x] **[Appointment]** `appointment_routers.py` 리팩터 — 인증 적용, PATCH/DELETE 추가
 - [ ] **[Diary]** `DiaryReportService` — `fake_ocr_pending`, `fake_chatbot_pending` 인메모리 의존성 제거, DB 또는 Redis 기반으로 교체
 
 ---
