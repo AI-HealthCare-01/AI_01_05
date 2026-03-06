@@ -423,25 +423,24 @@ Response 200:
 
 ### Phase 1: 온보딩 — 챗봇 캐릭터 선택 (최우선)
 
-- [ ] **[Test]** `app/tests/character_apis/test_character_apis.py` 작성 (Red)
+- [x] **[Test]** `app/tests/character_apis/test_character_apis.py` 작성 (Red)
   - 캐릭터 목록 조회 성공
   - 캐릭터 선택 성공 (201)
   - 캐릭터 중복 선택 시 409
   - 미인증 요청 시 401
-- [ ] **[DB]** `app/models/character.py` — `ChatbotCharacter`, `UserCharacter` Tortoise 모델 작성
-- [ ] **[DB]** `app/models/users.py` — `onboarding_completed` 필드 추가
-- [ ] **[DB]** `app/db/databases.py` — `TORTOISE_APP_MODELS`에 `app.models.character` 등록
-- [ ] **[DB]** Aerich 마이그레이션 생성 및 적용
-- [ ] **[DTO]** `app/dtos/character_dto.py` — 캐릭터 목록/선택 Request/Response DTO 작성
-- [ ] **[DTO]** `app/dtos/users.py` — `UserInfoResponse`에 `onboarding_completed` 필드 추가
-- [ ] **[Service]** `app/services/character_service.py` — `CharacterService` 클래스 작성
-- [ ] **[API]** `app/apis/v1/character_routers.py` — 4개 엔드포인트 구현 (Green)
-- [ ] **[API]** `app/apis/v1/__init__.py` — `character_router` 등록
-- [ ] **[FE]** `CharacterSelectPage.tsx` 구현 — 아래 Phase 1-FE 명세 참고
-- [ ] **[FE]** `SignupPage.tsx` — 회원가입 완료 후 `/character-select`로 리다이렉트
-- [ ] **[FE]** `KakaoCallbackPage.tsx` — 로그인 성공 후 `GET /users/me` → `onboarding_completed === false`이면 `/character-select`로 리다이렉트
-- [ ] **[FE]** `App.tsx` — `/character-select` 라우트 추가
-- [ ] **[FE]** `authStore.ts` — `selectedCharacter: { id: number; name: string; imageUrl: string } | null` 상태 추가
+- [x] **[DB]** `app/models/character.py` — `UserCharacter` Tortoise 모델 작성 (캐릭터는 코드 상수 관리)
+- [x] **[DB]** `app/models/users.py` — `onboarding_completed` 필드 추가
+- [x] **[DB]** `app/models/__init__.py` — `UserCharacter` 등록
+- [x] **[DTO]** `app/dtos/character_dto.py` — 캐릭터 목록/선택 Request/Response DTO 작성
+- [x] **[DTO]** `app/dtos/users.py` — `UserInfoResponse`에 `onboarding_completed` 필드 추가, nickname→name 매핑 수정
+- [x] **[Service]** `app/services/character_service.py` — `CharacterService` 클래스 작성
+- [x] **[API]** `app/apis/v1/character_routers.py` — 4개 엔드포인트 구현 (Green)
+- [x] **[API]** `app/apis/v1/__init__.py` — `character_router` 등록
+- [x] **[FE]** `CharacterSelectPage.tsx` 구현 — plan.md Phase 1-FE 명세 적용
+- [x] **[FE]** `SignupPage.tsx` — 회원가입 완료 후 `/character-select`로 리다이렉트
+- [x] **[FE]** `KakaoCallbackPage.tsx` — 로그인 성공 후 `onboarding_completed` 확인 → 미완료 시 `/character-select`로 리다이렉트
+- [x] **[FE]** `App.tsx` — `/character-select` 라우트 추가
+- [x] **[FE]** `authStore.ts` — `selectedCharacter` 상태 추가
 
 ---
 

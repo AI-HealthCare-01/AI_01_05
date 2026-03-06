@@ -1,4 +1,5 @@
 from .appointment import Appointment
+from .character import UserCharacter
 from .diary import Diary
 from .mood import Mood
 from .report import Report

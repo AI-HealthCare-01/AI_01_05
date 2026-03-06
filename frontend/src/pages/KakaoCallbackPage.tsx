@@ -18,11 +18,21 @@ export default function KakaoCallbackPage() {
     }
 
     kakaoLogin(code)
-      .then((data) => {
+      .then(async (data) => {
         if (!data.is_new_user && data.access_token) {
           localStorage.setItem('access_token', data.access_token)
           useAuthStore.getState().setAccessToken(data.access_token)
-          navigate('/main', { replace: true })
+          // onboarding_completed 확인
+          const meRes = await fetch('/api/v1/users/me', {
+            headers: { Authorization: `Bearer ${data.access_token}` },
+            credentials: 'include',
+          })
+          if (meRes.ok) {
+            const me = await meRes.json()
+            navigate(me.onboarding_completed ? '/main' : '/character-select', { replace: true })
+          } else {
+            navigate('/main', { replace: true })
+          }
         } else if (data.is_new_user && data.temp_token) {
           sessionStorage.setItem('temp_token', data.temp_token)
           navigate('/signup', {
