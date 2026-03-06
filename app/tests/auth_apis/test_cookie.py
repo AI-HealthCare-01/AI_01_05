@@ -30,10 +30,12 @@ class TestRefreshTokenCookie(TestCase):
 
         user_resp = AsyncMock()
         user_resp.raise_for_status = MagicMock()
-        user_resp.json = MagicMock(return_value={
-            "id": KAKAO_ID,
-            "kakao_account": {"profile": {"nickname": "쿠키테스터"}},
-        })
+        user_resp.json = MagicMock(
+            return_value={
+                "id": KAKAO_ID,
+                "kakao_account": {"profile": {"nickname": "쿠키테스터"}},
+            }
+        )
 
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)

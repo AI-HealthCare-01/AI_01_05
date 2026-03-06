@@ -20,10 +20,12 @@ def _make_kakao_mock(kakao_id: str = KAKAO_ID, nickname: str = NICKNAME):
 
     user_resp = AsyncMock()
     user_resp.raise_for_status = MagicMock()
-    user_resp.json = MagicMock(return_value={
-        "id": kakao_id,
-        "kakao_account": {"profile": {"nickname": nickname}},
-    })
+    user_resp.json = MagicMock(
+        return_value={
+            "id": kakao_id,
+            "kakao_account": {"profile": {"nickname": nickname}},
+        }
+    )
 
     mock_client = AsyncMock()
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
