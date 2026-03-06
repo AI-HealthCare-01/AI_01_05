@@ -47,3 +47,17 @@ class Config(BaseSettings):
     SOLAPI_SENDER_NUMBER: str
 
     TEST_VERIFICATION_TOKEN: str = ""
+
+    # OCR integration
+    # OCR_PROVIDER: "stub" | "http"
+    OCR_PROVIDER: str = "stub"
+    OCR_API_URL: str | None = None
+    OCR_API_KEY: str | None = None
+    OCR_TIMEOUT_SECONDS: int = 20
+
+    # LLM integration
+    # LLM_PROVIDER: "stub" | "openai"
+    LLM_PROVIDER: str = "stub"
+    LLM_API_KEY: str | None = None
+    LLM_MODEL: str = "gpt-4o-mini"
+    LLM_TIMEOUT_SECONDS: int = 30

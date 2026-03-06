@@ -20,8 +20,6 @@ from app.dtos.diary_report_dto import (
     ReportCreateRequest,
     ReportDetailResponse,
     ReportListResponse,
-    ReportUpdateRequest,
-    ReportUpdateResponse,
 )
 from app.models.users import User
 from app.services.diary_report_service import DiaryReportService
@@ -66,11 +64,15 @@ async def extract_ocr_text(
     file_type = (image.content_type or "").lower()
     file_bytes = await image.read()
     try:
-        return service.extract_ocr_text(entry_date=entry_date, file_type=file_type, file_bytes=file_bytes)
+        return await service.extract_ocr_text(entry_date=entry_date, file_type=file_type, file_bytes=file_bytes)
     except ValueError as e:
         error_code = str(e)
         if error_code == "FILE_TOO_LARGE":
             status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+        elif error_code in {"OCR_NOT_CONFIGURED", "OCR_PROVIDER_NOT_SUPPORTED"}:
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        elif error_code == "OCR_EMPTY_RESULT":
+            status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
         else:
             status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
         return ORJSONResponse(status_code=status_code, content={"error": error_code})
@@ -180,18 +182,6 @@ async def get_report_detail(
 ):
     try:
         return await service.get_report_detail(user_id=user.user_id, report_id=report_id)
-    except LookupError as e:
-        return ORJSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"error": str(e)})
-
-
-@router.put("/report/{report_id}", response_model=ReportUpdateResponse)
-async def update_report(
-    report_id: int,
-    request: ReportUpdateRequest,
-    user: Annotated[User, Depends(get_request_user)],
-):
-    try:
-        return await service.update_report(user_id=user.user_id, report_id=report_id, summary=request.summary)
     except LookupError as e:
         return ORJSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"error": str(e)})
 
