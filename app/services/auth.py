@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date
 from typing import Annotated
 
 import httpx
@@ -206,7 +206,7 @@ class AuthService:
         user_birthday = None
         if request.birthday:
             try:
-                user_birthday = datetime.strptime(request.birthday, "%Y-%m-%d").date()
+                user_birthday = date.fromisoformat(request.birthday)
             except ValueError as e:
                 raise HTTPException(status_code=400, detail="생년월일 형식이 올바르지 않습니다.") from e
 
