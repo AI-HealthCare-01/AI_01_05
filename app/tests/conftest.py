@@ -1,6 +1,5 @@
 import asyncio
 from collections.abc import Generator
-from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -9,23 +8,19 @@ from _pytest.fixtures import FixtureRequest
 from tortoise import generate_config
 from tortoise.contrib.test import finalizer, initializer
 
-from app.core import config
 from app.db.databases import TORTOISE_APP_MODELS
 
-TEST_BASE_URL = "http://test"
-TEST_DB_LABEL = "models"
 TEST_DB_TZ = "Asia/Seoul"
 
 
-def get_test_db_config() -> dict[str, Any]:
+def get_test_db_config() -> dict:
     tortoise_config = generate_config(
-        db_url=f"mysql://{config.DB_USER}:{config.DB_PASSWORD}@{config.DB_HOST}:{config.DB_PORT}/test",
-        app_modules={TEST_DB_LABEL: TORTOISE_APP_MODELS},
-        connection_label=TEST_DB_LABEL,
+        db_url="sqlite://:memory:",
+        app_modules={"models": TORTOISE_APP_MODELS},
+        connection_label="models",
         testing=True,
     )
     tortoise_config["timezone"] = TEST_DB_TZ
-
     return tortoise_config
 
 
