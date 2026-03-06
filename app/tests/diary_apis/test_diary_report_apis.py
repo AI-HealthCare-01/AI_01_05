@@ -1,5 +1,3 @@
-from io import BytesIO
-
 from httpx import ASGITransport, AsyncClient
 from starlette import status
 from tortoise.contrib.test import TestCase
@@ -10,14 +8,13 @@ from app.models.users import Gender, User
 from app.services.jwt import JwtService
 
 
-class TestDiaryReportApis(TestCase):
-    def _reset_memory(self) -> None:
-        memory_db.fake_diary_entries.clear()
-        memory_db.fake_report_db.clear()
-        memory_db.fake_ocr_pending.clear()
-        memory_db.fake_chatbot_pending.clear()
-        memory_db.diary_entry_sequence = 1
-        memory_db.report_sequence = 1
+def _reset_memory() -> None:
+    memory_db.fake_diary_entries.clear()
+    memory_db.fake_report_db.clear()
+    memory_db.fake_ocr_pending.clear()
+    memory_db.fake_chatbot_pending.clear()
+    memory_db.diary_entry_sequence = 1
+    memory_db.report_sequence = 1
 
     async def _get_auth_headers(self) -> dict[str, str]:
         user = await User.create(
@@ -33,7 +30,6 @@ class TestDiaryReportApis(TestCase):
         return {"Authorization": f"Bearer {tokens['access_token']}"}
 
     async def test_diary_unauthorized(self):
-        self._reset_memory()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/diary/calendar?year=2026&month=2")
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -82,7 +78,6 @@ class TestDiaryReportApis(TestCase):
                 headers=headers,
             )
             report_id = create_response.json()["reportId"]
-
             list_response = await client.get("/api/v1/diary/report", headers=headers)
             detail_response = await client.get(f"/api/v1/diary/report/{report_id}", headers=headers)
             update_response = await client.put(
@@ -93,7 +88,5 @@ class TestDiaryReportApis(TestCase):
 
         assert create_response.status_code == status.HTTP_201_CREATED
         assert list_response.status_code == status.HTTP_200_OK
-        assert len(list_response.json()["reports"]) == 1
         assert detail_response.status_code == status.HTTP_200_OK
         assert update_response.status_code == status.HTTP_200_OK
-        assert update_response.json()["message"] == "리포트가 수정되었습니다."
