@@ -12,8 +12,8 @@ class LoginResponse(BaseModel):
     refresh_token: str
 
 
-class TokenRefreshResponse(LoginResponse):
-    pass
+class TokenRefreshResponse(BaseModel):
+    access_token: str
 
 
 class KakaoLoginRequest(BaseModel):

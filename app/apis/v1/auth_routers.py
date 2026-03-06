@@ -66,8 +66,9 @@ async def kakao_login(
             key="refresh_token",
             value=result_data.refresh_token,
             httponly=True,
-            secure=True if config.ENV == Env.PROD else False,
-            domain=config.COOKIE_DOMAIN or None,
+            secure=config.ENV == Env.PROD,
+            domain=config.COOKIE_DOMAIN if config.ENV == Env.PROD else None,
+            samesite="lax",
             max_age=refresh_max_age,
         )
     return resp
@@ -98,8 +99,9 @@ async def kakao_signup(
         key="refresh_token",
         value=tokens.refresh_token,
         httponly=True,
-        secure=True if config.ENV == Env.PROD else False,
-        domain=config.COOKIE_DOMAIN or None,
+        secure=config.ENV == Env.PROD,
+        domain=config.COOKIE_DOMAIN if config.ENV == Env.PROD else None,
+        samesite="lax",
         max_age=14 * 24 * 60 * 60,
     )
     return resp
