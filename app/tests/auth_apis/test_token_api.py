@@ -1,46 +1,58 @@
+from unittest.mock import AsyncMock, patch
+
 from httpx import ASGITransport, AsyncClient
 from starlette import status
 from tortoise.contrib.test import TestCase
 
 from app.main import app
+from app.models.users import Gender, User
+from app.services.jwt import JwtService
+
+
+async def _create_user_and_get_refresh_token(kakao_id: str, phone: str) -> tuple[User, str]:
+    user = await User.create(
+        kakao_id=kakao_id,
+        nickname="토큰테스터",
+        phone_number=phone,
+        gender=Gender.UNKNOWN,
+        terms_agreed=True,
+        privacy_agreed=True,
+        sensitive_agreed=True,
+    )
+    jwt_service = JwtService()
+    tokens = jwt_service.issue_jwt_pair(user)
+    return user, str(tokens["refresh_token"])
 
 
 class TestJWTTokenRefreshAPI(TestCase):
     async def test_token_refresh_success(self):
-        # 사용자 등록 및 로그인하여 리프레시 토큰 획득
-        signup_data = {
-            "email": "refresh@example.com",
-            "password": "Password123!",
-            "name": "리프레시테스터",
-            "gender": "MALE",
-            "birth_date": "1990-01-01",
-            "phone_number": "01099998888",
-        }
+        """유효한 refresh_token 쿠키로 새 access_token을 발급받는다."""
+        user, refresh_token = await _create_user_and_get_refresh_token("rt_kakao_001", "01011112222")
+
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            await client.post("/api/v1/auth/signup", json=signup_data)
-
-            login_response = await client.post(
-                "/api/v1/auth/login", json={"email": "refresh@example.com", "password": "Password123!"}
-            )
-
-            # 쿠키에서 refresh_token 추출
-            set_cookie = login_response.headers.get("set-cookie")
-            refresh_token = ""
-            if set_cookie:
-                import re
-
-                match = re.search(r"refresh_token=([^;]+)", set_cookie)
-                if match:
-                    refresh_token = match.group(1)
-
-            # 토큰 갱신 시도
             client.cookies["refresh_token"] = refresh_token
             response = await client.get("/api/v1/auth/token/refresh")
+
         assert response.status_code == status.HTTP_200_OK
         assert "access_token" in response.json()
+        await user.delete()
+
+    async def test_token_refresh_response_has_no_refresh_token_field(self):
+        """토큰 갱신 응답 body에 refresh_token 필드가 없어야 한다."""
+        user, refresh_token = await _create_user_and_get_refresh_token("rt_kakao_002", "01022223333")
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            client.cookies["refresh_token"] = refresh_token
+            response = await client.get("/api/v1/auth/token/refresh")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert "refresh_token" not in response.json()
+        await user.delete()
 
     async def test_token_refresh_missing_token(self):
+        """refresh_token 쿠키 없이 요청 시 401을 반환한다."""
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/auth/token/refresh")
+
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
         assert response.json()["detail"] == "Refresh token is missing."
