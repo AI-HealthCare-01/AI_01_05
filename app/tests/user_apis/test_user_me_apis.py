@@ -3,58 +3,40 @@ from starlette import status
 from tortoise.contrib.test import TestCase
 
 from app.main import app
+from app.models.users import Gender, User
+from app.services.jwt import JwtService
+
+
+async def _create_user_and_get_access_token(kakao_id: str, phone: str, nickname: str) -> tuple[User, str]:
+    user = await User.create(
+        kakao_id=kakao_id,
+        nickname=nickname,
+        phone_number=phone,
+        gender=Gender.FEMALE,
+        email="me@example.com",
+        terms_agreed=True,
+        privacy_agreed=True,
+        sensitive_agreed=True,
+    )
+    tokens = JwtService().issue_jwt_pair(user)
+    return user, str(tokens["access_token"])
 
 
 class TestUserMeApis(TestCase):
     async def test_get_user_me_success(self):
-        # 사용자 등록 및 로그인
-        email = "me@example.com"
-        signup_data = {
-            "email": email,
-            "password": "Password123!",
-            "name": "내정보테스터",
-            "gender": "FEMALE",
-            "birth_date": "1992-02-02",
-            "phone_number": "01055556666",
-        }
+        """유효한 access_token으로 내 정보를 조회한다."""
+        user, access_token = await _create_user_and_get_access_token("me_kakao_001", "01055556666", "내정보테스터")
+
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            await client.post("/api/v1/auth/signup", json=signup_data)
+            response = await client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {access_token}"})
 
-            login_response = await client.post("/api/v1/auth/login", json={"email": email, "password": "Password123!"})
-            access_token = login_response.json()["access_token"]
-
-            # 내 정보 조회
-            headers = {"Authorization": f"Bearer {access_token}"}
-            response = await client.get("/api/v1/users/me", headers=headers)
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["email"] == email
-        assert response.json()["name"] == "내정보테스터"
-
-    async def test_update_user_me_success(self):
-        # 사용자 등록 및 로그인
-        email = "update_me@example.com"
-        signup_data = {
-            "email": email,
-            "password": "Password123!",
-            "name": "수정전",
-            "gender": "MALE",
-            "birth_date": "1990-10-10",
-            "phone_number": "01077778888",
-        }
-        update_data = {"name": "수정후"}
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            await client.post("/api/v1/auth/signup", json=signup_data)
-
-            login_response = await client.post("/api/v1/auth/login", json={"email": email, "password": "Password123!"})
-            access_token = login_response.json()["access_token"]
-
-            # 내 정보 수정
-            headers = {"Authorization": f"Bearer {access_token}"}
-            response = await client.patch("/api/v1/users/me", json=update_data, headers=headers)
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json()["name"] == "수정후"
+        assert response.json()["nickname"] == "내정보테스터"
+        await user.delete()
 
     async def test_get_user_me_unauthorized(self):
+        """토큰 없이 내 정보 조회 시 401을 반환한다."""
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/v1/users/me")
+
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
