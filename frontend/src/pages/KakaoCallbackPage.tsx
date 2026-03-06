@@ -31,6 +31,7 @@ export default function KakaoCallbackPage() {
         }
       })
       .catch((err) => {
+        console.error('[KakaoCallback] 로그인 처리 실패:', err)
         const msg = typeof err.detail === 'string' ? err.detail : '로그인 중 오류가 발생했습니다.'
         navigate('/', { state: { error: msg } })
       })
