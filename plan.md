@@ -347,6 +347,16 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
 ---
 
+### 🔴 [TASK-1] ✅ 완료
+### 🔴 [TASK-2] ✅ 완료
+### 🔴 [TASK-3] ✅ 완료
+### 🔴 [TASK-4] ✅ 완료
+### 🔴 [TASK-5] ✅ 완료
+### 🔴 [TASK-6] ✅ 완료
+### 🔴 [TASK-7] ✅ 완료
+
+---
+
 ## 8️⃣ 수정 우선순위 요약
 
 | 순위 | TASK | 유형 | 무한 루프 직접 원인 |
