@@ -13,7 +13,6 @@ TORTOISE_ORM = {
     "connections": {
         "default": {
             "engine": "tortoise.backends.mysql",
-            "dialect": "asyncmy",
             "credentials": {
                 "host": config.DB_HOST,
                 "port": config.DB_PORT,
