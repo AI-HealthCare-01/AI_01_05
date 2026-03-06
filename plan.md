@@ -626,12 +626,12 @@ const [error, setError] = useState('')
 
 ### Phase 3: 복약 관리 도메인 신규 구현
 
-- [ ] **[Test]** 복약 처방 CRUD 테스트 작성 (Red)
-- [ ] **[Test]** 복약 기록 중복 방지 테스트 작성 (Red)
-- [ ] **[DB]** `app/models/medication.py` — `MedicationPrescription`, `MedicationLog` 모델 작성
-- [ ] **[DB]** `MedicationLog.Meta.unique_together = (("prescription_id", "log_date"),)` 설정
-- [ ] **[Service]** `MedicationService` 클래스 작성
-- [ ] **[API]** `app/apis/v1/medication_routers.py` — 7개 엔드포인트 구현 (Green)
+- [x] **[Test]** 복약 처방 CRUD 테스트 작성 (Red)
+- [x] **[Test]** 복약 기록 중복 방지 테스트 작성 (Red)
+- [x] **[DB]** `app/models/medication.py` — `MedicationPrescription`, `MedicationLog` 모델 작성
+- [x] **[DB]** `MedicationLog.Meta.unique_together = (("prescription_id", "log_date"),)` 설정
+- [x] **[Service]** `MedicationService` 클래스 작성
+- [x] **[API]** `app/apis/v1/medication_routers.py` — 7개 엔드포인트 구현 (Green)
 
 ---
 
