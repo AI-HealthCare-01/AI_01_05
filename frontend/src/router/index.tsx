@@ -14,7 +14,8 @@ import SignupPage from "../pages/SignupPage.tsx";
 import MainPage from "../pages/MainPage.tsx";
 
 export const router = createBrowserRouter([
-  { path: "/", element: <Navigate to="/diary" replace /> },
+  { path: "/", element: <LoginPage /> },
+  { path: "/login", element: <LoginPage /> },
   { path: "/diary", element: <DiaryPage /> },
   { path: "/diary/:entryDate", element: <DiaryDetailPage /> },
   { path: "/report", element: <ReportPage /> },
@@ -22,8 +23,8 @@ export const router = createBrowserRouter([
   { path: "/moods", element: <MoodPage /> },
   { path: "/appointments", element: <AppointmentPage /> },
   { path: "/mypage", element: <MyPage /> },
-  { path: "/", element: <LoginPage /> },
   { path: "/auth/kakao/callback", element: <KakaoCallbackPage /> },
   { path: "/signup", element : <SignupRequired><SignupPage /></SignupRequired>},
-  { path: "/main", element: <AuthRequired><MainPage /></AuthRequired>}
+  { path: "/main", element: <AuthRequired><MainPage /></AuthRequired>},
+  { path: "*", element: <Navigate to="/" replace /> },
 ]);
