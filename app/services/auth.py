@@ -69,18 +69,29 @@ class AuthService:
                 ) from e
             except httpx.RequestError as e:
                 logger.error(f"[Kakao Token Network Error] {e}", exc_info=True)
-                raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="카카오 인증 서버와 통신이 원활하지 않습니다.") from e
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="카카오 인증 서버와 통신이 원활하지 않습니다.",
+                ) from e
 
             try:
-                user_info_response = await client.get(kakao_user_info_url, headers={"Authorization": f"Bearer {kakao_access_token}"}, timeout=5.0)
+                user_info_response = await client.get(
+                    kakao_user_info_url, headers={"Authorization": f"Bearer {kakao_access_token}"}, timeout=5.0
+                )
                 user_info_response.raise_for_status()
                 return user_info_response.json()
             except httpx.HTTPStatusError as e:
                 logger.error(f"[Kakao User Info API Error] {e.response.status_code}", exc_info=True)
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="카카오 유저 정보를 가져올 권한이 없거나 토큰이 만료되었습니다.") from e
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="카카오 유저 정보를 가져올 권한이 없거나 토큰이 만료되었습니다.",
+                ) from e
             except httpx.RequestError as e:
                 logger.error(f"[Kakao User Info Network Error] {e}", exc_info=True)
-                raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="카카오 유저 정보 서버와 통신이 원활하지 않습니다.") from e
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="카카오 유저 정보 서버와 통신이 원활하지 않습니다.",
+                ) from e
 
     async def process_kakao_login(self, code: str) -> KakaoLoginResponse:
         kakao_user_data = await self._fetch_kakao_user_data(code)

@@ -51,9 +51,7 @@ class MedicationService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="처방을 찾을 수 없습니다.")
         await MedicationPrescription.filter(prescription_id=prescription_id).update(is_active=False)
 
-    async def create_log(
-        self, user: User, prescription_id: int, log_date: date, is_taken: bool
-    ) -> MedicationLog:
+    async def create_log(self, user: User, prescription_id: int, log_date: date, is_taken: bool) -> MedicationLog:
         p = await MedicationPrescription.get_or_none(prescription_id=prescription_id, user_id=user.user_id)
         if not p:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="처방을 찾을 수 없습니다.")

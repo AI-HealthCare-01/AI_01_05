@@ -23,9 +23,7 @@ class TestCharacterAPI(TestCase):
         """캐릭터 목록 조회 — 4개 반환"""
         _, token = await self._make_user_token("char_user_001", "01055550001")
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.get(
-                "/api/v1/characters", headers={"Authorization": f"Bearer {token}"}
-            )
+            response = await client.get("/api/v1/characters", headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()["characters"]) == 4
 

@@ -21,7 +21,12 @@ class AppointmentService:
         return await Appointment.filter(user_id=user.user_id).order_by("appointment_date")
 
     async def update_appointment(
-        self, user: User, appointment_id: int, appointment_date: date | None, hospital_name: str | None, notes: str | None
+        self,
+        user: User,
+        appointment_id: int,
+        appointment_date: date | None,
+        hospital_name: str | None,
+        notes: str | None,
     ) -> Appointment:
         appt = await Appointment.get_or_none(appointment_id=appointment_id, user_id=user.user_id)
         if not appt:
