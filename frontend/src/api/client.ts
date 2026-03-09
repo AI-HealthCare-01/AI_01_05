@@ -1,81 +1,120 @@
-import { refreshToken } from "../apis/authApi";
-import { useAuthStore } from "../store/authStore";
+const BASE_URL = "/api/v1";
+const ACCESS_TOKEN_KEY = "access_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
-
-function buildUrl(path: string): string {
-  if (path.startsWith("http://") || path.startsWith("https://")) {
-    return path;
+export class SessionExpiredError extends Error {
+  constructor(message = "세션이 만료되었습니다. 다시 로그인해주세요.") {
+    super(message);
+    this.name = "SessionExpiredError";
   }
-  return `${API_BASE_URL}${path}`;
 }
 
-function extractErrorMessage(payload: unknown, fallback: string): string {
-  if (payload && typeof payload === "object") {
-    const record = payload as Record<string, unknown>;
-    if (typeof record.message === "string" && record.message.trim()) {
-      return record.message;
-    }
-    if (typeof record.detail === "string" && record.detail.trim()) {
-      return record.detail;
-    }
-    if (typeof record.error === "string" && record.error.trim()) {
-      return record.error;
-    }
-  }
-  return fallback;
+function getAccessToken(): string | null {
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
-export async function apiRequest<T>(
-  path: string,
-  init: RequestInit = {},
-  hasRetried = false
-): Promise<T> {
-  const headers = new Headers(init.headers);
-  const accessToken = useAuthStore.getState().accessToken;
+function setAccessToken(token: string): void {
+  localStorage.setItem(ACCESS_TOKEN_KEY, token);
+}
 
-  if (accessToken && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${accessToken}`);
-  }
+function setRefreshToken(token: string): void {
+  localStorage.setItem(REFRESH_TOKEN_KEY, token);
+}
 
-  const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
-  if (!isFormData && init.body && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
+function clearTokens(): void {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
 
-  const response = await fetch(buildUrl(path), {
-    ...init,
-    headers,
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+  if (!refreshToken) return null;
+
+  // TODO: refresh_token storage strategy must be revalidated with backend team.
+  // Current implementation follows localStorage strategy (A).
+  const response = await fetch(`${BASE_URL}/auth/token/refresh`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${refreshToken}`,
+    },
     credentials: "include",
   });
 
-  if (response.status === 401 && !hasRetried) {
-    const refreshed = await refreshToken();
-    if (refreshed) {
-      return apiRequest<T>(path, init, true);
+  if (!response.ok) return null;
+
+  const data = (await response.json()) as { access_token?: string; accessToken?: string };
+  const nextAccessToken = data.access_token ?? data.accessToken;
+  if (!nextAccessToken) return null;
+
+  setAccessToken(nextAccessToken);
+  return nextAccessToken;
+}
+
+export type ApiRequestOptions = RequestInit & {
+  retryOnUnauthorized?: boolean;
+};
+
+export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  const { retryOnUnauthorized = true, headers, ...rest } = options;
+  const accessToken = getAccessToken();
+  const isFormData = rest.body instanceof FormData;
+
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      ...rest,
+      headers: {
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(headers || {}),
+      },
+    });
+  } catch {
+    throw new Error("네트워크 연결을 확인해주세요.");
+  }
+
+  if (response.status === 401 && retryOnUnauthorized) {
+    const nextAccessToken = await refreshAccessToken();
+    if (!nextAccessToken) {
+      clearTokens();
+      throw new SessionExpiredError();
     }
+
+    const retryResponse = await fetch(`${BASE_URL}${path}`, {
+      ...rest,
+      headers: {
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        Authorization: `Bearer ${nextAccessToken}`,
+        ...(headers || {}),
+      },
+    });
+
+    if (!retryResponse.ok) {
+      const text = await retryResponse.text();
+      throw new Error(text || `Request failed with status ${retryResponse.status}`);
+    }
+
+    if (retryResponse.status === 204) return undefined as T;
+    return (await retryResponse.json()) as T;
   }
 
   if (!response.ok) {
-    let payload: unknown = null;
-    try {
-      payload = await response.json();
-    } catch {
-      payload = null;
+    if (response.status === 404) {
+      return null as T;
     }
-    const message = extractErrorMessage(payload, `요청 실패 (${response.status})`);
-    throw new Error(message);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.includes("application/json")) {
+    if (response.status >= 500) {
+      throw new Error("서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+    }
     const text = await response.text();
-    return text as T;
+    throw new Error(text || "요청 처리 중 오류가 발생했습니다.");
   }
 
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
+
+export const tokenStorage = {
+  setAccessToken,
+  setRefreshToken,
+  clearTokens,
+};
