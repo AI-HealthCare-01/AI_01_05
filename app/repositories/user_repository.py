@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from typing import Any
 
 from pydantic import EmailStr
 
@@ -55,7 +54,7 @@ class UserRepository:
     async def update_last_login(self, user_id: int) -> None:
         await self._model.filter(user_id=user_id).update(last_login=datetime.now(config.TIMEZONE))
 
-    async def update_instance(self, user: User, data: dict[str, Any]) -> None:
+    async def update_instance(self, user: User, data: dict) -> None:
         update_fields = []
         for key, value in data.items():
             if value is not None:

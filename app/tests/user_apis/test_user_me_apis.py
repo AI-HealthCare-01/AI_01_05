@@ -23,6 +23,18 @@ async def _create_user_and_get_access_token(kakao_id: str, phone: str, nickname:
 
 
 class TestUserMeApis(TestCase):
+    async def _create_user_with_token(self, kakao_id: str, phone: str) -> tuple[User, str]:
+        user = await User.create(
+            kakao_id=kakao_id,
+            nickname="테스터",
+            phone_number=phone,
+            terms_agreed=True,
+            privacy_agreed=True,
+            sensitive_agreed=True,
+        )
+        at = JwtService().create_access_token(user)
+        return user, str(at)
+
     async def test_get_user_me_success(self):
         """유효한 access_token으로 내 정보를 조회한다."""
         user, access_token = await _create_user_and_get_access_token("me_kakao_001", "01055556666", "내정보테스터")

@@ -1,3 +1,4 @@
+import zoneinfo
 from calendar import monthrange
 from datetime import date, datetime
 
@@ -6,6 +7,8 @@ from app.models.diary import Diary
 from app.models.report import Report
 from app.services.llm_service import LlmService
 from app.services.ocr_service import OcrService
+
+KST = zoneinfo.ZoneInfo("Asia/Seoul")
 
 
 class DiaryReportService:
@@ -156,7 +159,7 @@ class DiaryReportService:
         if content is not None:
             update_data["content"] = content
         if update_data:
-            update_data["updated_at"] = datetime.now()
+            update_data["updated_at"] = datetime.now(tz=KST)
             await Diary.filter(diary_id=entry_id).update(**update_data)
         return {"entryId": entry_id, "message": "일기가 수정되었습니다."}
 
@@ -167,7 +170,7 @@ class DiaryReportService:
         if not diary:
             raise LookupError("ENTRY_NOT_FOUND")
 
-        await Diary.filter(diary_id=entry_id).update(deleted_at=datetime.now())
+        await Diary.filter(diary_id=entry_id).update(deleted_at=datetime.now(tz=KST))
         return {"message": "일기가 삭제되었습니다."}
 
     async def get_reports(self, user_id: int) -> dict:
@@ -230,3 +233,11 @@ class DiaryReportService:
             "createdAt": report.created_at.date(),
             "summary": report.summary or "",
         }
+
+    async def update_report(self, user_id: int, report_id: int, summary: str) -> dict:
+        report = await Report.get_or_none(user_id=user_id, report_id=report_id)
+        if not report:
+            raise LookupError("REPORT_NOT_FOUND")
+
+        await Report.filter(report_id=report_id).update(summary=summary, updated_at=datetime.now(tz=KST))
+        return {"reportId": report_id, "message": "리포트가 수정되었습니다."}
