@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from app.dtos.base import BaseSerializerModel
 from app.models.users import Gender
@@ -11,6 +11,7 @@ from app.validators.user_validators import validate_birthday, validate_phone_num
 
 class UserUpdateRequest(BaseModel):
     nickname: Annotated[str | None, Field(None, min_length=1, max_length=10)]
+    email: EmailStr | None
     phone_number: Annotated[
         str | None,
         Field(None, description="Available Format: +8201011112222, 01011112222, 010-1111-2222"),

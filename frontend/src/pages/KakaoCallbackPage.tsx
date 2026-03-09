@@ -20,6 +20,7 @@ export default function KakaoCallbackPage() {
     kakaoLogin(code)
       .then((data) => {
         if (!data.is_new_user && data.access_token) {
+          localStorage.setItem('access_token', data.access_token)
           useAuthStore.getState().setAccessToken(data.access_token)
           navigate('/main', { replace: true })
         } else if (data.is_new_user && data.temp_token) {
