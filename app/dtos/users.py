@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Annotated
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 from app.dtos.base import BaseSerializerModel
 from app.models.users import Gender
@@ -11,7 +11,10 @@ from app.validators.user_validators import validate_birthday, validate_phone_num
 
 class UserUpdateRequest(BaseModel):
     nickname: Annotated[str | None, Field(None, min_length=1, max_length=10)]
-    email: EmailStr | None
+    email: Annotated[
+        EmailStr | None,
+        Field(None, max_length=40),
+    ]
     phone_number: Annotated[
         str | None,
         Field(None, description="Available Format: +8201011112222, 01011112222, 010-1111-2222"),
@@ -31,8 +34,25 @@ class UserUpdateRequest(BaseModel):
 class UserInfoResponse(BaseSerializerModel):
     user_id: int
     nickname: str
-    email: str | None
-    phone_number: str
-    birthday: date | None
-    gender: Gender
-    created_at: datetime
+    email: str | None = None
+    phone_number: str = Field("")
+    birthday: date | None = None
+    gender: Gender = Field(Gender.UNKNOWN)
+    created_at: datetime = Field(default_factory=datetime.now)
+    onboarding_completed: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _map_from_orm(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return {
+                "id": getattr(data, "user_id", 0),
+                "name": getattr(data, "nickname", ""),
+                "email": getattr(data, "email", None),
+                "phone_number": getattr(data, "phone_number", ""),
+                "birthday": getattr(data, "birthday", None),
+                "gender": getattr(data, "gender", Gender.UNKNOWN),
+                "created_at": getattr(data, "created_at", None),
+                "onboarding_completed": getattr(data, "onboarding_completed", False),
+            }
+        return data

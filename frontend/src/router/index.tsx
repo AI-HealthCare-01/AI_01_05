@@ -12,6 +12,7 @@ import KakaoCallbackPage from "../pages/KakaoCallbackPage.tsx";
 import {AuthRequired, SignupRequired} from "../components/ProtectedRoute.tsx";
 import SignupPage from "../pages/SignupPage.tsx";
 import MainPage from "../pages/MainPage.tsx";
+import CharacterSelectPage from "../pages/CharacterSelectPage.tsx";
 
 export const router = createBrowserRouter([
   { path: "/", element: <LoginPage /> },
@@ -26,5 +27,6 @@ export const router = createBrowserRouter([
   { path: "/auth/kakao/callback", element: <KakaoCallbackPage /> },
   { path: "/signup", element : <SignupRequired><SignupPage /></SignupRequired>},
   { path: "/main", element: <AuthRequired><MainPage /></AuthRequired>},
+  { path: "/character-select", element: <AuthRequired><CharacterSelectPage /></AuthRequired>},
   { path: "*", element: <Navigate to="/" replace /> },
 ]);

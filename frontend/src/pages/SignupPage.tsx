@@ -121,7 +121,7 @@ export default function SignupPage() {
       sessionStorage.removeItem('temp_token')
       localStorage.setItem('access_token', res.access_token)
       useAuthStore.getState().setAccessToken(res.access_token)
-      navigate('/main', { replace: true })
+      navigate('/character-select', { replace: true })
     } catch (err: unknown) {
       const e = err as { status?: number; detail?: string }
       setSubmitError(
