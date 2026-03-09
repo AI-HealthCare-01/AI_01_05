@@ -41,7 +41,7 @@ export default function SignupPage() {
 
     if (key === 'phone' && import.meta.env.DEV) {
       const testToken = import.meta.env.VITE_TEST_VERIFICATION_TOKEN
-      const isValidPhone = /^01[016789]\d{7,8}$/.test(value.replace(/\D/g, ''))
+      const isValidPhone = /^(010\d{8}|01[16789]\d{7,8})$/.test(value.replace(/\D/g, ''))
       if (testToken && isValidPhone) {
         setVerificationToken(testToken)
         setPhoneVerified(true)
