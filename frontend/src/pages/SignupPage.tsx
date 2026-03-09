@@ -38,6 +38,17 @@ export default function SignupPage() {
   const set = (key: string, value: string) => {
     setForm((f) => ({ ...f, [key]: value }))
     setErrors((e) => ({ ...e, [key]: '' }))
+
+    if (key === 'phone' && import.meta.env.DEV) {
+      const testToken = import.meta.env.VITE_TEST_VERIFICATION_TOKEN
+      if (testToken && value) {
+        setVerificationToken(testToken)
+        setPhoneVerified(true)
+      } else {
+        setVerificationToken('')
+        setPhoneVerified(false)
+      }
+    }
   }
 
   const fmtTimer = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
