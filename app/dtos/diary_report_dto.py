@@ -119,4 +119,3 @@ class ReportDetailResponse(BaseModel):
     end_date: date = Field(alias="endDate")
     created_at: date = Field(alias="createdAt")
     summary: str
-
