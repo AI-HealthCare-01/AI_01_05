@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 import httpx
 
@@ -100,7 +100,9 @@ class LlmService:
 
     def _stub_report_summary(self, text: str, start_date: str, end_date: str) -> str:
         preview = text.replace("\n", " ")[:200]
-        return f"======= 리포트 요약 데이터 =======\n{start_date}부터 {end_date}까지의 요약입니다.\n핵심 기록: {preview}"
+        return (
+            f"======= 리포트 요약 데이터 =======\n{start_date}부터 {end_date}까지의 요약입니다.\n핵심 기록: {preview}"
+        )
 
     def _stub_title(self, content: str) -> str:
         head = content.strip().split("\n", maxsplit=1)[0]
