@@ -4,11 +4,13 @@ from datetime import date, datetime
 
 from app.core import memory_db
 from app.models.diary import Diary
+from app.models.mood import Mood
 from app.models.report import Report
 from app.services.llm_service import LlmService
 from app.services.ocr_service import OcrService
 
 KST = zoneinfo.ZoneInfo("Asia/Seoul")
+TIME_SLOT_ORDER = {"MORNING": 0, "LUNCH": 1, "EVENING": 2, "BEDTIME": 3}
 
 
 class DiaryReportService:
@@ -35,21 +37,37 @@ class DiaryReportService:
                 diary_date__lte=end_date,
             ).values_list("diary_date", flat=True)
         )
+        mood_rows = await Mood.filter(
+            user_id=user_id,
+            log_date__gte=start_date,
+            log_date__lte=end_date,
+        ).order_by("log_date", "time_slot")
+        moods_by_date: dict[date, list[dict]] = {}
+        for mood in mood_rows:
+            moods_by_date.setdefault(mood.log_date, []).append(
+                {"mood_level": mood.mood_level, "time_slot": mood.time_slot}
+            )
 
         days = []
         for day in range(1, end_date.day + 1):
             current_date = date(year, month, day)
             has_diary = current_date in diary_dates
-            mood_stickers = [{"score": 3, "color": "green", "label": "보통"}] if has_diary else []
-            days.append({"date": current_date, "hasDiary": has_diary, "moodStickers": mood_stickers})
+            moods = sorted(
+                moods_by_date.get(current_date, []),
+                key=lambda item: TIME_SLOT_ORDER.get(item["time_slot"], 99),
+            )
+            days.append({"date": current_date, "hasDiary": has_diary, "moods": moods})
         return {"year": year, "month": month, "days": days}
 
     async def get_diary_by_date(self, user_id: int, entry_date: date) -> dict:
         diaries = await Diary.filter(user_id=user_id, diary_date=entry_date, deleted_at__isnull=True).order_by(
             "-created_at"
         )
-        if not diaries:
-            raise LookupError("DIARY_NOT_FOUND")
+        moods = await Mood.filter(user_id=user_id, log_date=entry_date).order_by("time_slot")
+        mood_data = [
+            {"mood_level": mood.mood_level, "time_slot": mood.time_slot}
+            for mood in sorted(moods, key=lambda item: TIME_SLOT_ORDER.get(item.time_slot, 99))
+        ]
 
         entries = [
             {
@@ -61,7 +79,7 @@ class DiaryReportService:
             }
             for diary in diaries
         ]
-        return {"date": entry_date, "entries": entries}
+        return {"date": entry_date, "entries": entries, "moods": mood_data}
 
     async def create_text_diary(self, user_id: int, entry_date: date, title: str, content: str) -> dict:
         diary = await Diary.create(
@@ -123,7 +141,6 @@ class DiaryReportService:
         if not pending or pending["date"] != entry_date:
             raise LookupError("ENTRY_NOT_FOUND")
 
-        # Smart title generation is intentionally limited to chatbot summary flow only.
         try:
             generated_title = await self.llm_service.generate_title(content=content)
         except Exception:
