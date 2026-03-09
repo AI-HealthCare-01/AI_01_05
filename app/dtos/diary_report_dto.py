@@ -9,12 +9,17 @@ class MoodSticker(BaseModel):
     label: str
 
 
+class MoodLog(BaseModel):
+    mood_level: int
+    time_slot: str
+
+
 class CalendarDay(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     date: date
     has_diary: bool = Field(alias="hasDiary")
-    mood_stickers: list[MoodSticker] = Field(alias="moodStickers")
+    moods: list[MoodLog] = Field(default_factory=list)
 
 
 class DiaryCalendarResponse(BaseModel):
@@ -36,6 +41,7 @@ class DiaryEntry(BaseModel):
 class DiaryByDateResponse(BaseModel):
     date: date
     entries: list[DiaryEntry]
+    moods: list[MoodLog] = Field(default_factory=list)
 
 
 class DiaryTextSaveRequest(BaseModel):
