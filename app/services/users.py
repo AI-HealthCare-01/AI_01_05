@@ -1,3 +1,6 @@
+from typing import Annotated
+
+from fastapi import Depends
 from tortoise.transactions import in_transaction
 
 from app.dtos.users import UserUpdateRequest
@@ -10,7 +13,7 @@ from app.utils.common import normalize_phone_number
 class UserManageService:
     def __init__(self):
         self.repo = UserRepository()
-        self.auth_service = AuthService()
+        self.auth_service: Annotated[AuthService, Depends(AuthService)]
 
     async def update_user(self, user: User, data: UserUpdateRequest) -> User:
         if data.phone_number:
