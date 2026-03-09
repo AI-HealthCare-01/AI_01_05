@@ -119,6 +119,7 @@ export default function SignupPage() {
         tempToken,
       )
       sessionStorage.removeItem('temp_token')
+      localStorage.setItem('access_token', res.access_token)
       useAuthStore.getState().setAccessToken(res.access_token)
       navigate('/main', { replace: true })
     } catch (err: unknown) {
