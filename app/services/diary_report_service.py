@@ -4,9 +4,15 @@ from datetime import date, datetime
 from app.core import memory_db
 from app.models.diary import Diary
 from app.models.report import Report
+from app.services.llm_service import LlmService
+from app.services.ocr_service import OcrService
 
 
 class DiaryReportService:
+    def __init__(self) -> None:
+        self.ocr_service = OcrService()
+        self.llm_service = LlmService()
+
     def next_entry_id(self) -> int:
         entry_id = memory_db.diary_entry_sequence
         memory_db.diary_entry_sequence += 1
@@ -64,14 +70,14 @@ class DiaryReportService:
         )
         return {"entryId": diary.diary_id, "message": "일기가 저장되었습니다."}
 
-    def extract_ocr_text(self, entry_date: date, file_type: str, file_bytes: bytes) -> dict:
+    async def extract_ocr_text(self, entry_date: date, file_type: str, file_bytes: bytes) -> dict:
         if file_type not in {"image/jpeg", "image/png"}:
             raise ValueError("UNSUPPORTED_FORMAT")
         if len(file_bytes) > 10 * 1024 * 1024:
             raise ValueError("FILE_TOO_LARGE")
 
         pending_id = self.next_entry_id()
-        extracted_text = "손글씨 인식 결과입니다."
+        extracted_text = await self.ocr_service.extract_text(file_bytes=file_bytes, file_type=file_type)
         memory_db.fake_ocr_pending[pending_id] = {"date": entry_date, "extractedText": extracted_text}
         return {"entryId": pending_id, "extractedText": extracted_text}
 
@@ -97,7 +103,12 @@ class DiaryReportService:
         if not diaries:
             return {"hasChatHistory": False, "entryId": None, "summary": None, "redirectToChatbot": True}
 
-        summary = " ".join(diary.content for diary in diaries[:3]).strip()
+        texts = [diary.content for diary in diaries[:5]]
+        try:
+            summary = await self.llm_service.summarize_chat(chat_texts=texts, entry_date=entry_date.isoformat())
+        except Exception:
+            summary = " ".join(diary.content for diary in diaries[:3]).strip()
+
         pending_id = self.next_entry_id()
         memory_db.fake_chatbot_pending[pending_id] = {"date": entry_date, "summary": summary}
         return {"hasChatHistory": True, "entryId": pending_id, "summary": summary, "redirectToChatbot": False}
@@ -109,10 +120,16 @@ class DiaryReportService:
         if not pending or pending["date"] != entry_date:
             raise LookupError("ENTRY_NOT_FOUND")
 
+        # Smart title generation is intentionally limited to chatbot summary flow only.
+        try:
+            generated_title = await self.llm_service.generate_title(content=content)
+        except Exception:
+            generated_title = ""
+
         diary = await Diary.create(
             user_id=user_id,
             diary_date=entry_date,
-            title=title,
+            title=generated_title or title,
             content=content,
             write_method="chatbot",
         )
@@ -171,11 +188,28 @@ class DiaryReportService:
         if start_date > end_date:
             raise ValueError("INVALID_DATE_RANGE")
 
+        diaries = await Diary.filter(
+            user_id=user_id,
+            deleted_at__isnull=True,
+            diary_date__gte=start_date,
+            diary_date__lte=end_date,
+        ).order_by("diary_date", "created_at")
+        diary_texts = [diary.content for diary in diaries]
+
+        try:
+            summary = await self.llm_service.summarize_report(
+                diary_texts=diary_texts,
+                start_date=start_date.isoformat(),
+                end_date=end_date.isoformat(),
+            )
+        except Exception:
+            summary = f"======= 리포트 요약 데이터 =======\n{start_date}부터 {end_date}까지의 요약입니다."
+
         report = await Report.create(
             user_id=user_id,
             start_date=start_date,
             end_date=end_date,
-            summary=f"======= 리포트 요약 데이터 =======\n{start_date}부터 {end_date}까지의 요약입니다.",
+            summary=summary,
         )
         return {
             "reportId": report.report_id,
@@ -196,11 +230,3 @@ class DiaryReportService:
             "createdAt": report.created_at.date(),
             "summary": report.summary or "",
         }
-
-    async def update_report(self, user_id: int, report_id: int, summary: str) -> dict:
-        report = await Report.get_or_none(user_id=user_id, report_id=report_id)
-        if not report:
-            raise LookupError("REPORT_NOT_FOUND")
-
-        await Report.filter(report_id=report_id).update(summary=summary, updated_at=datetime.now())
-        return {"reportId": report_id, "message": "리포트가 수정되었습니다."}
