@@ -49,7 +49,7 @@ explicit = true
 
 [tool.aerich]
 tortoise_orm = "app.core.db.TORTOISE_ORM"
-location = "./migrations"
+location = "./app/db/migrations"
 src_folder = "./."
 
 [tool.pytest.ini_options]
