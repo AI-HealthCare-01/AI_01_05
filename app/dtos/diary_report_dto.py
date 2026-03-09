@@ -119,14 +119,3 @@ class ReportDetailResponse(BaseModel):
     end_date: date = Field(alias="endDate")
     created_at: date = Field(alias="createdAt")
     summary: str
-
-
-class ReportUpdateRequest(BaseModel):
-    summary: str = Field(min_length=1)
-
-
-class ReportUpdateResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    report_id: int = Field(alias="reportId")
-    message: str
