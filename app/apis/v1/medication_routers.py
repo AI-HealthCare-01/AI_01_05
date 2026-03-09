@@ -26,8 +26,14 @@ async def create_prescription(
     service: Annotated[MedicationService, Depends(MedicationService)],
 ) -> Response:
     p = await service.create_prescription(
-        user, body.drug_name, body.dosage, body.frequency, body.start_date,
-        body.end_date, body.hospital_name, body.notes,
+        user,
+        body.drug_name,
+        body.dosage,
+        body.frequency,
+        body.start_date,
+        body.end_date,
+        body.hospital_name,
+        body.notes,
     )
     return Response(PrescriptionResponse.model_validate(p).model_dump(), status_code=status.HTTP_201_CREATED)
 
@@ -76,7 +82,7 @@ async def create_medication_log(
 async def get_logs_by_date(
     user: Annotated[User, Depends(get_request_user)],
     service: Annotated[MedicationService, Depends(MedicationService)],
-    log_date: date = Query(...),
+    log_date: Annotated[date, Query(...)],
 ) -> Response:
     logs = await service.get_logs_by_date(user, log_date)
-    return Response([MedicationLogResponse.model_validate(l).model_dump() for l in logs])
+    return Response([MedicationLogResponse.model_validate(log).model_dump() for log in logs])

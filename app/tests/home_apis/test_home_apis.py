@@ -10,8 +10,12 @@ from app.services.jwt import JwtService
 class TestHomeAPI(TestCase):
     async def _make_user_token(self, kakao_id: str, phone: str) -> tuple[User, str]:
         user = await User.create(
-            kakao_id=kakao_id, nickname="홈테스터", phone_number=phone,
-            terms_agreed=True, privacy_agreed=True, sensitive_agreed=True,
+            kakao_id=kakao_id,
+            nickname="홈테스터",
+            phone_number=phone,
+            terms_agreed=True,
+            privacy_agreed=True,
+            sensitive_agreed=True,
         )
         return user, str(JwtService().create_access_token(user))
 
