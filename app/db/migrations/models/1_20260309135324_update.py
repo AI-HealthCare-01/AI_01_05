@@ -5,22 +5,55 @@ RUN_IN_TRANSACTION = True
 
 async def upgrade(db: BaseDBAsyncClient) -> str:
     return """
-        ALTER TABLE `diaries` ADD `deleted_at` DATETIME(6);
-        ALTER TABLE `diaries` ADD `title` VARCHAR(255);
-        ALTER TABLE `diaries` ADD `diary_date` DATE;
-        ALTER TABLE `diaries` ADD `write_method` VARCHAR(20);
-        ALTER TABLE `diaries` MODIFY COLUMN `content` LONGTEXT NOT NULL;
-    """
+        CREATE TABLE IF NOT EXISTS `appointments` (
+    `appointment_id` BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `appointment_date` DATE,
+    `hospital_name` VARCHAR(255),
+    `notes` LONGTEXT,
+    `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    `user_id` BIGINT NOT NULL,
+    CONSTRAINT `fk_appointm_users_bfbb061d` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
+) CHARACTER SET utf8mb4;
+        CREATE TABLE IF NOT EXISTS `diaries` (
+    `diary_id` BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `diary_date` DATE NOT NULL,
+    `title` VARCHAR(255),
+    `content` LONGTEXT NOT NULL,
+    `write_method` VARCHAR(20),
+    `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    `deleted_at` DATETIME(6),
+    `user_id` BIGINT NOT NULL,
+    CONSTRAINT `fk_diaries_users_3e642be8` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
+) CHARACTER SET utf8mb4;
+        CREATE TABLE IF NOT EXISTS `moods` (
+    `mood_id` BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `mood_score` INT,
+    `note` LONGTEXT,
+    `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    `user_id` BIGINT NOT NULL,
+    CONSTRAINT `fk_moods_users_55ce4f45` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
+) CHARACTER SET utf8mb4;
+        CREATE TABLE IF NOT EXISTS `reports` (
+    `report_id` BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `start_date` DATE NOT NULL,
+    `end_date` DATE NOT NULL,
+    `summary` LONGTEXT,
+    `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    `user_id` BIGINT NOT NULL,
+    CONSTRAINT `fk_reports_users_938662cd` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
+) CHARACTER SET utf8mb4;"""
 
 
 async def downgrade(db: BaseDBAsyncClient) -> str:
     return """
-        ALTER TABLE `diaries` DROP COLUMN `deleted_at`;
-        ALTER TABLE `diaries` DROP COLUMN `title`;
-        ALTER TABLE `diaries` DROP COLUMN `diary_date`;
-        ALTER TABLE `diaries` DROP COLUMN `write_method`;
-        ALTER TABLE `diaries` MODIFY COLUMN `content` LONGTEXT;
-    """
+        DROP TABLE IF EXISTS `moods`;
+        DROP TABLE IF EXISTS `appointments`;
+        DROP TABLE IF EXISTS `reports`;
+        DROP TABLE IF EXISTS `diaries`;"""
 
 
 MODELS_STATE = (
