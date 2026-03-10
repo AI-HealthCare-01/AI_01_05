@@ -12,13 +12,33 @@ interface ChipMenuProps {
 
 export default function ChipMenu({ onChipClick, disabled }: ChipMenuProps) {
   return (
-    <div className="scrollbar-hide flex gap-2 overflow-x-auto px-4 py-2">
+    <div
+      style={{
+        display: "flex",
+        gap: 8,
+        overflowX: "auto",
+        padding: "8px 16px",
+        scrollbarWidth: "none",
+      }}
+    >
       {QUICK_QUESTIONS.map((q) => (
         <button
           key={q}
           onClick={() => onChipClick(q)}
           disabled={disabled}
-          className="shrink-0 whitespace-nowrap rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-sm text-teal-700 transition-colors hover:bg-teal-100 disabled:opacity-40"
+          style={{
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+            borderRadius: 20,
+            border: "1px solid #C8D1BE",
+            background: "#F0F5F0",
+            padding: "6px 14px",
+            fontSize: 13,
+            color: "#6B7F5E",
+            cursor: disabled ? "default" : "pointer",
+            opacity: disabled ? 0.4 : 1,
+            transition: "background 0.2s",
+          }}
         >
           {q}
         </button>

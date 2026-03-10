@@ -25,7 +25,18 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   };
 
   return (
-    <div className="sticky bottom-0 flex items-end gap-2 border-t bg-white px-4 py-3">
+    <div
+      style={{
+        position: "sticky",
+        bottom: 0,
+        display: "flex",
+        alignItems: "flex-end",
+        gap: 8,
+        padding: "12px 16px",
+        background: "#FFFFFF",
+        borderTop: "1px solid #E0E0E0",
+      }}
+    >
       <textarea
         ref={inputRef}
         value={text}
@@ -35,20 +46,44 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         disabled={disabled}
         maxLength={2000}
         rows={1}
-        className="flex-1 resize-none rounded-full bg-gray-100 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-300 disabled:opacity-50"
-        style={{ maxHeight: "120px", border: "none" }}
+        style={{
+          flex: 1,
+          resize: "none",
+          borderRadius: 20,
+          background: "#F5F5F5",
+          padding: "10px 16px",
+          fontSize: 14,
+          border: "1px solid #E0E0E0",
+          outline: "none",
+          maxHeight: 120,
+          opacity: disabled ? 0.5 : 1,
+        }}
       />
       <button
         onClick={handleSend}
         disabled={disabled || !text.trim()}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal-500 text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: "50%",
+          background: disabled || !text.trim() ? "#C8D1BE" : "#99A988",
+          color: "#FFFFFF",
+          border: "none",
+          cursor: disabled || !text.trim() ? "default" : "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          transition: "background 0.2s",
+        }}
         aria-label="전송"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
           fill="currentColor"
-          className="h-5 w-5"
+          width={20}
+          height={20}
         >
           <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
         </svg>
