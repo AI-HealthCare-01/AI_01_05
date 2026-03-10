@@ -17,9 +17,15 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  accessToken: null,
+  accessToken: localStorage.getItem(ACCESS_TOKEN_KEY),
   selectedCharacter: null,
-  setAccessToken: (token) => set({ accessToken: token }),
+  setAccessToken: (token) => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, token)
+    set({ accessToken: token })
+  },
   setSelectedCharacter: (c) => set({ selectedCharacter: c }),
-  clearAuth: () => set({ accessToken: null, selectedCharacter: null }),
+  clearAuth: () => {
+    localStorage.removeItem(ACCESS_TOKEN_KEY)
+    set({ accessToken: null, selectedCharacter: null })
+  },
 }))

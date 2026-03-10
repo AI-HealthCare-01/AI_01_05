@@ -184,7 +184,6 @@ export function DiaryPage() {
             type="button"
             onClick={() => {
               tokenStorage.setAccessToken(tokenInput.trim());
-              tokenStorage.setRefreshToken("dev-refresh");
               void fetchCalendar();
             }}
           >

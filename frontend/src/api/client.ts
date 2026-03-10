@@ -1,6 +1,5 @@
 const BASE_URL = "/api/v1";
 const ACCESS_TOKEN_KEY = "access_token";
-const REFRESH_TOKEN_KEY = "refresh_token";
 
 export class SessionExpiredError extends Error {
   constructor(message = "세션이 만료되었습니다. 다시 로그인해주세요.") {
@@ -17,26 +16,13 @@ function setAccessToken(token: string): void {
   localStorage.setItem(ACCESS_TOKEN_KEY, token);
 }
 
-function setRefreshToken(token: string): void {
-  localStorage.setItem(REFRESH_TOKEN_KEY, token);
-}
-
 function clearTokens(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-  if (!refreshToken) return null;
-
-  // TODO: refresh_token storage strategy must be revalidated with backend team.
-  // Current implementation follows localStorage strategy (A).
   const response = await fetch(`${BASE_URL}/auth/token/refresh`, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${refreshToken}`,
-    },
     credentials: "include",
   });
 
@@ -115,6 +101,5 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 
 export const tokenStorage = {
   setAccessToken,
-  setRefreshToken,
   clearTokens,
 };
