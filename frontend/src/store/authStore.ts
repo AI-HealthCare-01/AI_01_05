@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 
+const ACCESS_TOKEN_KEY = 'access_token'
+
 interface SelectedCharacter {
   id: number
   name: string
