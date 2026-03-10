@@ -52,9 +52,11 @@ class MedicineService:
         self._client = MfdsClient()
 
     async def search(self, keyword: str, limit: int = 20) -> list[dict]:
-        results = await Medicine.filter(
-            search_keyword__startswith=keyword, is_active=True
-        ).limit(limit).values("item_seq", "item_name", "entp_name")
+        results = (
+            await Medicine.filter(search_keyword__startswith=keyword, is_active=True)
+            .limit(limit)
+            .values("item_seq", "item_name", "entp_name")
+        )
 
         if results:
             return list(results)
@@ -66,9 +68,11 @@ class MedicineService:
         merged = self._merge(easy, pill)
         if merged:
             await self._cache_from_api(merged)
-            results = await Medicine.filter(
-                search_keyword__startswith=keyword, is_active=True
-            ).limit(limit).values("item_seq", "item_name", "entp_name")
+            results = (
+                await Medicine.filter(search_keyword__startswith=keyword, is_active=True)
+                .limit(limit)
+                .values("item_seq", "item_name", "entp_name")
+            )
 
         return list(results)
 
