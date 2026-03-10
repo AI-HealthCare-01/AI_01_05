@@ -35,6 +35,4 @@ async def list_user_medications(
     service: Annotated[UserMedicationService, Depends(UserMedicationService)],
 ) -> Response:
     meds = await service.list_active(user)
-    return Response(
-        [{"medication_id": m.medication_id, "item_seq": m.medicine_id, "status": m.status} for m in meds]
-    )
+    return Response([{"medication_id": m.medication_id, "item_seq": m.medicine_id, "status": m.status} for m in meds])

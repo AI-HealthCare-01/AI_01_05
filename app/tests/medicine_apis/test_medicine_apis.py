@@ -24,8 +24,10 @@ class TestMedicineSearchAPI(TestCase):
 
     async def test_search_returns_empty_list_for_unknown_keyword(self):
         token = await self._make_token("med_s_001", "01011110001")
-        with patch("app.services.medicine_service.MfdsClient.search_easy_drug", new_callable=AsyncMock, return_value=[]), \
-             patch("app.services.medicine_service.MfdsClient.search_pill", new_callable=AsyncMock, return_value=[]):
+        with (
+            patch("app.services.medicine_service.MfdsClient.search_easy_drug", new_callable=AsyncMock, return_value=[]),
+            patch("app.services.medicine_service.MfdsClient.search_pill", new_callable=AsyncMock, return_value=[]),
+        ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
                 response = await client.get(
                     "/api/v1/medicines/search?keyword=존재하지않는약xyz",
@@ -89,8 +91,10 @@ class TestMedicineSearchAPI(TestCase):
         """DB 캐시 히트 시 외부 API 미호출 검증"""
         token = await self._make_token("med_s_006", "01011110006")
         await Medicine.create(item_seq="CACHE001", item_name="캐시테스트정", search_keyword="캐시테스트정")
-        with patch("app.services.medicine_service.MfdsClient.search_easy_drug", new_callable=AsyncMock) as mock_easy, \
-             patch("app.services.medicine_service.MfdsClient.search_pill", new_callable=AsyncMock) as mock_pill:
+        with (
+            patch("app.services.medicine_service.MfdsClient.search_easy_drug", new_callable=AsyncMock) as mock_easy,
+            patch("app.services.medicine_service.MfdsClient.search_pill", new_callable=AsyncMock) as mock_pill,
+        ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
                 await client.get(
                     "/api/v1/medicines/search?keyword=캐시테스트정",
