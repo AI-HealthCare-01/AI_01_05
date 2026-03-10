@@ -47,6 +47,7 @@ class TestUserMedicationAPI(TestCase):
         data = response.json()
         assert "medication_id" in data
         assert data["item_seq"] == "UM_MED001"
+        assert data["item_name"] == "테스트정10mg"
         assert data["status"] == "ACTIVE"
 
     async def test_create_with_invalid_item_seq_returns_404(self):
