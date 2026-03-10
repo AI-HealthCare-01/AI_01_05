@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 
 import { AppointmentPage } from "../pages/AppointmentPage";
 import { DiaryDetailPage } from "../pages/DiaryDetailPage";
@@ -13,6 +13,18 @@ import {AuthRequired, SignupRequired} from "../components/ProtectedRoute.tsx";
 import SignupPage from "../pages/SignupPage.tsx";
 import MainPage from "../pages/MainPage.tsx";
 import CharacterSelectPage from "../pages/CharacterSelectPage.tsx";
+import AddMedicationPage from "../pages/AddMedicationPage.tsx";
+import MedicineSearchPage from "../pages/MedicineSearchPage.tsx";
+import MedicineConfirmPage from "../pages/MedicineConfirmPage.tsx";
+import { MedicationFlowProvider } from "../store/MedicationFlowContext.tsx";
+
+function MedicationFlowLayout() {
+  return (
+    <MedicationFlowProvider>
+      <Outlet />
+    </MedicationFlowProvider>
+  );
+}
 
 export const router = createBrowserRouter([
   { path: "/", element: <LoginPage /> },
@@ -28,5 +40,13 @@ export const router = createBrowserRouter([
   { path: "/signup", element : <SignupRequired><SignupPage /></SignupRequired>},
   { path: "/main", element: <AuthRequired><MainPage /></AuthRequired>},
   { path: "/character-select", element: <AuthRequired><CharacterSelectPage /></AuthRequired>},
+  {
+    element: <AuthRequired><MedicationFlowLayout /></AuthRequired>,
+    children: [
+      { path: "/medications/add", element: <AddMedicationPage /> },
+      { path: "/medications/search", element: <MedicineSearchPage /> },
+      { path: "/medications/confirm", element: <MedicineConfirmPage /> },
+    ],
+  },
   { path: "*", element: <Navigate to="/" replace /> },
 ]);
