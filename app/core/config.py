@@ -61,3 +61,8 @@ class Config(BaseSettings):
     LLM_API_KEY: str | None = None
     LLM_MODEL: str = "gpt-4o-mini"
     LLM_TIMEOUT_SECONDS: int = 30
+
+    # MFDS (식약처) e약은요 API
+    # MFDS_API_KEY: "" → stub 모드 (빈 리스트 반환)
+    MFDS_API_KEY: str = ""
+    MFDS_API_TIMEOUT: int = 10
