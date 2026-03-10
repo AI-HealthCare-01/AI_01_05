@@ -23,7 +23,7 @@ class MfdsClient:
                 response = await client.get(url, params=params)
                 response.raise_for_status()
                 body = response.json()
-            items = body.get("body", {}).get("items", []) or []
+            items = body.get("body", {}).get("items") or []
             return items if isinstance(items, list) else []
         except Exception:
             return []
@@ -55,8 +55,8 @@ class MedicineService:
 
     async def _cache_from_api(self, items: list[dict]) -> None:
         for item in items:
-            item_seq = item.get("ITEM_SEQ") or item.get("item_seq")
-            item_name = item.get("ITEM_NAME") or item.get("item_name", "")
+            item_seq = item.get("itemSeq")
+            item_name = item.get("itemName", "")
             if not item_seq:
                 continue
             await Medicine.get_or_create(
@@ -64,10 +64,10 @@ class MedicineService:
                 defaults={
                     "item_name": item_name,
                     "search_keyword": self._normalize_keyword(item_name),
-                    "entp_name": item.get("ENTP_NAME") or item.get("entp_name"),
-                    "efcy_qesitm": item.get("EFCY_QESITM"),
-                    "use_method_qesitm": item.get("USE_METHOD_QESITM"),
-                    "item_image": item.get("ITEM_IMAGE"),
+                    "entp_name": item.get("entpName"),
+                    "efcy_qesitm": item.get("efcyQesitm"),
+                    "use_method_qesitm": item.get("useMethodQesitm"),
+                    "item_image": item.get("itemImage"),
                 },
             )
 
