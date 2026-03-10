@@ -9,7 +9,7 @@ from app.models.medicine import Medicine
 
 class MfdsClient:
     _EASY_DRUG_URL = "http://apis.data.go.kr/1471000/DrbEasyDrugInfoService/getDrbEasyDrugList"
-    _PILL_URL = "http://apis.data.go.kr/1471000/MdcinGrnIdntfcInfoService01/getMdcinGrnIdntfcInfoList01"
+    _PILL_URL = "https://apis.data.go.kr/1471000/MdcinGrnIdntfcInfoService03/getMdcinGrnIdntfcInfoList03"
 
     async def search_easy_drug(self, keyword: str, num_of_rows: int) -> list[dict]:
         if not config.MFDS_API_KEY:
@@ -28,7 +28,7 @@ class MfdsClient:
             return []
         params: dict[str, str | int] = {
             "serviceKey": config.MFDS_PILL_API_KEY,
-            "itemName": keyword,
+            "item_name": keyword,
             "numOfRows": num_of_rows,
             "pageNo": 1,
             "type": "json",
@@ -77,8 +77,8 @@ class MedicineService:
 
     async def _cache_from_api(self, items: list[dict]) -> None:
         for item in items:
-            item_seq = item.get("itemSeq")
-            item_name = item.get("itemName", "")
+            item_seq = item.get("itemSeq") or item.get("ITEM_SEQ")
+            item_name = item.get("itemName") or item.get("ITEM_NAME", "")
             if not item_seq:
                 continue
             await Medicine.get_or_create(
@@ -86,14 +86,14 @@ class MedicineService:
                 defaults={
                     "item_name": item_name,
                     "search_keyword": self._normalize_keyword(item_name),
-                    "entp_name": item.get("entpName"),
+                    "entp_name": item.get("entpName") or item.get("ENTP_NAME"),
                     "efcy_qesitm": item.get("efcyQesitm"),
                     "use_method_qesitm": item.get("useMethodQesitm"),
-                    "item_image": item.get("itemImage"),
-                    "print_front": item.get("printFront"),
-                    "print_back": item.get("printBack"),
-                    "drug_shape": item.get("drugShape"),
-                    "color_class": item.get("colorClass1"),
+                    "item_image": item.get("itemImage") or item.get("ITEM_IMAGE"),
+                    "print_front": item.get("printFront") or item.get("PRINT_FRONT"),
+                    "print_back": item.get("printBack") or item.get("PRINT_BACK"),
+                    "drug_shape": item.get("drugShape") or item.get("DRUG_SHAPE"),
+                    "color_class": item.get("colorClass1") or item.get("COLOR_CLASS1"),
                 },
             )
 
@@ -102,7 +102,7 @@ class MedicineService:
         seen: set[str] = set()
         merged = []
         for item in easy + pill:
-            seq = item.get("itemSeq")
+            seq = item.get("itemSeq") or item.get("ITEM_SEQ")
             if seq and seq not in seen:
                 seen.add(seq)
                 merged.append(item)
