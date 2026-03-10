@@ -23,6 +23,7 @@ export function DiaryDetailPage() {
   const editEntryId = Number(searchParams.get("entryId") || 0) || null;
 
   const [entries, setEntries] = useState<Array<{ entryId: number; source: string; title: string; content: string; createdAt: string }>>([]);
+  const [moods, setMoods] = useState<Array<{ mood_level: number; time_slot?: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [writeMethod, setWriteMethod] = useState<WriteMethod>("text");
@@ -44,15 +45,18 @@ export function DiaryDetailPage() {
       const result = await getDiaryByDate(entryDate);
       if (!result) {
         setEntries([]);
+        setMoods([]);
         return;
       }
       setEntries(result.entries ?? []);
+      setMoods(result.moods ?? []);
       if (isEditMode && result.entries?.[0]) {
         setTitle(result.entries[0].title ?? "");
         setContent(result.entries[0].content ?? "");
       }
     } catch (err) {
       setEntries([]);
+      setMoods([]);
       setError(err instanceof Error ? err.message : "일기 데이터를 불러오지 못했습니다.");
     } finally {
       setLoading(false);
@@ -119,6 +123,27 @@ export function DiaryDetailPage() {
           <h1 style={{ margin: 0, fontSize: 20 }}>{entryDate ? formatDateLabel(entryDate) : "일기 상세"}</h1>
         </div>
       </div>
+      {moods.length > 0 ? (
+        <section style={{ background: COLORS.cardBg, borderRadius: 12, border: `1px solid ${COLORS.border}`, padding: "10px 12px" }}>
+          <p style={{ margin: "0 0 8px", fontSize: 12, color: COLORS.subText, fontWeight: 700 }}>오늘의 기분</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {moods.map((mood, index) => (
+              <span
+                key={`${mood.time_slot ?? "SLOT"}-${index}`}
+                style={{
+                  padding: "4px 8px",
+                  borderRadius: 999,
+                  border: `1px solid ${COLORS.border}`,
+                  fontSize: 12,
+                  background: "#fff",
+                }}
+              >
+                {(mood.time_slot ?? "").toUpperCase()} {mood.mood_level}
+              </span>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {loading ? <Loading /> : null}
       {error ? <ErrorMessage message={error} onRetry={() => void fetchDiary()} /> : null}
