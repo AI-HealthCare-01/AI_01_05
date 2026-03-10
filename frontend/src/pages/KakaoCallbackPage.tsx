@@ -28,6 +28,7 @@ export default function KakaoCallbackPage() {
           })
           if (meRes.ok) {
             const me = await meRes.json()
+            if (me.id) useAuthStore.getState().setUserId(me.id)
             navigate(me.onboarding_completed ? '/main' : '/character-select', { replace: true })
           } else {
             navigate('/main', { replace: true })
