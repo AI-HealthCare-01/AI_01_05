@@ -20,7 +20,6 @@ export default function KakaoCallbackPage() {
     kakaoLogin(code)
       .then(async (data) => {
         if (!data.is_new_user && data.access_token) {
-          localStorage.setItem('access_token', data.access_token)
           useAuthStore.getState().setAccessToken(data.access_token)
           // onboarding_completed 확인
           const meRes = await fetch('/api/v1/users/me', {
