@@ -26,7 +26,7 @@ export default function MedicineSearchPage() {
 
   const [keyword, setKeyword] = useState("");
   const [results, setResults] = useState<MedicineSearchItem[]>([]);
-  const [selected, setSelected] = useState<MedicineSearchItem | null>(null);
+  const [selectedItems, setSelectedItems] = useState<MedicineSearchItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -56,18 +56,27 @@ export default function MedicineSearchPage() {
     };
   }, [keyword]);
 
+  const toggleItem = (item: MedicineSearchItem) => {
+    setSelectedItems((prev) =>
+      prev.some((s) => s.item_seq === item.item_seq)
+        ? prev.filter((s) => s.item_seq !== item.item_seq)
+        : [...prev, item]
+    );
+  };
+
   const handleNext = () => {
-    if (!selected) return;
-    const draft: MedicineDraftItem = {
-      item_seq: selected.item_seq,
-      item_name: selected.item_name,
-      start_date: todayStr(),
-      dose_per_intake: 1,
-      daily_frequency: 1,
-      total_days: 7,
-      time_slots: ["MORNING"],
-    };
-    addDraft(draft);
+    if (selectedItems.length === 0) return;
+    selectedItems.forEach((item) => {
+      addDraft({
+        item_seq: item.item_seq,
+        item_name: item.item_name,
+        start_date: todayStr(),
+        dose_per_intake: 1,
+        daily_frequency: 1,
+        total_days: 7,
+        time_slots: ["MORNING"],
+      } satisfies MedicineDraftItem);
+    });
     navigate("/medications/confirm");
   };
 
@@ -128,11 +137,11 @@ export default function MedicineSearchPage() {
         )}
 
         {results.map((item) => {
-          const isSelected = selected?.item_seq === item.item_seq;
+          const isSelected = selectedItems.some((s) => s.item_seq === item.item_seq);
           return (
             <div
               key={item.item_seq}
-              onClick={() => setSelected(isSelected ? null : item)}
+              onClick={() => toggleItem(item)}
               style={{
                 ...cardStyle,
                 padding: "12px 16px",
@@ -176,12 +185,14 @@ export default function MedicineSearchPage() {
         }}
       >
         <span style={{ fontSize: 13, color: COLORS.button, fontWeight: 600, flex: 1 }}>
-          {selected ? `선택됨: ${selected.item_name}` : "약을 선택해주세요"}
+          {selectedItems.length > 0
+            ? `${selectedItems.length}개 선택됨`
+            : "약을 선택해주세요"}
         </span>
         <Button variant="secondary" onClick={() => navigate(-1)}>
           이전
         </Button>
-        <Button variant="primary" disabled={!selected} onClick={handleNext}>
+        <Button variant="primary" disabled={selectedItems.length === 0} onClick={handleNext}>
           다음 →
         </Button>
       </div>
