@@ -23,6 +23,7 @@ export interface DiaryDetailResponse {
     content: string;
     createdAt: string;
   }>;
+  moods?: Array<{ mood_level: number; time_slot?: string }>;
 }
 
 export interface ReportListItem {
