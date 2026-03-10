@@ -19,7 +19,12 @@ async def create_user_medication(
 ) -> Response:
     med = await service.create(user, body)
     return Response(
-        {"medication_id": med.medication_id, "item_seq": med.medicine_id, "status": med.status},
+        {
+            "medication_id": med.medication_id,
+            "item_seq": med.medicine_id,
+            "item_name": (await med.medicine).item_name,
+            "status": med.status,
+        },
         status_code=status.HTTP_201_CREATED,
     )
 

@@ -18,4 +18,5 @@ class UserMedicationCreateRequest(BaseModel):
 class UserMedicationResponse(BaseSerializerModel):
     medication_id: int
     item_seq: str
+    item_name: str
     status: str
