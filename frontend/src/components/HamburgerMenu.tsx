@@ -1,18 +1,18 @@
 import { useEffect } from "react";
 
-const MENU_ITEMS = [
-  { icon: "💊", label: "약물 관리", path: "/medications" },
-  { icon: "📋", label: "대화 기록", path: "/history" },
-  { icon: "⚙️", label: "설정", path: "/settings" },
-  { icon: "❓", label: "도움말", path: "/help" },
+const HISTORY_ITEMS = [
+  "현재 복용 약과 감기약 혼입 가능 여부",
+  "알코올 섭취 가능 여부",
+  "오늘의 일기 작성",
 ];
 
 interface HamburgerMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  onNewChat: () => void;
 }
 
-export default function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
+export default function HamburgerMenu({ isOpen, onClose, onNewChat }: HamburgerMenuProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -27,43 +27,130 @@ export default function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 ${
-          isOpen ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 40,
+          background: "rgba(0,0,0,0.5)",
+          opacity: isOpen ? 1 : 0,
+          pointerEvents: isOpen ? "auto" : "none",
+          transition: "opacity 0.3s",
+        }}
         onClick={onClose}
       />
 
-      {/* Slide panel */}
+      {/* Slide panel - RIGHT side */}
       <nav
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-white shadow-xl transition-transform duration-300 ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        style={{
+          position: "fixed",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 50,
+          width: 280,
+          background: "#FFFFFF",
+          boxShadow: "-4px 0 20px rgba(0,0,0,0.1)",
+          transform: isOpen ? "translateX(0)" : "translateX(100%)",
+          transition: "transform 0.3s",
+          display: "flex",
+          flexDirection: "column",
+        }}
       >
-        <div className="flex h-14 items-center px-4">
-          <span className="text-lg font-bold text-teal-600">도닥톡</span>
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            height: 56,
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 16px",
+            borderBottom: "1px solid #E0E0E0",
+          }}
+        >
+          <span style={{ fontWeight: 800, fontSize: 18, color: "#99A988" }}>도닥톡</span>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: 22,
+              cursor: "pointer",
+              color: "#757575",
+              padding: 4,
+            }}
+            aria-label="메뉴 닫기"
+          >
+            ✕
+          </button>
         </div>
 
-        <hr className="border-gray-200" />
+        {/* New chat */}
+        <button
+          onClick={() => {
+            onNewChat();
+            onClose();
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            width: "100%",
+            padding: "14px 16px",
+            background: "none",
+            border: "none",
+            borderBottom: "1px solid #F0F0F0",
+            cursor: "pointer",
+            fontSize: 15,
+            fontWeight: 700,
+            color: "#99A988",
+            textAlign: "left",
+          }}
+        >
+          <span style={{ fontSize: 20 }}>+</span>
+          새 채팅 시작하기
+        </button>
 
-        <ul className="flex-1 py-2">
-          {MENU_ITEMS.map((item) => (
-            <li key={item.path}>
+        {/* History section */}
+        <div style={{ padding: "14px 16px 8px", fontSize: 14, fontWeight: 700, color: "#757575" }}>
+          = 지난 채팅 내역
+        </div>
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, flex: 1 }}>
+          {HISTORY_ITEMS.map((item) => (
+            <li key={item}>
               <button
-                onClick={() => {
-                  /* Phase 2: navigate(item.path) */
-                  onClose();
+                onClick={onClose}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  width: "100%",
+                  padding: "12px 16px 12px 24px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  color: "#2C2C2C",
+                  textAlign: "left",
                 }}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left text-gray-700 hover:bg-gray-50"
               >
-                <span className="text-xl">{item.icon}</span>
-                <span className="text-sm font-medium">{item.label}</span>
+                <span style={{ color: "#99A988" }}>•</span>
+                {item}
               </button>
             </li>
           ))}
         </ul>
 
-        <hr className="border-gray-200" />
-        <div className="px-4 py-3 text-xs text-gray-400">v1.0.0</div>
+        {/* Footer */}
+        <div
+          style={{
+            padding: "12px 16px",
+            borderTop: "1px solid #E0E0E0",
+            fontSize: 12,
+            color: "#BDBDBD",
+          }}
+        >
+          v1.0.0
+        </div>
       </nav>
     </>
   );

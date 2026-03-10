@@ -17,6 +17,8 @@ import AddMedicationPage from "../pages/AddMedicationPage.tsx";
 import MedicineSearchPage from "../pages/MedicineSearchPage.tsx";
 import MedicineConfirmPage from "../pages/MedicineConfirmPage.tsx";
 import { MedicationFlowProvider } from "../store/MedicationFlowContext.tsx";
+import { ChatProvider } from "../context/ChatContext.tsx";
+import ChatPage from "../pages/ChatPage.tsx";
 
 function MedicationFlowLayout() {
   return (

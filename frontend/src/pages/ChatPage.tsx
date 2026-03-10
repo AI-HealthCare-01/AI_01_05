@@ -47,23 +47,42 @@ export default function ChatPage() {
     }
   };
 
+  const handleNewChat = () => {
+    // Reset chat to initial state by reloading
+    window.location.reload();
+  };
+
   return (
-    <div className="flex h-dvh flex-col bg-white">
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100dvh",
+        background: "#F5F5F5",
+      }}
+    >
       <Header
         onMenuToggle={() => dispatch({ type: "TOGGLE_MENU" })}
-        onMedicationClick={() => {
-          /* Phase 2 */
-        }}
       />
 
       <HamburgerMenu
         isOpen={state.isMenuOpen}
         onClose={() => dispatch({ type: "CLOSE_MENU" })}
+        onNewChat={handleNewChat}
       />
 
       {/* Message list */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-2xl flex-col gap-3 py-4">
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        <div
+          style={{
+            maxWidth: 672,
+            margin: "0 auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            padding: "16px 0",
+          }}
+        >
           {state.messages.map((msg) => (
             <ChatBubble key={msg.id} message={msg} />
           ))}

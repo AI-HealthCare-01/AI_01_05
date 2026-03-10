@@ -6,24 +6,49 @@ export default function TypingIndicator({ visible }: TypingIndicatorProps) {
   if (!visible) return null;
 
   return (
-    <div className="flex justify-start px-4">
-      <div className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-100 text-sm">
+    <div style={{ display: "flex", justifyContent: "flex-start", padding: "0 16px" }}>
+      <div
+        style={{
+          marginRight: 10,
+          width: 36,
+          height: 36,
+          borderRadius: "50%",
+          background: "rgba(107,127,94,0.15)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 16,
+          flexShrink: 0,
+        }}
+      >
         🩺
       </div>
-      <div className="flex items-center gap-1 rounded-2xl rounded-tl-sm bg-gray-100 px-4 py-3">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          borderRadius: 16,
+          borderTopLeftRadius: 4,
+          background: "#FFFFFF",
+          border: "1px solid #E0E0E0",
+          padding: "12px 16px",
+        }}
+      >
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="inline-block h-2 w-2 rounded-full bg-gray-400"
             style={{
+              display: "inline-block",
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: "#99A988",
               animation: "bounce-dot 1.4s infinite ease-in-out both",
               animationDelay: `${i * 0.16}s`,
             }}
           />
         ))}
-        <noscript>
-          <span className="text-sm text-gray-500">...</span>
-        </noscript>
       </div>
     </div>
   );
