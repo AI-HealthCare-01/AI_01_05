@@ -11,7 +11,7 @@ class MfdsClient:
         if not config.MFDS_API_KEY:
             return []
         url = "http://apis.data.go.kr/1471000/DrbEasyDrugInfoService/getDrbEasyDrugList"
-        params = {
+        params: dict[str, str | int] = {
             "serviceKey": config.MFDS_API_KEY,
             "itemName": keyword,
             "numOfRows": num_of_rows,
