@@ -192,7 +192,7 @@ function NormalCard({
           checked={checked}
           onChange={onCheck}
           aria-label={item.item_name}
-          style={{ accentColor: COLORS.button, marginTop: 2 }}
+          style={{ accentColor: COLORS.button, width: 16, height: 16, marginTop: 2, flexShrink: 0, cursor: "pointer" }}
         />
       )}
       <div style={{ flex: 1 }}>
@@ -321,6 +321,9 @@ export default function MedicineConfirmPage() {
                 <Button variant="secondary" onClick={toggleAll} style={{ fontSize: 12, padding: "6px 10px" }}>
                   전체선택
                 </Button>
+                <Button variant="danger" onClick={handleDelete} disabled={checkedIndices.length === 0} style={{ fontSize: 12, padding: "6px 10px" }}>
+                  선택 삭제
+                </Button>
                 <Button variant="secondary" onClick={() => { setDeleteMode(false); setCheckedIndices([]); }} style={{ fontSize: 12, padding: "6px 10px" }}>
                   완료
                 </Button>
@@ -390,11 +393,6 @@ export default function MedicineConfirmPage() {
           )
         )}
 
-        {deleteMode && checkedIndices.length > 0 && (
-          <Button variant="danger" fullWidth onClick={handleDelete} style={{ marginTop: 8 }}>
-            선택 항목 삭제
-          </Button>
-        )}
       </div>
 
       {!deleteMode && (
