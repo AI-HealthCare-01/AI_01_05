@@ -13,10 +13,10 @@ router = APIRouter(prefix="/medicines", tags=["medicines"])
 
 @router.get("/search", response_model=list[MedicineSearchResponse], status_code=status.HTTP_200_OK)
 async def search_medicines(
-    keyword: Annotated[str, Query(min_length=1)],
-    limit: Annotated[int, Query(ge=1, le=50)] = 20,
     user: Annotated[User, Depends(get_request_user)],
     service: Annotated[MedicineService, Depends(MedicineService)],
+    keyword: Annotated[str, Query(min_length=1)],
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
 ) -> Response:
     results = await service.search(keyword, limit)
     return Response([MedicineSearchResponse(**r).model_dump() for r in results])
