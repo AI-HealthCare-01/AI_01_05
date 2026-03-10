@@ -1,3 +1,4 @@
+import asyncio
 import re
 
 import httpx
@@ -7,10 +8,12 @@ from app.models.medicine import Medicine
 
 
 class MfdsClient:
-    async def search(self, keyword: str, num_of_rows: int = 20) -> list[dict]:
+    _EASY_DRUG_URL = "http://apis.data.go.kr/1471000/DrbEasyDrugInfoService/getDrbEasyDrugList"
+    _PILL_URL = "http://apis.data.go.kr/1471000/MdcinGrnIdntfcInfoService01/getMdcinGrnIdntfcInfoList01"
+
+    async def search_easy_drug(self, keyword: str, num_of_rows: int) -> list[dict]:
         if not config.MFDS_API_KEY:
             return []
-        url = "http://apis.data.go.kr/1471000/DrbEasyDrugInfoService/getDrbEasyDrugList"
         params: dict[str, str | int] = {
             "serviceKey": config.MFDS_API_KEY,
             "itemName": keyword,
@@ -18,12 +21,27 @@ class MfdsClient:
             "pageNo": 1,
             "type": "json",
         }
+        return await self._get(self._EASY_DRUG_URL, params)
+
+    async def search_pill(self, keyword: str, num_of_rows: int) -> list[dict]:
+        if not config.MFDS_PILL_API_KEY:
+            return []
+        params: dict[str, str | int] = {
+            "serviceKey": config.MFDS_PILL_API_KEY,
+            "itemName": keyword,
+            "numOfRows": num_of_rows,
+            "pageNo": 1,
+            "type": "json",
+        }
+        return await self._get(self._PILL_URL, params)
+
+    async def _get(self, url: str, params: dict[str, str | int]) -> list[dict]:
         try:
             async with httpx.AsyncClient(timeout=config.MFDS_API_TIMEOUT) as client:
                 response = await client.get(url, params=params)
                 response.raise_for_status()
-                body = response.json()
-            items = body.get("body", {}).get("items") or []
+                body = response.json().get("body", {})
+            items = body.get("items") or []
             return items if isinstance(items, list) else []
         except Exception:
             return []
@@ -41,9 +59,13 @@ class MedicineService:
         if results:
             return list(results)
 
-        api_items = await self._client.search(keyword, num_of_rows=limit)
-        if api_items:
-            await self._cache_from_api(api_items)
+        easy, pill = await asyncio.gather(
+            self._client.search_easy_drug(keyword, limit),
+            self._client.search_pill(keyword, limit),
+        )
+        merged = self._merge(easy, pill)
+        if merged:
+            await self._cache_from_api(merged)
             results = await Medicine.filter(
                 search_keyword__startswith=keyword, is_active=True
             ).limit(limit).values("item_seq", "item_name", "entp_name")
@@ -68,8 +90,23 @@ class MedicineService:
                     "efcy_qesitm": item.get("efcyQesitm"),
                     "use_method_qesitm": item.get("useMethodQesitm"),
                     "item_image": item.get("itemImage"),
+                    "print_front": item.get("printFront"),
+                    "print_back": item.get("printBack"),
+                    "drug_shape": item.get("drugShape"),
+                    "color_class": item.get("colorClass1"),
                 },
             )
+
+    @staticmethod
+    def _merge(easy: list[dict], pill: list[dict]) -> list[dict]:
+        seen: set[str] = set()
+        merged = []
+        for item in easy + pill:
+            seq = item.get("itemSeq")
+            if seq and seq not in seen:
+                seen.add(seq)
+                merged.append(item)
+        return merged
 
     @staticmethod
     def _normalize_keyword(item_name: str) -> str:

@@ -66,3 +66,7 @@ class Config(BaseSettings):
     # MFDS_API_KEY: "" → stub 모드 (빈 리스트 반환)
     MFDS_API_KEY: str = ""
     MFDS_API_TIMEOUT: int = 10
+
+    # MFDS (식약처) 낱알식별 API
+    # MFDS_PILL_API_KEY: "" → stub 모드
+    MFDS_PILL_API_KEY: str = ""
