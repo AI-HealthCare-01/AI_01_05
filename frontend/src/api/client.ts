@@ -1,3 +1,5 @@
+import { useAuthStore } from '../store/authStore';
+
 const BASE_URL = "/api/v1";
 const ACCESS_TOKEN_KEY = "access_token";
 
@@ -12,14 +14,6 @@ function getAccessToken(): string | null {
   return localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
-function setAccessToken(token: string): void {
-  localStorage.setItem(ACCESS_TOKEN_KEY, token);
-}
-
-function clearTokens(): void {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-}
-
 async function refreshAccessToken(): Promise<string | null> {
   const response = await fetch(`${BASE_URL}/auth/token/refresh`, {
     method: "GET",
@@ -32,7 +26,7 @@ async function refreshAccessToken(): Promise<string | null> {
   const nextAccessToken = data.access_token ?? data.accessToken;
   if (!nextAccessToken) return null;
 
-  setAccessToken(nextAccessToken);
+  useAuthStore.getState().setAccessToken(nextAccessToken);
   return nextAccessToken;
 }
 
@@ -62,7 +56,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   if (response.status === 401 && retryOnUnauthorized) {
     const nextAccessToken = await refreshAccessToken();
     if (!nextAccessToken) {
-      clearTokens();
+      useAuthStore.getState().clearAuth();
       throw new SessionExpiredError();
     }
 
@@ -100,6 +94,6 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 }
 
 export const tokenStorage = {
-  setAccessToken,
-  clearTokens,
+  setAccessToken: (token: string) => useAuthStore.getState().setAccessToken(token),
+  clearTokens: () => useAuthStore.getState().clearAuth(),
 };
