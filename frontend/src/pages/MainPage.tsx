@@ -6,7 +6,6 @@ import {
   getHomeMedicationsToday,
   getHomeMoodsToday,
   patchHomeMedicationCheck,
-  postHomeMedicationToday,
   postHomeMoodToday,
   type HomeMedicationItem,
 } from "../api/home";
@@ -171,10 +170,7 @@ export default function MainPage() {
   const [todayMedications, setTodayMedications] = useState<MedicationUiItem[]>([]);
   const [isSavingMedication, setIsSavingMedication] = useState(false);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [medicineName, setMedicineName] = useState("");
-  const [timeSlot, setTimeSlot] = useState<UiSlot>("morning");
-  const [dosage, setDosage] = useState(1);
+
 
   const initialSlot = getCurrentUiSlot();
   const initialIndex = TIME_SLOTS.findIndex((slot) => slot.key === initialSlot);
@@ -309,61 +305,6 @@ export default function MainPage() {
       await fetchTodayMedications();
     } catch (patchError) {
       const message = patchError instanceof Error ? patchError.message : "복약 상태 변경에 실패했습니다.";
-      setError(message);
-    } finally {
-      setIsSavingMedication(false);
-    }
-  };
-
-  const handleAddMedication = async () => {
-    if (!medicineName.trim()) {
-      setError("약 이름을 입력해주세요.");
-      return;
-    }
-
-    if (dosage < 1) {
-      setError("복용량은 1 이상이어야 합니다.");
-      return;
-    }
-
-    try {
-      setIsSavingMedication(true);
-      setError("");
-
-      let created;
-      try {
-        created = await postHomeMedicationToday({
-          name: medicineName.trim(),
-          timeSlot,
-          dosage,
-        });
-      } catch {
-        created = await postHomeMedicationToday({
-          name: medicineName.trim(),
-          timeSlot: uiToApiSlot(timeSlot),
-          dosage,
-        });
-      }
-
-      setTodayMedications((prev) => [
-        ...prev,
-        {
-          id: created.medicationId,
-          medicationId: created.medicationId,
-          name: medicineName.trim(),
-          dosage,
-          timeSlot,
-          checked: false,
-        },
-      ]);
-
-      setIsModalOpen(false);
-      setMedicineName("");
-      setTimeSlot("morning");
-      setDosage(1);
-      await fetchTodayMedications();
-    } catch (createError) {
-      const message = createError instanceof Error ? createError.message : "약 추가에 실패했습니다.";
       setError(message);
     } finally {
       setIsSavingMedication(false);
@@ -513,7 +454,7 @@ export default function MainPage() {
         <div style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h2 style={{ margin: 0 }}>오늘의 복약</h2>
-            <button style={topButtonStyle} onClick={() => setIsModalOpen(true)}>약 추가</button>
+            <button style={topButtonStyle} onClick={() => navigate('/medications/add')}>약 추가</button>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -629,122 +570,6 @@ export default function MainPage() {
           </div>
         )}
       </div>
-
-      {isModalOpen && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "16px",
-            zIndex: 100,
-          }}
-          onClick={() => setIsModalOpen(false)}
-        >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: 420,
-              background: "#FFFFFF",
-              borderRadius: 20,
-              border: "1px solid #E0E0E0",
-              padding: 20,
-            }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h3 style={{ margin: "0 0 16px" }}>약 추가</h3>
-
-            <label style={{ display: "block", marginBottom: 8, fontWeight: 700, color: "#99A988" }}>약 이름</label>
-            <input
-              value={medicineName}
-              onChange={(event) => setMedicineName(event.target.value)}
-              placeholder="예: 리튬"
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                border: "1px solid #E0E0E0",
-                borderRadius: 12,
-                padding: "12px 14px",
-                marginBottom: 14,
-              }}
-            />
-
-            <label style={{ display: "block", marginBottom: 8, fontWeight: 700, color: "#99A988" }}>시간대</label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 14 }}>
-              {TIME_SLOTS.map((slot) => (
-                <button
-                  key={`slot-${slot.key}`}
-                  onClick={() => setTimeSlot(slot.key)}
-                  style={{
-                    padding: "10px 8px",
-                    borderRadius: 10,
-                    border: "1px solid #E0E0E0",
-                    background: timeSlot === slot.key ? "#99A988" : "#FFFFFF",
-                    color: timeSlot === slot.key ? "#FFFFFF" : "#2C2C2C",
-                    cursor: "pointer",
-                    fontWeight: 700,
-                  }}
-                >
-                  {slot.label}
-                </button>
-              ))}
-            </div>
-
-            <label style={{ display: "block", marginBottom: 8, fontWeight: 700, color: "#99A988" }}>복용량(정)</label>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-              <button
-                onClick={() => setDosage((prev) => Math.max(1, prev - 1))}
-                style={{ ...topButtonStyle, minWidth: 44 }}
-                type="button"
-              >
-                -
-              </button>
-              <div style={{ minWidth: 36, textAlign: "center", fontWeight: 800 }}>{dosage}</div>
-              <button
-                onClick={() => setDosage((prev) => prev + 1)}
-                style={{ ...topButtonStyle, minWidth: 44 }}
-                type="button"
-              >
-                +
-              </button>
-            </div>
-
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                style={{
-                  flex: 1,
-                  borderRadius: 12,
-                  border: "1px solid #E0E0E0",
-                  background: "#FFFFFF",
-                  color: "#2C2C2C",
-                  padding: "12px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-                type="button"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleAddMedication}
-                disabled={isSavingMedication}
-                style={{
-                  ...topButtonStyle,
-                  flex: 1,
-                  opacity: isSavingMedication ? 0.7 : 1,
-                }}
-                type="button"
-              >
-                저장
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
