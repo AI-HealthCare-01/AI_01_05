@@ -48,5 +48,6 @@ export const router = createBrowserRouter([
       { path: "/medications/confirm", element: <MedicineConfirmPage /> },
     ],
   },
+  { path: "/chat", element: <AuthRequired><ChatProvider><ChatPage /></ChatProvider></AuthRequired>},
   { path: "*", element: <Navigate to="/" replace /> },
 ]);
