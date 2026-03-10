@@ -9,7 +9,9 @@ import {
   postHomeMoodToday,
   type HomeMedicationItem,
 } from "../api/home";
-import chamkkaeImage from "../assets/images/chatbots/chamkkae-removebg.png";
+import { getMyCharacter } from "../apis/characterApi";
+import { CHARACTER_IMAGE_BY_ID, DEFAULT_CHARACTER_IMAGE } from "../constants/characters";
+import { useAuthStore } from "../store/authStore";
 
 type UiSlot = "morning" | "lunch" | "dinner" | "night";
 type ApiSlot = "MORNING" | "LUNCH" | "EVENING" | "BEDTIME";
@@ -117,6 +119,7 @@ const emojiButtonBaseStyle: CSSProperties = {
   cursor: "pointer",
 };
 
+
 function uiToApiSlot(uiSlot: UiSlot): ApiSlot {
   if (uiSlot === "morning") return "MORNING";
   if (uiSlot === "lunch") return "LUNCH";
@@ -151,6 +154,9 @@ function getCurrentUiSlot(): UiSlot {
 
 export default function MainPage() {
   const navigate = useNavigate();
+  const selectedCharacter = useAuthStore((s) => s.selectedCharacter);
+  const setSelectedCharacter = useAuthStore((s) => s.setSelectedCharacter);
+  const [characterImage, setCharacterImage] = useState(DEFAULT_CHARACTER_IMAGE);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -247,6 +253,27 @@ export default function MainPage() {
   useEffect(() => {
     fetchHome();
   }, []);
+
+  useEffect(() => {
+    if (!selectedCharacter?.id) return;
+    setCharacterImage(CHARACTER_IMAGE_BY_ID[selectedCharacter.id] ?? DEFAULT_CHARACTER_IMAGE);
+  }, [selectedCharacter]);
+
+  useEffect(() => {
+    getMyCharacter()
+      .then((data) => {
+        const nextImage = CHARACTER_IMAGE_BY_ID[data.character_id] ?? DEFAULT_CHARACTER_IMAGE;
+        setCharacterImage(nextImage);
+        setSelectedCharacter({
+          id: data.character_id,
+          name: data.name,
+          imageUrl: nextImage,
+        });
+      })
+      .catch(() => {
+        setCharacterImage(DEFAULT_CHARACTER_IMAGE);
+      });
+  }, [setSelectedCharacter]);
 
   useEffect(() => {
     const index = initialIndex < 0 ? 0 : initialIndex;
@@ -389,10 +416,9 @@ export default function MainPage() {
 
         <div style={{ ...cardStyle, textAlign: "center" }}>
           <img
-            src={chamkkaeImage}
-            alt="기본 캐릭터"
-            style={{ width: 180, maxWidth: "70%", objectFit: "contain", marginBottom: 8, cursor: "pointer" }}
-            onClick={() => navigate("/chat")}
+            src={characterImage}
+            alt="선택 캐릭터"
+            style={{ width: 180, maxWidth: "70%", objectFit: "contain", marginBottom: 8 }}
           />
           <p style={{ margin: 0, fontWeight: 600, lineHeight: 1.6 }}>{characterMessage}</p>
         </div>
