@@ -15,8 +15,8 @@ router = APIRouter(prefix="/medicines", tags=["medicines"])
 async def search_medicines(
     keyword: Annotated[str, Query(min_length=1)],
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
-    user: Annotated[User, Depends(get_request_user)] = None,
-    service: Annotated[MedicineService, Depends(MedicineService)] = None,
+    user: Annotated[User, Depends(get_request_user)],
+    service: Annotated[MedicineService, Depends(MedicineService)],
 ) -> Response:
     results = await service.search(keyword, limit)
     return Response([MedicineSearchResponse(**r).model_dump() for r in results])
@@ -25,8 +25,8 @@ async def search_medicines(
 @router.get("/{item_seq}", response_model=MedicineDetailResponse, status_code=status.HTTP_200_OK)
 async def get_medicine_detail(
     item_seq: str,
-    user: Annotated[User, Depends(get_request_user)] = None,
-    service: Annotated[MedicineService, Depends(MedicineService)] = None,
+    user: Annotated[User, Depends(get_request_user)],
+    service: Annotated[MedicineService, Depends(MedicineService)],
 ) -> Response:
     medicine = await service.get_detail(item_seq)
     if not medicine:
