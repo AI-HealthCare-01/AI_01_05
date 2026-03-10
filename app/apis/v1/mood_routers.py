@@ -71,4 +71,3 @@ async def get_moods(
         query = query.filter(log_date=date_value)
     moods = await query.order_by("-log_date", "time_slot")
     return {"message": "success", "data": [_serialize_mood(mood) for mood in moods]}
-

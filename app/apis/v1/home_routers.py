@@ -58,7 +58,9 @@ async def get_home_moods_today(user: Annotated[User, Depends(get_request_user)])
         }
         for mood in moods
     ]
-    remaining_slots = [slot for slot in ("MORNING", "LUNCH", "EVENING", "BEDTIME") if slot not in {m.time_slot for m in moods}]
+    remaining_slots = [
+        slot for slot in ("MORNING", "LUNCH", "EVENING", "BEDTIME") if slot not in {m.time_slot for m in moods}
+    ]
     return {"date": today, "remainingSlots": remaining_slots, "moods": mood_data}
 
 
