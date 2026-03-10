@@ -142,6 +142,14 @@ function getEmojiButtonStyle(level: number, selected: boolean): CSSProperties {
   };
 }
 
+function getCurrentUiSlot(): UiSlot {
+  const hour = new Date().getHours();
+  if (hour < 11) return "morning";
+  if (hour < 15) return "lunch";
+  if (hour < 21) return "dinner";
+  return "night";
+}
+
 export default function MainPage() {
   const navigate = useNavigate();
 
@@ -168,8 +176,10 @@ export default function MainPage() {
   const [timeSlot, setTimeSlot] = useState<UiSlot>("morning");
   const [dosage, setDosage] = useState(1);
 
-  const [moodSwipeIndex, setMoodSwipeIndex] = useState(0);
-  const [medSwipeIndex, setMedSwipeIndex] = useState(0);
+  const initialSlot = getCurrentUiSlot();
+  const initialIndex = TIME_SLOTS.findIndex((slot) => slot.key === initialSlot);
+  const [moodSwipeIndex, setMoodSwipeIndex] = useState(initialIndex < 0 ? 0 : initialIndex);
+  const [medSwipeIndex, setMedSwipeIndex] = useState(initialIndex < 0 ? 0 : initialIndex);
 
   const moodSwipeRef = useRef<HTMLDivElement | null>(null);
   const medSwipeRef = useRef<HTMLDivElement | null>(null);
@@ -240,6 +250,12 @@ export default function MainPage() {
 
   useEffect(() => {
     fetchHome();
+  }, []);
+
+  useEffect(() => {
+    const index = initialIndex < 0 ? 0 : initialIndex;
+    scrollMoodToIndex(index);
+    scrollMedToIndex(index);
   }, []);
 
   const handleMoodClick = async (slot: UiSlot, level: number) => {
@@ -450,7 +466,7 @@ export default function MainPage() {
           >
             {TIME_SLOTS.map((slot) => (
               <div key={slot.key} style={swipePageStyle}>
-                <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>오늘의 {slot.label} 기분</h3>
+                <h3 style={{ margin: "0 0 10px", fontSize: 15, lineHeight: 1.4, paddingTop: 2 }}>오늘의 {slot.label} 기분</h3>
 
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                   {Object.entries(MOOD_EMOJI).map(([level, emoji]) => {
