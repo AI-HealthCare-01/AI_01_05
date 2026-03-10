@@ -46,8 +46,8 @@ class UserInfoResponse(BaseSerializerModel):
     def _map_from_orm(cls, data: object) -> object:
         if not isinstance(data, dict):
             return {
-                "id": getattr(data, "user_id", 0),
-                "name": getattr(data, "nickname", ""),
+                "user_id": getattr(data, "user_id", 0),
+                "nickname": getattr(data, "nickname", ""),
                 "email": getattr(data, "email", None),
                 "phone_number": getattr(data, "phone_number", ""),
                 "birthday": getattr(data, "birthday", None),
