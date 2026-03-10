@@ -45,4 +45,3 @@ async def downgrade(db: BaseDBAsyncClient) -> str:
         EXECUTE stmt;
         DEALLOCATE PREPARE stmt;
     """
-

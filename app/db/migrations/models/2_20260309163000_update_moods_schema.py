@@ -67,4 +67,3 @@ async def downgrade(db: BaseDBAsyncClient) -> str:
             DROP COLUMN `time_slot`,
             DROP COLUMN `log_date`;
     """
-
