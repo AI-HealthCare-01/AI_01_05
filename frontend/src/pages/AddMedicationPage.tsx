@@ -20,9 +20,14 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/heic", "image/heif", "i
 export default function AddMedicationPage() {
   const navigate = useNavigate();
   const { addDraft } = useMedicationFlow();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 카메라 촬영용 (capture="environment")
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  // 갤러리 업로드용
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(false);
+  const [showSourceSheet, setShowSourceSheet] = useState(false);
   const [toast, setToast] = useState("");
 
   const showToast = (msg: string) => {
@@ -75,7 +80,6 @@ export default function AddMedicationPage() {
       showToast("OCR 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setLoading(false);
-      // 같은 파일 재선택 허용
       e.target.value = "";
     }
   };
@@ -118,7 +122,7 @@ export default function AddMedicationPage() {
 
         {/* 사진 등록 카드 */}
         <div
-          onClick={() => !loading && fileInputRef.current?.click()}
+          onClick={() => !loading && setShowSourceSheet(true)}
           aria-busy={loading}
           style={{
             ...cardStyle,
@@ -141,9 +145,18 @@ export default function AddMedicationPage() {
           </div>
         </div>
 
-        {/* 숨겨진 파일 입력 */}
+        {/* 카메라 촬영용 input */}
         <input
-          ref={fileInputRef}
+          ref={cameraInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
+          capture="environment"
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
+        {/* 갤러리 업로드용 input */}
+        <input
+          ref={galleryInputRef}
           type="file"
           accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
           style={{ display: "none" }}
@@ -172,28 +185,141 @@ export default function AddMedicationPage() {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* 토스트 */}
-        {toast && (
+      {/* 촬영/업로드 선택 바텀시트 */}
+      {showSourceSheet && (
+        <>
+          {/* 딤 배경 */}
+          <div
+            onClick={() => setShowSourceSheet(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.4)",
+              zIndex: 100,
+            }}
+          />
+          {/* 시트 */}
           <div
             style={{
               position: "fixed",
-              bottom: 32,
+              bottom: 0,
               left: "50%",
               transform: "translateX(-50%)",
-              background: "rgba(0,0,0,0.7)",
-              color: "#fff",
-              padding: "10px 20px",
-              borderRadius: 20,
-              fontSize: 14,
-              zIndex: 200,
-              whiteSpace: "nowrap",
+              width: "100%",
+              maxWidth: 460,
+              background: COLORS.cardBg,
+              borderRadius: "20px 20px 0 0",
+              padding: "20px 16px 32px",
+              zIndex: 101,
             }}
           >
-            {toast}
+            <div
+              style={{
+                width: 40,
+                height: 4,
+                background: COLORS.border,
+                borderRadius: 2,
+                margin: "0 auto 20px",
+              }}
+            />
+            <div style={{ fontWeight: 700, fontSize: 16, color: COLORS.text, marginBottom: 16, textAlign: "center" }}>
+              사진 등록 방법 선택
+            </div>
+
+            {/* 카메라 촬영 */}
+            <button
+              onClick={() => {
+                setShowSourceSheet(false);
+                cameraInputRef.current?.click();
+              }}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                padding: "14px 16px",
+                background: COLORS.selectedCellBg,
+                border: `1px solid ${COLORS.button}`,
+                borderRadius: 14,
+                cursor: "pointer",
+                marginBottom: 10,
+              }}
+            >
+              <span style={{ fontSize: 24 }}>📷</span>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>카메라로 촬영</div>
+                <div style={{ fontSize: 12, color: COLORS.subText, marginTop: 2 }}>지금 바로 약 봉투를 촬영합니다</div>
+              </div>
+            </button>
+
+            {/* 갤러리 업로드 */}
+            <button
+              onClick={() => {
+                setShowSourceSheet(false);
+                galleryInputRef.current?.click();
+              }}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                padding: "14px 16px",
+                background: COLORS.cardBg,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 14,
+                cursor: "pointer",
+                marginBottom: 10,
+              }}
+            >
+              <span style={{ fontSize: 24 }}>🖼️</span>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>갤러리에서 선택</div>
+                <div style={{ fontSize: 12, color: COLORS.subText, marginTop: 2 }}>저장된 사진을 불러옵니다</div>
+              </div>
+            </button>
+
+            {/* 취소 */}
+            <button
+              onClick={() => setShowSourceSheet(false)}
+              style={{
+                width: "100%",
+                padding: "14px",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 15,
+                color: COLORS.subText,
+                marginTop: 4,
+              }}
+            >
+              취소
+            </button>
           </div>
-        )}
-      </div>
+        </>
+      )}
+
+      {/* 토스트 */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 32,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(0,0,0,0.7)",
+            color: "#fff",
+            padding: "10px 20px",
+            borderRadius: 20,
+            fontSize: 14,
+            zIndex: 200,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
