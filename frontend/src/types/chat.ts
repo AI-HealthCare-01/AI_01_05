@@ -3,6 +3,7 @@ export interface ChatRequest {
   message: string;
   medication_list: string[];
   user_note?: string;
+  character_id?: number | null;
 }
 
 export interface ChatResponse {

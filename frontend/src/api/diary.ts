@@ -84,9 +84,21 @@ export function getReportDetail(reportId: number) {
   return apiRequest<ReportDetail>(`/diary/report/${reportId}`, { method: "GET" });
 }
 
-// TODO: OCR API integration (path includes entry_date)
-// POST /diary/{entry_date}/photo/ocr
-// POST /diary/{entry_date}/photo/ocr/confirm
-// TODO: Chatbot summary API integration (path includes entry_date)
-// GET /diary/{entry_date}/chatbot/summary
-// POST /diary/{entry_date}/chatbot/summary/save
+export interface ChatbotSummaryResponse {
+  hasChatHistory: boolean;
+  entryId: number | null;
+  title: string | null;
+  summary: string | null;
+  redirectToChatbot: boolean;
+}
+
+export function getChatbotSummary(entryDate: string) {
+  return apiRequest<ChatbotSummaryResponse>(`/diary/${entryDate}/chatbot/summary`, { method: "GET" });
+}
+
+export function saveChatbotSummary(entryDate: string, payload: { entry_id: number; title: string; content: string }) {
+  return apiRequest<{ entryId: number; message: string }>(`/diary/${entryDate}/chatbot/summary/save`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

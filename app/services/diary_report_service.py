@@ -3,6 +3,7 @@ from calendar import monthrange
 from datetime import date, datetime
 
 from app.core import memory_db
+from app.models.chat import ChatLog
 from app.models.diary import Diary
 from app.models.mood import Mood
 from app.models.report import Report
@@ -14,18 +15,11 @@ TIME_SLOT_ORDER = {"MORNING": 0, "LUNCH": 1, "EVENING": 2, "BEDTIME": 3}
 
 
 class DiaryReportService:
-    """일기/리포트 도메인 서비스.
-
-    현재는 일부 플로우(OCR/챗봇 임시 결과)를 메모리 저장소(memory_db)로 운영하며,
-    핵심 영속 데이터(일기/기분/리포트)는 Tortoise 모델을 통해 DB에 저장한다.
-    """
-
     def __init__(self) -> None:
         self.ocr_service = OcrService()
         self.llm_service = LlmService()
 
     def next_entry_id(self) -> int:
-        # OCR/챗봇 임시 엔트리 식별자용 시퀀스.
         entry_id = memory_db.diary_entry_sequence
         memory_db.diary_entry_sequence += 1
         return entry_id
@@ -99,13 +93,11 @@ class DiaryReportService:
         return {"entryId": diary.diary_id, "message": "일기가 저장되었습니다."}
 
     async def extract_ocr_text(self, entry_date: date, file_type: str, file_bytes: bytes) -> dict:
-        # OCR 입력 검증(포맷/크기)을 먼저 수행해 외부 API 호출 비용을 줄인다.
         if file_type not in {"image/jpeg", "image/png"}:
             raise ValueError("UNSUPPORTED_FORMAT")
         if len(file_bytes) > 10 * 1024 * 1024:
             raise ValueError("FILE_TOO_LARGE")
 
-        # OCR 추출 결과는 "확정 저장" 전까지 메모리에 pending 상태로 보관한다.
         pending_id = self.next_entry_id()
         extracted_text = await self.ocr_service.extract_text(file_bytes=file_bytes, file_type=file_type)
         memory_db.fake_ocr_pending[pending_id] = {"date": entry_date, "extractedText": extracted_text}
@@ -127,22 +119,38 @@ class DiaryReportService:
         return {"entryId": diary.diary_id, "message": "일기가 저장되었습니다."}
 
     async def get_chatbot_summary(self, user_id: int, entry_date: date) -> dict:
-        diaries = await Diary.filter(user_id=user_id, diary_date=entry_date, deleted_at__isnull=True).order_by(
-            "-created_at"
-        )
-        if not diaries:
-            return {"hasChatHistory": False, "entryId": None, "summary": None, "redirectToChatbot": True}
+        # ChatLog에서 해당 날짜의 대화 내역을 가져옴
+        start_dt = datetime(entry_date.year, entry_date.month, entry_date.day, tzinfo=KST)
+        end_dt = datetime(entry_date.year, entry_date.month, entry_date.day, 23, 59, 59, tzinfo=KST)
+        chat_logs = await ChatLog.filter(
+            user_id=user_id,
+            created_at__gte=start_dt,
+            created_at__lte=end_dt,
+        ).order_by("created_at")
 
-        texts = [diary.content for diary in diaries[:5]]
+        if not chat_logs:
+            return {"hasChatHistory": False, "entryId": None, "title": None, "summary": None, "redirectToChatbot": True}
+
+        # 대화 내역을 텍스트로 변환
+        conversation_lines = []
+        for log in chat_logs:
+            conversation_lines.append(f"사용자: {log.message_content}")
+            conversation_lines.append(f"챗봇: {log.response_content}")
+        conversation_text = "\n".join(conversation_lines)
+
         try:
-            # LLM 요약 실패 시 UX 보존을 위해 deterministic fallback을 사용한다.
-            summary = await self.llm_service.summarize_chat(chat_texts=texts, entry_date=entry_date.isoformat())
+            summary_result = await self.llm_service.summarize_chat_as_diary(
+                conversation=conversation_text, entry_date=entry_date.isoformat()
+            )
+            title = summary_result.get("title", "오늘의 기록")
+            summary = summary_result.get("content", conversation_text[:500])
         except Exception:
-            summary = " ".join(diary.content for diary in diaries[:3]).strip()
+            title = f"{entry_date.isoformat()} 대화 요약"
+            summary = conversation_text[:500]
 
         pending_id = self.next_entry_id()
         memory_db.fake_chatbot_pending[pending_id] = {"date": entry_date, "summary": summary}
-        return {"hasChatHistory": True, "entryId": pending_id, "summary": summary, "redirectToChatbot": False}
+        return {"hasChatHistory": True, "entryId": pending_id, "title": title, "summary": summary, "redirectToChatbot": False}
 
     async def save_chatbot_summary(
         self, user_id: int, entry_date: date, entry_id: int, title: str, content: str

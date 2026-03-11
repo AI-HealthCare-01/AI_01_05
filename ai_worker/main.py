@@ -23,6 +23,7 @@ class AskRequest(BaseModel):
     message: str = Field(..., description="사용자 질문 메시지")
     medication_list: list[str] = Field(default_factory=list)
     user_note: str | None = Field(None)
+    character_id: int | None = Field(None, description="선택된 강아지 캐릭터 ID (1~4)")
 
 
 @app.post("/ask")
@@ -31,4 +32,5 @@ async def ask(request: AskRequest) -> dict:
         user_message=request.message,
         meds=request.medication_list,
         user_note=request.user_note,
+        character_id=request.character_id,
     )

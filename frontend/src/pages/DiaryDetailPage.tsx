@@ -1,18 +1,13 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-import { createDiaryText, getDiaryByDate, updateDiaryEntry } from "../api/diary";
+import { createDiaryText, getChatbotSummary, getDiaryByDate, updateDiaryEntry } from "../api/diary";
 import Button from "../components/Button";
 import { EmptyState, ErrorMessage, Loading } from "../components/CommonUI";
 import { COLORS } from "../constants/theme";
 import { formatDateLabel } from "../utils/date";
 
 type WriteMethod = "text" | "ocr" | "chatbot";
-
-const DUMMY_CHATBOT_SUMMARY: Record<string, string> = {
-  "2026-03-05": "오늘 친구를 오랜만에 만났어요. 카페에서 오랫동안 이야기했고 기분이 많이 나아졌어요. 약도 잘 챙겨 먹었고 컨디션이 좋았던 하루였어요.",
-  "2026-03-04": "별일 없는 하루였어요. 밥도 잘 먹고 약도 잘 먹었어요.",
-};
 
 export function DiaryDetailPage() {
   const { entryDate = "" } = useParams<{ entryDate: string }>();
@@ -31,6 +26,9 @@ export function DiaryDetailPage() {
   const [content, setContent] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [chatbotLoaded, setChatbotLoaded] = useState(false);
+  const [chatbotSummaryLoading, setChatbotSummaryLoading] = useState(false);
+  const [chatbotEntryId, setChatbotEntryId] = useState<number | null>(null);
+  const [chatbotError, setChatbotError] = useState<string | null>(null);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -181,6 +179,8 @@ export function DiaryDetailPage() {
                     setWriteMethod(method.key as WriteMethod);
                     setPreviewUrl(null);
                     setChatbotLoaded(false);
+                    setChatbotError(null);
+                    setChatbotEntryId(null);
                   }}
                   style={{
                     padding: "6px 12px",
@@ -238,42 +238,20 @@ export function DiaryDetailPage() {
           ) : null}
           {writeMethod === "chatbot" ? (
             <>
-              {entryDate && DUMMY_CHATBOT_SUMMARY[entryDate] ? (
+              {chatbotSummaryLoading ? (
                 <div
                   style={{
                     background: "#e8f5e9",
                     border: "1px solid #a5d6a7",
                     borderRadius: "10px",
-                    padding: "12px 14px",
+                    padding: "16px 14px",
                     marginBottom: "14px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
+                    textAlign: "center",
                   }}
                 >
-                  <span style={{ fontSize: "13px", color: "#2e7d32" }}>오늘 대화 내용을 불러올 수 있어요.</span>
-                  <button
-                    onClick={() => {
-                      setContent(DUMMY_CHATBOT_SUMMARY[entryDate]);
-                      setChatbotLoaded(true);
-                    }}
-                    style={{
-                      background: COLORS.buttonBg,
-                      color: COLORS.buttonText,
-                      border: "none",
-                      borderRadius: "8px",
-                      padding: "5px 12px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      marginLeft: "10px",
-                    }}
-                  >
-                    불러오기
-                  </button>
+                  <span style={{ fontSize: "13px", color: "#2e7d32" }}>대화 내용을 요약하고 있어요...</span>
                 </div>
-              ) : (
+              ) : chatbotError ? (
                 <div
                   style={{
                     background: "#e8f5e9",
@@ -286,11 +264,9 @@ export function DiaryDetailPage() {
                     alignItems: "center",
                   }}
                 >
-                  <span style={{ fontSize: "13px", color: "#2e7d32" }}>아직 오늘 챗봇 대화가 없어요.</span>
+                  <span style={{ fontSize: "13px", color: "#2e7d32" }}>{chatbotError}</span>
                   <button
-                    onClick={() => {
-                      window.location.href = "/chatbot";
-                    }}
+                    onClick={() => navigate("/chat")}
                     style={{
                       background: COLORS.buttonBg,
                       color: COLORS.buttonText,
@@ -306,6 +282,75 @@ export function DiaryDetailPage() {
                   >
                     챗봇 열기 →
                   </button>
+                </div>
+              ) : !chatbotLoaded ? (
+                <div
+                  style={{
+                    background: "#e8f5e9",
+                    border: "1px solid #a5d6a7",
+                    borderRadius: "10px",
+                    padding: "12px 14px",
+                    marginBottom: "14px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span style={{ fontSize: "13px", color: "#2e7d32" }}>오늘 대화 내용을 일기로 요약해볼까요?</span>
+                  <button
+                    onClick={async () => {
+                      if (!entryDate) return;
+                      setChatbotSummaryLoading(true);
+                      setChatbotError(null);
+                      try {
+                        const result = await getChatbotSummary(entryDate);
+                        if (!result || !result.hasChatHistory) {
+                          setChatbotError("오늘 대화 내역이 없어요.");
+                          return;
+                        }
+                        const hasExisting = title.trim() || content.trim();
+                        if (hasExisting && !window.confirm("현재 입력된 내용을 덮어쓸까요?")) {
+                          return;
+                        }
+                        setTitle(result.title || "");
+                        setContent(result.summary || "");
+                        setChatbotEntryId(result.entryId);
+                        setChatbotLoaded(true);
+                      } catch {
+                        setChatbotError("요약을 불러오는 데 실패했어요.");
+                      } finally {
+                        setChatbotSummaryLoading(false);
+                      }
+                    }}
+                    style={{
+                      background: COLORS.buttonBg,
+                      color: COLORS.buttonText,
+                      border: "none",
+                      borderRadius: "8px",
+                      padding: "5px 12px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      marginLeft: "10px",
+                    }}
+                  >
+                    요약하기
+                  </button>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    background: "#e8f5e9",
+                    border: "1px solid #a5d6a7",
+                    borderRadius: "10px",
+                    padding: "12px 14px",
+                    marginBottom: "14px",
+                    fontSize: "13px",
+                    color: "#2e7d32",
+                  }}
+                >
+                  대화 요약이 적용되었어요. 수정 후 저장하세요.
                 </div>
               )}
             </>

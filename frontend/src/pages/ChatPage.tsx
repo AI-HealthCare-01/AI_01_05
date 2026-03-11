@@ -15,6 +15,7 @@ export default function ChatPage() {
   const state = useChatState();
   const dispatch = useChatDispatch();
   const userId = useAuthStore((s) => s.userId);
+  const selectedCharacter = useAuthStore((s) => s.selectedCharacter);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll on new message or loading change
@@ -31,6 +32,7 @@ export default function ChatPage() {
         user_id: userId!,
         message: text,
         medication_list: state.medicationList,
+        character_id: selectedCharacter?.id ?? null,
       });
       dispatch({ type: "ADD_AI_MESSAGE", payload: response });
     } catch {

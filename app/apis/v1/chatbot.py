@@ -21,6 +21,7 @@ async def ask_question(request: ChatRequest) -> ChatResponse:
                 "message": request.message,
                 "medication_list": request.medication_list,
                 "user_note": request.user_note,
+                "character_id": request.character_id,
             },
         )
 

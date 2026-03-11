@@ -76,6 +76,7 @@ class ChatbotSummaryResponse(BaseModel):
 
     has_chat_history: bool = Field(alias="hasChatHistory")
     entry_id: int | None = Field(alias="entryId")
+    title: str | None = None
     summary: str | None
     redirect_to_chatbot: bool = Field(alias="redirectToChatbot")
 
