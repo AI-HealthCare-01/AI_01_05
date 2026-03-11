@@ -315,18 +315,22 @@ export default function MedicineConfirmPage() {
     for (let i = 0; i < medicinesDraft.length; i++) {
       try {
         const current = medicinesDraft[i];
-        const selectedRawSlot = current.time_slots.find((slot) => TIME_SLOT_TO_API[slot] !== undefined);
-        if (!selectedRawSlot) {
+        const mappedSlots = current.time_slots
+          .map((slot) => TIME_SLOT_TO_API[slot])
+          .filter((slot): slot is MedicationTimeSlot => slot !== undefined);
+
+        if (mappedSlots.length === 0) {
           nextErrors[i] = `${current.item_name} 복용시간을 선택해주세요`;
           continue;
         }
-        const selectedSlot = TIME_SLOT_TO_API[selectedRawSlot];
 
-        await postHomeMedicationToday({
-          name: current.item_name,
-          timeSlot: selectedSlot,
-          dosage: current.dose_per_intake,
-        });
+        for (const slot of mappedSlots) {
+          await postHomeMedicationToday({
+            name: current.item_name,
+            timeSlot: slot,
+            dosage: current.dose_per_intake,
+          });
+        }
       } catch {
         nextErrors[i] = `${medicinesDraft[i].item_name} 저장 실패`;
       }
