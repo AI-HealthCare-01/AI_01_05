@@ -71,10 +71,13 @@ _DRUG_NAME_START_RE = re.compile(
 )
 # 약품명 접미사 추출용
 # - 반드시 한글로 시작
-# - 접미사(정/캡슐/액/크림/연고 등) 포함
-# - 접미사 뒤 숫자/단위 허용 (예: 오메크라정625밀리그램)
+# - 접미사(정/캡슐/액/크림/연고/시럽/패치/주사) 포함
+# - 접미사 뒤 숫자/영문/밀리그램/그램/밀리리터 허용 (예: 오메크라정625밀리그램)
+# - 산/제 제외: 클라불란산칼륨 같은 성분명 오매칭 방지
 _DRUG_SUFFIX_RE = re.compile(
-    r"(?P<name>[가-힣][가-힣a-zA-Z0-9%\.]*(?:정|캡슐|액|크림|연고|산|시럽|패치|주사|주사제|주사액)[가-힣a-zA-Z0-9%\.]*)"
+    r"(?P<name>[가-힣][가-힣a-zA-Z0-9%\.]*"
+    r"(?:정|캡슐|액|크림|연고|시럽|패치|주사|주사제|주사액)"
+    r"(?:[0-9a-zA-Z%\.]*(?:밀리그램|그램|밀리리터)?[0-9a-zA-Z%\.]*)?)"
 )
 
 
@@ -134,7 +137,7 @@ class OcrService:
     # ── 전처리 ────────────────────────────────────────────────────────────────
 
     def _preprocess_image(self, image_bytes: bytes) -> bytes:
-        """방향 보정 → Grayscale → Gaussian Blur. opencv 미설치 시 원본 반환."""
+        """방향 보정 → Grayscale → Gaussian Blur. 실패 시 원본 반환."""
         try:
             import io
 
@@ -148,7 +151,7 @@ class OcrService:
             img = cv2.GaussianBlur(img, (3, 3), 0)
             _, encoded = cv2.imencode(".jpg", img)
             return encoded.tobytes()
-        except ImportError:
+        except (ImportError, Exception):
             return image_bytes
 
     # ── 파싱 ──────────────────────────────────────────────────────────────────
