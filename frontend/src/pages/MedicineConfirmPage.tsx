@@ -310,7 +310,7 @@ export default function MedicineConfirmPage() {
           ) ?? "MORNING";
 
         await postHomeMedicationToday({
-          medicationName: current.item_name,
+          name: current.item_name,
           timeSlot: selectedSlot,
           dosage: current.dose_per_intake,
         });

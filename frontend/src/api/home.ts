@@ -44,7 +44,7 @@ export interface HomeMedicationsTodayResponse {
 export type MedicationTimeSlot = "MORNING" | "LUNCH" | "EVENING" | "BEDTIME";
 
 export interface HomeCreateMedicationRequest {
-  medicationName: string;
+  name: string;
   timeSlot: MedicationTimeSlot;
   dosage: number;
 }
