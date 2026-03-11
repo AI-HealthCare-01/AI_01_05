@@ -8,6 +8,7 @@ import httpx
 
 from app.core import config
 from app.dtos.ocr_dto import OcrParsedItem, ParsedPrescriptionResponse
+from app.models.medicine import Medicine
 
 _NOISE_KEYWORDS = ["조제", "복약지도", "보험", "환자명", "병원명", "전화번호"]
 
@@ -132,8 +133,6 @@ class OcrService:
         return name.strip()
 
     async def _smart_verify_drug(self, cleaned_name: str) -> list[dict]:
-        from app.models.medicine import Medicine
-
         results = await Medicine.filter(
             search_keyword__startswith=cleaned_name, is_active=True
         ).limit(10).values("item_seq", "item_name", "entp_name")
