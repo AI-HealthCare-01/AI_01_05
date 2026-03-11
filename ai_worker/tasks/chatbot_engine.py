@@ -109,3 +109,4 @@ class MedicationChatbot:
                 "red_alert": False,
                 "alert_type": None,
             }
+
