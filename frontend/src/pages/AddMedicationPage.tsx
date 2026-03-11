@@ -101,23 +101,96 @@ export default function AddMedicationPage() {
             ...cardStyle,
             display: "flex",
             alignItems: "center",
-            gap: 12,
+            justifyContent: "center",
+            position: "relative",
             marginBottom: 24,
           }}
         >
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/main")}
             style={{
+              position: "absolute",
+              left: 20,
               background: "none",
               border: "none",
-              fontSize: 20,
               cursor: "pointer",
               color: COLORS.text,
+              display: "flex",
+              alignItems: "center",
+              padding: 4,
+              transition: "all 0.2s ease",
             }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; }}
           >
-            ←
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
           </button>
           <span style={{ fontWeight: 800, fontSize: 18, color: COLORS.text }}>약 추가하기</span>
+        </div>
+
+        {/* 촬영 가이드 카드 */}
+        <div style={{ ...cardStyle, padding: 0, overflow: "hidden", marginBottom: 12 }}>
+          <div
+            style={{
+              background: "linear-gradient(135deg, #e8f0e4 0%, #d4e6cc 100%)",
+              padding: "20px 20px 16px",
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <svg width="220" height="130" viewBox="0 0 220 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="20" y="10" width="180" height="110" rx="8" fill="white" stroke="#99A988" strokeWidth="2"/>
+              <path d="M20 10 L110 60 L200 10" stroke="#99A988" strokeWidth="1.5" fill="none" strokeDasharray="4 2"/>
+              <rect x="36" y="68" width="80" height="7" rx="3" fill="#c8dcc0"/>
+              <rect x="36" y="82" width="55" height="6" rx="3" fill="#dde8d8"/>
+              <rect x="36" y="95" width="100" height="5" rx="2.5" fill="#e8f0e4"/>
+              <rect x="36" y="106" width="75" height="5" rx="2.5" fill="#e8f0e4"/>
+              <path d="M4 22 L4 8 L18 8" stroke="#99A988" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+              <path d="M216 22 L216 8 L202 8" stroke="#99A988" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+              <path d="M4 108 L4 122 L18 122" stroke="#99A988" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+              <path d="M216 108 L216 122 L202 122" stroke="#99A988" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+              <circle cx="185" cy="28" r="12" fill="#99A988"/>
+              <path d="M179 28 L183 32 L191 24" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+            </svg>
+          </div>
+          <div style={{ padding: "14px 18px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+              <span style={{ fontSize: 14 }}>📋</span>
+              <span style={{ fontWeight: 700, fontSize: 13, color: COLORS.text }}>약 봉투 촬영 가이드</span>
+              <span
+                style={{
+                  marginLeft: "auto",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: "#99A988",
+                  background: "#e8f0e4",
+                  padding: "2px 8px",
+                  borderRadius: 20,
+                }}
+              >
+                정확도 UP ↑
+              </span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {([
+                ["📄", "평평하게 펼치기", "구겨지거나 접히지 않게 펼쳐주세요"],
+                ["💡", "밝은 곳에서 촬영", "빛 반사·그림자 없는 밝은 환경에서 찍어주세요"],
+                ["📐", "화면에 꽉 차게", "처방 내역과 약 이름이 모두 들어오게 맞춰주세요"],
+                ["🎯", "초점 맞추기", "카메라가 흔들리지 않게 주의해 주세요"],
+              ] as [string, string, string][]).map(([icon, title, desc]) => (
+                <div key={title} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                  <span style={{ fontSize: 13, lineHeight: "18px", flexShrink: 0 }}>{icon}</span>
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "baseline" }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.text, whiteSpace: "nowrap" }}>{title}</span>
+                    <span style={{ fontSize: 11, color: COLORS.subText, lineHeight: "16px" }}>{desc}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* 사진 등록 카드 */}
@@ -132,9 +205,30 @@ export default function AddMedicationPage() {
             display: "flex",
             alignItems: "center",
             gap: 16,
+            transition: "all 0.2s ease",
           }}
+          onMouseEnter={(e) => {
+            const el = e.currentTarget as HTMLDivElement;
+            el.style.transform = "translateY(-2px)";
+            el.style.boxShadow = `0 8px 24px rgba(99,153,80,0.18), 0 2px 8px rgba(99,153,80,0.10)`;
+            el.style.borderColor = COLORS.button;
+            const icon = el.querySelector(".btn-icon") as HTMLElement | null;
+            if (icon) icon.style.transform = "scale(1.05)";
+          }}
+          onMouseLeave={(e) => {
+            const el = e.currentTarget as HTMLDivElement;
+            el.style.transform = "translateY(0)";
+            el.style.boxShadow = "none";
+            el.style.borderColor = COLORS.button;
+            const icon = el.querySelector(".btn-icon") as HTMLElement | null;
+            if (icon) icon.style.transform = "scale(1)";
+          }}
+          onMouseDown={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "scale(0.97)"; }}
+          onMouseUp={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
         >
-          <span style={{ fontSize: 32 }}>{loading ? "⏳" : "📷"}</span>
+          <span className="btn-icon" style={{ fontSize: 32, display: "inline-block", transition: "transform 0.2s ease" }}>
+            {loading ? "⏳" : "📷"}
+          </span>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>
               {loading ? "약 정보를 인식하는 중입니다..." : "사진으로 간편하게 등록"}
@@ -173,9 +267,28 @@ export default function AddMedicationPage() {
             display: "flex",
             alignItems: "center",
             gap: 16,
+            transition: "all 0.2s ease",
           }}
+          onMouseEnter={(e) => {
+            const el = e.currentTarget as HTMLDivElement;
+            el.style.transform = "translateY(-2px)";
+            el.style.boxShadow = `0 8px 24px rgba(99,153,80,0.12), 0 2px 8px rgba(99,153,80,0.08)`;
+            el.style.borderColor = COLORS.button;
+            const icon = el.querySelector(".btn-icon") as HTMLElement | null;
+            if (icon) icon.style.transform = "scale(1.05)";
+          }}
+          onMouseLeave={(e) => {
+            const el = e.currentTarget as HTMLDivElement;
+            el.style.transform = "translateY(0)";
+            el.style.boxShadow = "none";
+            el.style.borderColor = COLORS.border;
+            const icon = el.querySelector(".btn-icon") as HTMLElement | null;
+            if (icon) icon.style.transform = "scale(1)";
+          }}
+          onMouseDown={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "scale(0.97)"; }}
+          onMouseUp={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
         >
-          <span style={{ fontSize: 32 }}>🔍</span>
+          <span className="btn-icon" style={{ fontSize: 32, display: "inline-block", transition: "transform 0.2s ease" }}>🔍</span>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>
               약 이름 직접 검색하기
