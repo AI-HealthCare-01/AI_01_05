@@ -24,7 +24,9 @@ async def parse_prescription(
 
     file_bytes = await file.read()
     if len(file_bytes) > _MAX_FILE_SIZE:
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="파일 크기가 10MB를 초과합니다.")
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="파일 크기가 10MB를 초과합니다."
+        )
 
     service = OcrService()
     result = await service.parse_prescription(file_bytes=file_bytes, file_type=file.content_type)
