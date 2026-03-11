@@ -27,12 +27,12 @@ class TestOcrParseAPI(TestCase):
 
     async def test_ocr_parse_prescription_stub_returns_200(self):
         """stub 모드 → 200 + items:[] + raw_text 반환"""
-        token = await self._make_token("ocr_001", "01033330001")
+        auth_token = await self._make_token("ocr_001", "01033330001")
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/ocr/parse-prescription",
                 files={"file": ("test.jpg", self._make_image_file(), "image/jpeg")},
-                headers={"Authorization": f"Bearer {token}"},
+                headers={"Authorization": f"Bearer {auth_token}"},
             )
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -63,6 +63,7 @@ class TestOcrParseAPI(TestCase):
     async def test_ocr_parse_prescription_returns_items_with_inline_pattern(self):
         """인라인 패턴 파싱 검증"""
         from app.services.ocr_service import OcrService
+
         service = OcrService()
         parsed = service._parse_prescription_text(["렉사프로정 1.0 2 15"])
         assert len(parsed) == 1
@@ -74,6 +75,7 @@ class TestOcrParseAPI(TestCase):
     async def test_ocr_parse_prescription_returns_items_with_label_pattern(self):
         """레이블 패턴 OCR 텍스트 → items 파싱"""
         from app.services.ocr_service import OcrService
+
         service = OcrService()
         lines = ["렉사프로정", "1회투약량 1.00", "1일투여횟수 3", "총투약일수 7"]
         parsed = service._parse_prescription_text(lines)
@@ -84,7 +86,7 @@ class TestOcrParseAPI(TestCase):
 
     async def test_ocr_parse_prescription_matches_medicine_in_db(self):
         """DB에 약품 존재 시 confidence HIGH, item_seq 반환"""
-        token = await self._make_token("ocr_006", "01033330006")
+        await self._make_token("ocr_006", "01033330006")
         await Medicine.create(
             item_seq="OCR_MED001",
             item_name="렉사프로정10밀리그램",
@@ -92,6 +94,7 @@ class TestOcrParseAPI(TestCase):
             is_active=True,
         )
         from app.services.ocr_service import OcrService
+
         service = OcrService()
         candidates = await service._smart_verify_drug("렉사프로정")
         assert len(candidates) >= 1
@@ -102,24 +105,25 @@ class TestOcrParseAPI(TestCase):
     async def test_ocr_parse_prescription_no_match_returns_low_confidence(self):
         """DB 매칭 실패 시 confidence LOW"""
         from app.services.ocr_service import OcrService
+
         service = OcrService()
         result = service._verify_drug_with_mfds([], "존재하지않는약xyz")
         assert result is None
 
     async def test_ocr_parse_prescription_end_to_end_with_mock_ocr(self):
         """mock OCR 텍스트 → parse_prescription → items 반환 (DB 매칭 포함)"""
-        token = await self._make_token("ocr_007", "01033330007")
+        await self._make_token("ocr_007", "01033330007")
         await Medicine.create(
             item_seq="E2E_MED001",
             item_name="아스피린정100밀리그램",
             search_keyword="아스피린정",
             is_active=True,
         )
-        from unittest.mock import patch, AsyncMock
         from app.services.ocr_service import OcrService
+
         service = OcrService()
         with patch.object(service, "extract_text", new=AsyncMock(return_value="아스피린정 1.0 1 30")):
-            result = await service.parse_prescription(b"fake", "image/jpeg")
+            await service.parse_prescription(b"fake", "image/jpeg")
         # stub 모드이므로 extract_text가 호출되지 않음 — provider 직접 우회
         # 서비스 레벨에서 직접 검증
         lines = ["아스피린정 1.0 1 30"]

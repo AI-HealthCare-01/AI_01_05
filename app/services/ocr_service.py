@@ -12,8 +12,16 @@ from app.dtos.ocr_dto import OcrParsedItem, ParsedPrescriptionResponse
 from app.models.medicine import Medicine
 
 _NOISE_KEYWORDS = [
-    "조제", "복약지도", "보험", "환자명", "병원명", "전화번호",
-    "약품명", "약품사진", "복약안내", "총수납금액",
+    "조제",
+    "복약지도",
+    "보험",
+    "환자명",
+    "병원명",
+    "전화번호",
+    "약품명",
+    "약품사진",
+    "복약안내",
+    "총수납금액",
 ]
 # 줄 전체가 노이즈인 경우만 제외 (약품명이 포함된 줄은 유지)
 # 약품명 접미사가 없는 줄에서만 노이즈 키워드 필터 적용
@@ -44,9 +52,7 @@ _PATTERN_LABEL_INLINE = re.compile(
     re.DOTALL,
 )
 # 줄 끝 "N N N" 패턴 — 뒤에 비숫자 문자가 있어도 허용
-_PATTERN_TRAILING_NUMS = re.compile(
-    r"\b(?P<dose>\d+\.?\d*)\s+(?P<freq>\d+)\s+(?P<days>\d+)\s*(?:[^\d\n].*)?$"
-)
+_PATTERN_TRAILING_NUMS = re.compile(r"\b(?P<dose>\d+\.?\d*)\s+(?P<freq>\d+)\s+(?P<days>\d+)\s*(?:[^\d\n].*)?$")
 # 패턴 5: 다중 약품 한 줄 "약품명1 약품명2 약품명3 투약량1 투약량2 투약량3 횟수1 횟수2 횟수3 일수1 일수2 일수3"
 _PATTERN_MULTI_DRUG = re.compile(r"^[가-힣]")
 
@@ -66,9 +72,7 @@ _TYPO_MAP = [
 ]
 _DOSE_STRIP = re.compile(r"\d+(\.\d+)?(밀리그램|그램|밀리리터|mg|g|ml)", re.IGNORECASE)
 # 의약품 접미사 포함 여부 — 병합 조건 제한용
-_DRUG_NAME_START_RE = re.compile(
-    r"^[가-힣a-zA-Z0-9].*?(정|캡슐|액|크림|연고|주|산|시럽|패치|주사|주사제|주사액|제|환)"
-)
+_DRUG_NAME_START_RE = re.compile(r"^[가-힣a-zA-Z0-9].*?(정|캡슐|액|크림|연고|주|산|시럽|패치|주사|주사제|주사액|제|환)")
 # 약품명 접미사 추출용
 # - 반드시 한글로 시작
 # - 접미사(정/캡슐/액/크림/연고/시럽/패치/주사) 포함
@@ -114,23 +118,27 @@ class OcrService:
             candidates = await self._smart_verify_drug(cleaned)
             matched = self._verify_drug_with_mfds(candidates, entry["drug_name"])
             if matched:
-                items.append(OcrParsedItem(
-                    item_seq=matched.get("item_seq"),
-                    item_name=matched.get("item_name", cleaned),
-                    dose_per_intake=entry["dose_per_intake"],
-                    daily_frequency=entry["daily_frequency"],
-                    total_days=entry["total_days"],
-                    confidence="HIGH",
-                ))
+                items.append(
+                    OcrParsedItem(
+                        item_seq=matched.get("item_seq"),
+                        item_name=matched.get("item_name", cleaned),
+                        dose_per_intake=entry["dose_per_intake"],
+                        daily_frequency=entry["daily_frequency"],
+                        total_days=entry["total_days"],
+                        confidence="HIGH",
+                    )
+                )
             else:
-                items.append(OcrParsedItem(
-                    item_seq=None,
-                    item_name=cleaned,
-                    dose_per_intake=entry["dose_per_intake"],
-                    daily_frequency=entry["daily_frequency"],
-                    total_days=entry["total_days"],
-                    confidence="LOW",
-                ))
+                items.append(
+                    OcrParsedItem(
+                        item_seq=None,
+                        item_name=cleaned,
+                        dose_per_intake=entry["dose_per_intake"],
+                        daily_frequency=entry["daily_frequency"],
+                        total_days=entry["total_days"],
+                        confidence="LOW",
+                    )
+                )
 
         return ParsedPrescriptionResponse(items=items, raw_text=raw_text)
 
@@ -156,165 +164,204 @@ class OcrService:
 
     # ── 파싱 ──────────────────────────────────────────────────────────────────
 
-    def _parse_prescription_text(self, lines: list[str]) -> list[dict]:
-        results: list[dict] = []
-        filtered = [
-            l for l in lines
-            if not any(kw in l for kw in _NOISE_ONLY_KEYWORDS)
-            and not _NOISE_LINE_RE.search(l)
-            and not (_DRUG_SUFFIX_RE.search(l) is None and any(kw in l for kw in _NOISE_HEADER_KEYWORDS))
+    @staticmethod
+    def _filter_lines(lines: list[str]) -> list[str]:
+        return [
+            line
+            for line in lines
+            if not any(kw in line for kw in _NOISE_ONLY_KEYWORDS)
+            and not _NOISE_LINE_RE.search(line)
+            and not (_DRUG_SUFFIX_RE.search(line) is None and any(kw in line for kw in _NOISE_HEADER_KEYWORDS))
         ]
 
-        # 패턴 1: 순수 인라인 "약품명 투약량 횟수 일수"
-        for line in filtered:
-            m = _PATTERN_INLINE.match(line)
-            if m:
-                results.append({
-                    "drug_name": m.group("name"),
-                    "dose_per_intake": float(m.group("dose")),
-                    "daily_frequency": int(m.group("freq")),
-                    "total_days": int(m.group("days")),
-                })
-        if results:
-            return results
-
-        # 패턴 2: 약품명+투약정보 한 줄 레이블 인라인
-        # 총투약일수가 다음 줄에 있는 경우 최대 3줄 병합 후 재시도
-        i = 0
-        while i < len(filtered):
-            line = filtered[i]
-            m = _PATTERN_LABEL_INLINE.match(line)
-            if not m and _DRUG_NAME_START_RE.match(line):
-                for extra in range(1, 4):
-                    if i + extra < len(filtered):
-                        merged = " ".join(filtered[i:i + extra + 1])
-                        m = _PATTERN_LABEL_INLINE.match(merged)
-                        if m:
-                            i += extra
-                            break
-            if m:
-                results.append({
-                    "drug_name": m.group("name"),
-                    "dose_per_intake": float(m.group("dose")),
-                    "daily_frequency": int(m.group("freq")),
-                    "total_days": int(m.group("days")),
-                })
-            i += 1
-        if results:
-            return results
-
-        # 패턴 6: 컬럼 분리형 — 약품명 줄들 + "투약량" 헤더 + 숫자들 + "횟수" 헤더 + 숫자들 + "일수" 헤더 + 숫자들
+    def _detect_layout(self, filtered: list[str]) -> list[dict]:
+        """패턴 6/7 레이아웃 감지 후 파싱 결과 반환. 미감지 시 빈 리스트."""
         col_result = self._parse_column_layout(filtered)
         if col_result:
             return col_result
+        return self._parse_interleaved_layout(filtered)
 
-        # 패턴 7: 인터리브형 — 헤더(일수/횟수/투약량/약품명) 이후 약품명 직전 숫자들로 매핑
-        interleaved = self._parse_interleaved_layout(filtered)
-        if interleaved:
-            return interleaved
+    @staticmethod
+    def _parse_inline_pattern(filtered: list[str]) -> list[dict]:
+        return [
+            {
+                "drug_name": m.group("name"),
+                "dose_per_intake": float(m.group("dose")),
+                "daily_frequency": int(m.group("freq")),
+                "total_days": int(m.group("days")),
+            }
+            for line in filtered
+            if (m := _PATTERN_INLINE.match(line))
+        ]
 
-        # 패턴 5: 다중 약품 한 줄 "약품명1 약품명2 ... 투약량1 투약량2 ... 횟수1 ... 일수1 ..."
-        for line in filtered:
-            if not _PATTERN_MULTI_DRUG.match(line):
-                continue
-            tokens = line.split()
-            names = [t for t in tokens if re.match(r"^[가-힣]", t) and _DRUG_SUFFIX_RE.search(t)]
-            nums = [t for t in tokens if re.match(r"^\d+\.?\d*$", t)]
-            n = len(names)
-            if n >= 2 and len(nums) == n * 3:
-                doses = nums[:n]
-                freqs = nums[n:n * 2]
-                days = nums[n * 2:]
-                for name, d, f, dy in zip(names, doses, freqs, days):
-                    results.append({
-                        "drug_name": name,
-                        "dose_per_intake": float(d),
-                        "daily_frequency": int(f),
-                        "total_days": int(dy),
-                    })
-                if results:
-                    return results
+    @staticmethod
+    def _try_label_match(filtered: list[str], i: int) -> tuple[re.Match | None, int]:
+        """인덱스 i에서 레이블 인라인 패턴 매칭 시도. (match, 소비한 줄 수) 반환."""
+        line = filtered[i]
+        m = _PATTERN_LABEL_INLINE.match(line)
+        if m:
+            return m, 0
+        if not _DRUG_NAME_START_RE.match(line):
+            return None, 0
+        for extra in range(1, 4):
+            if i + extra < len(filtered):
+                merged = " ".join(filtered[i : i + extra + 1])
+                m = _PATTERN_LABEL_INLINE.match(merged)
+                if m:
+                    return m, extra
+        return None, 0
 
-        # 패턴 4: 약품명 줄 + 이후 3줄 이내 끝 "N N N" 연결
-        # - 약품명이 줄 중간에 있는 경우도 탐색 (search 사용)
-        # - 새 약품명이 나와도 투약정보를 찾을 때까지 이전 약품명 유지
+    @staticmethod
+    def _parse_label_pattern(filtered: list[str]) -> list[dict]:
+        results: list[dict] = []
         i = 0
+        while i < len(filtered):
+            m, consumed = OcrService._try_label_match(filtered, i)
+            if m:
+                results.append(
+                    {
+                        "drug_name": m.group("name"),
+                        "dose_per_intake": float(m.group("dose")),
+                        "daily_frequency": int(m.group("freq")),
+                        "total_days": int(m.group("days")),
+                    }
+                )
+                i += consumed
+            i += 1
+        return results
+
+    @staticmethod
+    def _parse_multi_drug_line(line: str) -> list[dict]:
+        if not _PATTERN_MULTI_DRUG.match(line):
+            return []
+        tokens = line.split()
+        names = [t for t in tokens if re.match(r"^[가-힣]", t) and _DRUG_SUFFIX_RE.search(t)]
+        nums = [t for t in tokens if re.match(r"^\d+\.?\d*$", t)]
+        n = len(names)
+        if n < 2 or len(nums) != n * 3:
+            return []
+        return [
+            {
+                "drug_name": name,
+                "dose_per_intake": float(d),
+                "daily_frequency": int(f),
+                "total_days": int(dy),
+            }
+            for name, d, f, dy in zip(names, nums[:n], nums[n : n * 2], nums[n * 2 :], strict=True)
+        ]
+
+    @staticmethod
+    def _parse_trailing_nums_pattern(filtered: list[str]) -> list[dict]:
+        results: list[dict] = []
         pending_name: str | None = None
         pending_since: int = 0
-        while i < len(filtered):
-            line = filtered[i]
+        for i, line in enumerate(filtered):
             nums_m = _PATTERN_TRAILING_NUMS.search(line)
             if nums_m and pending_name and (i - pending_since) <= 3:
-                results.append({
-                    "drug_name": pending_name,
-                    "dose_per_intake": float(nums_m.group("dose")),
-                    "daily_frequency": int(nums_m.group("freq")),
-                    "total_days": int(nums_m.group("days")),
-                })
+                results.append(
+                    {
+                        "drug_name": pending_name,
+                        "dose_per_intake": float(nums_m.group("dose")),
+                        "daily_frequency": int(nums_m.group("freq")),
+                        "total_days": int(nums_m.group("days")),
+                    }
+                )
                 pending_name = None
+                continue
             name_m = _DRUG_SUFFIX_RE.search(line)
             if name_m and not nums_m:
-                # 투약정보가 없는 줄에서만 약품명 갱신
                 pending_name = name_m.group("name")
                 pending_since = i
             elif pending_name and (i - pending_since) > 3:
                 pending_name = None
-            i += 1
-        if results:
-            return results
+        return results
 
-        # 패턴 3 (fallback): 순수 레이블 형식 (각각 별도 줄)
+    @staticmethod
+    def _parse_fallback_label(filtered: list[str]) -> list[dict]:
         full_text = "\n".join(filtered)
         dose_m = _PATTERN_DOSE.search(full_text)
         freq_m = _PATTERN_FREQ.search(full_text)
         days_m = _PATTERN_DAYS.search(full_text)
-        if dose_m and freq_m and days_m:
-            drug_name = filtered[0] if filtered else ""
-            results.append({
-                "drug_name": drug_name,
+        if not (dose_m and freq_m and days_m):
+            return []
+        return [
+            {
+                "drug_name": filtered[0] if filtered else "",
                 "dose_per_intake": float(dose_m.group(1)),
                 "daily_frequency": int(freq_m.group(1)),
                 "total_days": int(days_m.group(1)),
-            })
+            }
+        ]
 
-        return results
+    def _parse_prescription_text(self, lines: list[str]) -> list[dict]:
+        filtered = self._filter_lines(lines)
+
+        result = self._parse_inline_pattern(filtered)
+        if result:
+            return result
+
+        result = self._parse_label_pattern(filtered)
+        if result:
+            return result
+
+        result = self._detect_layout(filtered)
+        if result:
+            return result
+
+        for line in filtered:
+            result = self._parse_multi_drug_line(line)
+            if result:
+                return result
+
+        result = self._parse_trailing_nums_pattern(filtered)
+        if result:
+            return result
+
+        return self._parse_fallback_label(filtered)
 
     @staticmethod
-    def _parse_column_layout(lines: list[str]) -> list[dict]:
-        """컬럼 분리형 처방전 파싱.
+    def _tokenize_lines(lines: list[str]) -> list[list[str]]:
+        return [line.split() for line in lines]
 
-        약품명들이 별도 줄에 있고, 이후 '투약량' / '횟수' / '일수' 헤더 줄 뒤에
-        각 약품의 숫자값이 나열되는 구조를 처리한다.
-        헤더와 숫자가 같은 줄에 인라인으로 있는 경우(예: '투약량 1 1 1')도 처리한다.
-        약품명이 헤더 이후에 있는 경우도 처리한다.
-        """
-        _NUM_RE = re.compile(r"^\d+\.?\d*$")
-        _NOISE_NUM_RE = re.compile(r"^\d+\.?\d*[\uAC00-\uD7A3a-zA-Z]")
-        _NOISE_DRUG_RE = re.compile(r"약제비|연간액|수납금액|총액")
-
-        def expand_digits(tokens: list[str]) -> list[str]:
-            """두 자리 이상 숫자(각 자리 1-9)를 개별 자리로 분리 (예: '22' → ['2','2'])."""
-            result = []
+    @staticmethod
+    def _filter_noise_tokens(token_rows: list[list[str]], noise_drug_re: re.Pattern) -> list[str]:
+        """전체 토큰 중 약품명 접미사 포함 + 노이즈 아닌 것만 반환."""
+        result: list[str] = []
+        for tokens in token_rows:
             for t in tokens:
-                if _NUM_RE.match(t) and len(t) > 1 and "." not in t and all(c != "0" for c in t):
-                    result.extend(list(t))
-                else:
-                    result.append(t)
-            return result
+                m = _DRUG_SUFFIX_RE.match(t)
+                if m and not noise_drug_re.search(t):
+                    result.append(m.group("name"))
+        return result
 
-        def extract_nums(line: str, expand: bool = False) -> list[float]:
-            tokens = line.split()
-            if expand:
-                tokens = expand_digits(tokens)
-            result = []
-            for i, t in enumerate(tokens):
-                if not _NUM_RE.match(t) or _NOISE_NUM_RE.match(t):
-                    continue
-                if i + 1 < len(tokens) and re.match(r"^[\uAC00-\uD7A3]", tokens[i + 1]):
-                    continue
-                result.append(float(t))
-            return result
+    @staticmethod
+    def _expand_numeric_tokens(tokens: list[str], num_re: re.Pattern) -> list[str]:
+        """두 자리 이상 숫자(각 자리 1-9)를 개별 자리로 분리."""
+        result: list[str] = []
+        for t in tokens:
+            if num_re.match(t) and len(t) > 1 and "." not in t and all(c != "0" for c in t):
+                result.extend(list(t))
+            else:
+                result.append(t)
+        return result
 
+    @staticmethod
+    def _extract_line_nums(
+        tokens: list[str],
+        num_re: re.Pattern,
+        noise_num_re: re.Pattern,
+    ) -> list[float]:
+        result: list[float] = []
+        for i, t in enumerate(tokens):
+            if not num_re.match(t) or noise_num_re.match(t):
+                continue
+            if i + 1 < len(tokens) and re.match(r"^[\uAC00-\uD7A3]", tokens[i + 1]):
+                continue
+            result.append(float(t))
+        return result
+
+    @staticmethod
+    def _find_header_indices(lines: list[str]) -> tuple[int, int, int]:
         dose_idx = freq_idx = days_idx = -1
         for i, line in enumerate(lines):
             if "투약량" in line and dose_idx == -1:
@@ -323,49 +370,64 @@ class OcrService:
                 freq_idx = i
             elif "일수" in line and days_idx == -1:
                 days_idx = i
+        return dose_idx, freq_idx, days_idx
 
+    @staticmethod
+    def _collect_header_nums(
+        lines: list[str],
+        header_idx: int,
+        ordered_idxs: list[int],
+        num_re: re.Pattern,
+        noise_num_re: re.Pattern,
+        expand: bool = False,
+    ) -> list[float]:
+        def _nums(line: str) -> list[float]:
+            tokens = line.split()
+            if expand:
+                tokens = OcrService._expand_numeric_tokens(tokens, num_re)
+            return OcrService._extract_line_nums(tokens, num_re, noise_num_re)
+
+        inline = _nums(lines[header_idx])
+        if inline:
+            return inline
+        next_idx = next((j for j in ordered_idxs if j > header_idx), len(lines))
+        result: list[float] = []
+        for line in lines[header_idx + 1 : next_idx]:
+            result.extend(_nums(line))
+        return result
+
+    @staticmethod
+    def _parse_column_layout(lines: list[str]) -> list[dict]:
+        """컬럼 분리형 처방전 파싱."""
+        num_re = re.compile(r"^\d+\.?\d*$")
+        noise_num_re = re.compile(r"^\d+\.?\d*[\uAC00-\uD7A3a-zA-Z]")
+        noise_drug_re = re.compile(r"약제비|연간액|수납금액|총액")
+
+        dose_idx, freq_idx, days_idx = OcrService._find_header_indices(lines)
         if dose_idx == -1 or freq_idx == -1 or days_idx == -1:
             return []
 
         ordered_idxs = sorted([dose_idx, freq_idx, days_idx])
 
-        def collect_nums(header_idx: int, expand: bool = False) -> list[float]:
-            inline = extract_nums(lines[header_idx], expand)
-            if inline:
-                return inline
-            next_idx = next((j for j in ordered_idxs if j > header_idx), len(lines))
-            # 다음 헤더까지 모든 숫자 수집
-            result: list[float] = []
-            for line in lines[header_idx + 1:next_idx]:
-                result.extend(extract_nums(line, expand))
-            return result
+        def collect(header_idx: int, expand: bool = False) -> list[float]:
+            return OcrService._collect_header_nums(lines, header_idx, ordered_idxs, num_re, noise_num_re, expand)
 
-        doses = collect_nums(dose_idx)
-        freqs = collect_nums(freq_idx, expand=True)
-        days_list = collect_nums(days_idx, expand=True)
+        doses = collect(dose_idx)
+        freqs = collect(freq_idx, expand=True)
+        days_list = collect(days_idx, expand=True)
 
         if not doses or not freqs or not days_list:
             return []
 
-        # 약품명 수집: 전체 라인에서 토큰별로 접미사 포함 약품명 추출
-        # (헤더 이전/이후 모두 포함, 한 줄에 여러 약품명도 처리)
-        drug_names: list[str] = []
-        for line in lines:
-            tokens = line.split()
-            for t in tokens:
-                m = _DRUG_SUFFIX_RE.match(t)
-                if m and not _NOISE_DRUG_RE.search(t):
-                    drug_names.append(m.group("name"))
-
+        drug_names = OcrService._filter_noise_tokens(OcrService._tokenize_lines(lines), noise_drug_re)
         n = len(drug_names)
         if n == 0:
             return []
 
         def pad(lst: list[float]) -> list[float]:
-            return (lst + [lst[-1]] * (n - len(lst)))[:n] if lst else lst
+            return (lst + [lst[-1]] * (n - len(lst)))[:n]
 
         doses, freqs, days_list = pad(doses), pad(freqs), pad(days_list)
-
         return [
             {
                 "drug_name": name,
@@ -373,42 +435,62 @@ class OcrService:
                 "daily_frequency": int(f),
                 "total_days": int(dy),
             }
-            for name, d, f, dy in zip(drug_names, doses, freqs, days_list)
+            for name, d, f, dy in zip(drug_names, doses, freqs, days_list, strict=True)
         ]
 
     @staticmethod
-    def _parse_interleaved_layout(lines: list[str]) -> list[dict]:
-        """인터리브형 처방전 파싱.
-
-        헤더(일수/횟수/투약량/약품명)가 연속으로 나열된 후,
-        약품명 직전에 해당 약품의 숫자값들이 나열되는 구조를 처리한다.
-        """
-        _NUM_RE = re.compile(r"^\d+\.?\d*$")
-        _HEADER_KEYWORDS = {"일수", "횟수", "투약량", "약품명"}
-
-        # 헤더 블록 끝 위치 탐색
+    def _find_header_end(lines: list[str], header_keywords: set[str]) -> int:
         header_end = 0
         in_header = False
         for i, line in enumerate(lines):
-            if line.strip() in _HEADER_KEYWORDS:
+            if line.strip() in header_keywords:
                 in_header = True
                 header_end = i + 1
             elif in_header:
                 break
+        return header_end
 
+    @staticmethod
+    def _assign_freq_days(ints: list[int]) -> tuple[int, int]:
+        """2개 정수를 횟수/일수로 매핑. b >= 5이면 일수, 아니면 횟수."""
+        a, b = sorted(ints)
+        if b >= 5:
+            return int(a), int(b)
+        return int(b), int(a)
+
+    @staticmethod
+    def _build_interleaved_item(drug_name: str, pending_nums: list[float]) -> dict:
+        nums = pending_nums[-3:]
+        float_vals = [n for n in nums if n != int(n)]
+        int_vals = [int(n) for n in nums if n == int(n)]
+        if float_vals:
+            dose = float_vals[0]
+            remaining = [int(n) for n in nums if n != dose]
+            freq, days = (
+                OcrService._assign_freq_days(remaining)
+                if len(remaining) == 2
+                else (remaining[0], remaining[1] if len(remaining) > 1 else 0)
+            )
+        else:
+            sorted_nums = sorted(int_vals)
+            dose = float(sorted_nums[0])
+            freq, days = OcrService._assign_freq_days(sorted_nums[1:])
+        return {
+            "drug_name": drug_name,
+            "dose_per_intake": dose,
+            "daily_frequency": freq,
+            "total_days": days,
+        }
+
+    @staticmethod
+    def _parse_interleaved_layout(lines: list[str]) -> list[dict]:
+        """인터리브형 처방전 파싱."""
+        num_re = re.compile(r"^\d+\.?\d*$")
+        header_keywords = {"일수", "횟수", "투약량", "약품명"}
+
+        header_end = OcrService._find_header_end(lines, header_keywords)
         if header_end == 0:
             return []
-
-        def assign_freq_days(ints: list[int]) -> tuple[int, int]:
-            """정수 2개를 횟수/일수로 매핑. 5 이상이면 일수, 미만이면 횟수."""
-            a, b = sorted(ints)
-            return (int(b), int(a)) if a >= 5 else (int(b), int(a)) if b >= 5 else (int(b), int(a))
-
-        def _assign(ints: list[int]) -> tuple[int, int]:
-            a, b = sorted(ints)
-            if b >= 5:
-                return int(a), int(b)  # 횟수=a, 일수=b
-            return int(b), int(a)  # 횟수=b, 일수=a
 
         results: list[dict] = []
         pending_nums: list[float] = []
@@ -418,28 +500,10 @@ class OcrService:
             drug_m = _DRUG_SUFFIX_RE.match(stripped)
             if drug_m:
                 if len(pending_nums) >= 3:
-                    nums = pending_nums[-3:]
-                    float_vals = [n for n in nums if n != int(n)]
-                    int_vals = [int(n) for n in nums if n == int(n)]
-                    if float_vals:
-                        dose = float_vals[0]
-                        remaining = [int(n) for n in nums if n != dose]
-                        freq, days = _assign(remaining) if len(remaining) == 2 else (remaining[0], remaining[1] if len(remaining) > 1 else 0)
-                    else:
-                        sorted_nums = sorted(int_vals)
-                        dose = float(sorted_nums[0])
-                        freq, days = _assign(sorted_nums[1:])
-                    results.append({
-                        "drug_name": drug_m.group("name"),
-                        "dose_per_intake": dose,
-                        "daily_frequency": freq,
-                        "total_days": days,
-                    })
+                    results.append(OcrService._build_interleaved_item(drug_m.group("name"), pending_nums))
                 pending_nums = []
             else:
-                for t in stripped.split():
-                    if _NUM_RE.match(t):
-                        pending_nums.append(float(t))
+                pending_nums.extend(float(t) for t in stripped.split() if num_re.match(t))
 
         return results
 
@@ -454,18 +518,22 @@ class OcrService:
         return name.strip()
 
     async def _smart_verify_drug(self, cleaned_name: str) -> list[dict]:
-        results = await Medicine.filter(
-            search_keyword__startswith=cleaned_name, is_active=True
-        ).limit(10).values("item_seq", "item_name", "entp_name")
+        results = (
+            await Medicine.filter(search_keyword__startswith=cleaned_name, is_active=True)
+            .limit(10)
+            .values("item_seq", "item_name", "entp_name")
+        )
         if results:
             return list(results)
 
         base_name = _DOSE_STRIP.sub("", cleaned_name).strip()
         if base_name == cleaned_name:
             return []
-        results = await Medicine.filter(
-            search_keyword__startswith=base_name, is_active=True
-        ).limit(10).values("item_seq", "item_name", "entp_name")
+        results = (
+            await Medicine.filter(search_keyword__startswith=base_name, is_active=True)
+            .limit(10)
+            .values("item_seq", "item_name", "entp_name")
+        )
         return list(results)
 
     def _verify_drug_with_mfds(self, candidates: list[dict], original_name: str) -> dict | None:
@@ -509,12 +577,14 @@ class OcrService:
         if not config.CLOVA_OCR_INVOKE_URL or not config.CLOVA_OCR_SECRET_KEY:
             raise ValueError("OCR_NOT_CONFIGURED")
 
-        message = json.dumps({
-            "version": "V2",
-            "requestId": str(uuid.uuid4()),
-            "timestamp": 0,
-            "images": [{"format": file_type.split("/")[-1], "name": "prescription"}],
-        })
+        message = json.dumps(
+            {
+                "version": "V2",
+                "requestId": str(uuid.uuid4()),
+                "timestamp": 0,
+                "images": [{"format": file_type.split("/")[-1], "name": "prescription"}],
+            }
+        )
         headers = {"X-OCR-SECRET": config.CLOVA_OCR_SECRET_KEY}
         async with httpx.AsyncClient(timeout=config.OCR_TIMEOUT_SECONDS) as client:
             response = await client.post(
