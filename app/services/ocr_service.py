@@ -53,8 +53,9 @@ class OcrService:
         if provider == "stub":
             return ParsedPrescriptionResponse(items=[], raw_text="")
 
+        processed = self._preprocess_image(file_bytes)
         try:
-            raw_text = await self.extract_text(file_bytes=file_bytes, file_type=file_type)
+            raw_text = await self.extract_text(file_bytes=processed, file_type=file_type)
         except ValueError:
             return ParsedPrescriptionResponse(items=[], raw_text="")
 
@@ -86,6 +87,24 @@ class OcrService:
                 ))
 
         return ParsedPrescriptionResponse(items=items, raw_text=raw_text)
+
+    # ── 전처리 ────────────────────────────────────────────────────────────────
+
+    def _preprocess_image(self, image_bytes: bytes) -> bytes:
+        """방향 보정 → Grayscale → Gaussian Blur. opencv 미설치 시 원본 반환."""
+        try:
+            import cv2
+            import numpy as np
+            from PIL import Image, ImageOps
+            import io
+
+            pil_img = ImageOps.exif_transpose(Image.open(io.BytesIO(image_bytes)))
+            img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2GRAY)
+            img = cv2.GaussianBlur(img, (3, 3), 0)
+            _, buf = cv2.imencode(".jpg", img)
+            return buf.tobytes()
+        except ImportError:
+            return image_bytes
 
     # ── 파싱 ──────────────────────────────────────────────────────────────────
 
