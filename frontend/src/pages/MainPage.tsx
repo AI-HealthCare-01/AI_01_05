@@ -6,7 +6,6 @@ import {
   getHomeMedicationsToday,
   getHomeMoodsToday,
   patchHomeMedicationCheck,
-  postHomeMedicationToday,
   postHomeMoodToday,
   type HomeMedicationItem,
 } from "../api/home";
@@ -177,11 +176,6 @@ export default function MainPage() {
   const [todayMedications, setTodayMedications] = useState<MedicationUiItem[]>([]);
   const [isSavingMedication, setIsSavingMedication] = useState(false);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [medicineName, setMedicineName] = useState("");
-  const [timeSlot, setTimeSlot] = useState<UiSlot>("morning");
-  const [dosage, setDosage] = useState(1);
-
   const initialSlot = getCurrentUiSlot();
   const initialIndex = TIME_SLOTS.findIndex((slot) => slot.key === initialSlot);
   const [moodSwipeIndex, setMoodSwipeIndex] = useState(initialIndex < 0 ? 0 : initialIndex);
@@ -342,41 +336,6 @@ export default function MainPage() {
     }
   };
 
-  const handleAddMedication = async () => {
-    const trimmedName = medicineName.trim();
-
-    if (!trimmedName) {
-      setError("약 이름을 입력해주세요.");
-      return;
-    }
-    if (!Number.isFinite(dosage) || dosage <= 0) {
-      setError("복용량은 1 이상이어야 합니다.");
-      return;
-    }
-    if (isSavingMedication) return;
-
-    try {
-      setIsSavingMedication(true);
-      setError("");
-      await postHomeMedicationToday({
-        medicationName: trimmedName,
-        timeSlot: uiToApiSlot(timeSlot),
-        dosage,
-      });
-      await fetchTodayMedications();
-
-      setIsModalOpen(false);
-      setMedicineName("");
-      setTimeSlot("morning");
-      setDosage(1);
-    } catch (createError) {
-      const message = createError instanceof Error ? createError.message : "약 추가에 실패했습니다.";
-      setError(message);
-    } finally {
-      setIsSavingMedication(false);
-    }
-  };
-
   const dDayText = hasUpcoming && dDay !== null ? `D-${dDay}` : "진료 없음";
 
   const characterMessage = latestMood
@@ -520,7 +479,7 @@ export default function MainPage() {
         <div style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h2 style={{ margin: 0 }}>오늘의 복약</h2>
-            <button style={topButtonStyle} onClick={() => setIsModalOpen(true)}>약 추가</button>
+            <button style={topButtonStyle} onClick={() => navigate("/medications/add")}>약 추가</button>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -637,78 +596,6 @@ export default function MainPage() {
         )}
       </div>
 
-      {isModalOpen && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
-            zIndex: 50,
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: 420,
-              background: "#FFFFFF",
-              borderRadius: 14,
-              padding: 16,
-              border: "1px solid #E0E0E0",
-            }}
-          >
-            <h3 style={{ margin: "0 0 12px" }}>약 추가</h3>
-
-            <div style={{ display: "grid", gap: 10 }}>
-              <input
-                value={medicineName}
-                onChange={(e) => setMedicineName(e.target.value)}
-                placeholder="약 이름"
-                disabled={isSavingMedication}
-                style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #DADADA" }}
-              />
-
-              <select
-                value={timeSlot}
-                onChange={(e) => setTimeSlot(e.target.value as UiSlot)}
-                disabled={isSavingMedication}
-                style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #DADADA" }}
-              >
-                {TIME_SLOTS.map((slot) => (
-                  <option key={slot.key} value={slot.key}>
-                    {slot.label}
-                  </option>
-                ))}
-              </select>
-
-              <input
-                type="number"
-                min={1}
-                value={dosage}
-                onChange={(e) => setDosage(Number(e.target.value))}
-                disabled={isSavingMedication}
-                style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #DADADA" }}
-              />
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
-              <button
-                style={{ ...topButtonStyle, background: "#9E9E9E" }}
-                onClick={() => setIsModalOpen(false)}
-                disabled={isSavingMedication}
-              >
-                취소
-              </button>
-              <button style={topButtonStyle} onClick={handleAddMedication} disabled={isSavingMedication}>
-                {isSavingMedication ? "저장 중..." : "저장"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
