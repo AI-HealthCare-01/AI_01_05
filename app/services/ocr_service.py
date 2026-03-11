@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from collections import defaultdict
 
 import httpx
 
@@ -13,7 +14,7 @@ from app.models.medicine import Medicine
 _NOISE_KEYWORDS = ["조제", "복약지도", "보험", "환자명", "병원명", "전화번호"]
 
 _PATTERN_INLINE = re.compile(
-    r"^(?P<name>[가-힣a-zA-Z0-9]+)\s+"
+    r"^(?P<name>[가-힣a-zA-Z0-9%\.]+)\s+"
     r"(?P<dose>\d+\.?\d*)\s+"
     r"(?P<freq>\d+)\s+"
     r"(?P<days>\d+)$"
@@ -146,7 +147,8 @@ class OcrService:
 
     def _clean_drug_name(self, raw: str) -> str:
         name = re.sub(r"\(.*?\)", "", raw).strip()
-        name = re.sub(r"[^\w가-힣]", "", name)
+        # 숫자+% 패턴(롭도 표시)는 유지, 나머지 특수문자 제거
+        name = re.sub(r"[^\w가-힣\d\.%]", "", name)
         for pattern, replacement in _UNIT_MAP:
             name = pattern.sub(replacement, name)
         for typo, correct in _TYPO_MAP:
@@ -205,8 +207,8 @@ class OcrService:
         return extracted
 
     async def _extract_text_via_clova(self, file_bytes: bytes, file_type: str) -> str:
-        """Clova OCR (X-OCR-SECRET 헤더 방식) 호출."""
-        if not config.OCR_API_URL or not config.OCR_API_KEY:
+        """Clova OCR 호출 — x+y 좌표 기반 줄 재구성."""
+        if not config.CLOVA_OCR_INVOKE_URL or not config.CLOVA_OCR_SECRET_KEY:
             raise ValueError("OCR_NOT_CONFIGURED")
 
         message = json.dumps({
@@ -215,10 +217,10 @@ class OcrService:
             "timestamp": 0,
             "images": [{"format": file_type.split("/")[-1], "name": "prescription"}],
         })
-        headers = {"X-OCR-SECRET": config.OCR_API_KEY}
+        headers = {"X-OCR-SECRET": config.CLOVA_OCR_SECRET_KEY}
         async with httpx.AsyncClient(timeout=config.OCR_TIMEOUT_SECONDS) as client:
             response = await client.post(
-                config.OCR_API_URL,
+                config.CLOVA_OCR_INVOKE_URL,
                 headers=headers,
                 data={"message": message},
                 files={"file": ("prescription", file_bytes, file_type)},
@@ -229,8 +231,34 @@ class OcrService:
         fields = payload.get("images", [{}])[0].get("fields", [])
         if not fields:
             raise ValueError("OCR_EMPTY_RESULT")
-        lines = sorted(fields, key=lambda f: f.get("boundingPoly", {}).get("vertices", [{}])[0].get("y", 0))
-        return "\n".join(f.get("inferText", "") for f in lines)
+        return self._reconstruct_lines(fields)
+
+    @staticmethod
+    def _reconstruct_lines(fields: list[dict], threshold: int = 15) -> str:
+        """boundingPoly x+y 좌표 기반으로 단어를 줄 단위로 재구성."""
+        groups: dict[int, list[tuple[int, str]]] = defaultdict(list)
+        for field in fields:
+            vertices = field.get("boundingPoly", {}).get("vertices", [{}])
+            y = vertices[0].get("y", 0)
+            x = vertices[0].get("x", 0)
+            groups[y].append((x, field.get("inferText", "")))
+
+        sorted_ys = sorted(groups.keys())
+        merged: list[list[tuple[int, str]]] = []
+        current: list[tuple[int, str]] = list(groups[sorted_ys[0]])
+        current_y = sorted_ys[0]
+
+        for y in sorted_ys[1:]:
+            if abs(y - current_y) <= threshold:
+                current.extend(groups[y])
+            else:
+                merged.append(sorted(current, key=lambda t: t[0]))
+                current = list(groups[y])
+            current_y = y
+        if current:
+            merged.append(sorted(current, key=lambda t: t[0]))
+
+        return "\n".join(" ".join(t for _, t in line) for line in merged)
 
     def _find_text(self, payload: dict | list | str) -> str:
         if isinstance(payload, str):

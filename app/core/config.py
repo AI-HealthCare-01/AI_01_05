@@ -49,11 +49,14 @@ class Config(BaseSettings):
     TEST_VERIFICATION_TOKEN: str = ""
 
     # OCR integration
-    # OCR_PROVIDER: "stub" | "http"
+    # OCR_PROVIDER: "stub" | "http" | "clova"
     OCR_PROVIDER: str = "stub"
-    OCR_API_URL: str | None = None
-    OCR_API_KEY: str | None = None
+    OCR_API_URL: str | None = None      # http provider용
+    OCR_API_KEY: str | None = None      # http provider용
     OCR_TIMEOUT_SECONDS: int = 20
+    # Clova OCR (OCR_PROVIDER="clova" 시 사용)
+    CLOVA_OCR_SECRET_KEY: str = ""
+    CLOVA_OCR_INVOKE_URL: str = ""
 
     # LLM integration
     # LLM_PROVIDER: "stub" | "openai"
