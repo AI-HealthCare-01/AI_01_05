@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { addUserMedication } from "../api/medicines";
+import { postHomeMedicationToday, type MedicationTimeSlot } from "../api/home";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/CommonUI";
 import { COLORS } from "../constants/theme";
@@ -38,6 +38,8 @@ const DEFAULT_TIME_SLOTS: Record<number, string[]> = {
   2: ["MORNING", "EVENING"],
   3: ["MORNING", "LUNCH", "EVENING"],
 };
+
+const HOME_TIME_SLOTS: MedicationTimeSlot[] = ["MORNING", "LUNCH", "EVENING", "BEDTIME"];
 
 const cardStyle: CSSProperties = {
   background: COLORS.cardBg,
@@ -301,7 +303,17 @@ export default function MedicineConfirmPage() {
     const nextErrors: Record<number, string> = {};
     for (let i = 0; i < medicinesDraft.length; i++) {
       try {
-        await addUserMedication(medicinesDraft[i]);
+        const current = medicinesDraft[i];
+        const selectedSlot =
+          current.time_slots.find((slot): slot is MedicationTimeSlot =>
+            HOME_TIME_SLOTS.includes(slot as MedicationTimeSlot)
+          ) ?? "MORNING";
+
+        await postHomeMedicationToday({
+          medicationName: current.item_name,
+          timeSlot: selectedSlot,
+          dosage: current.dose_per_intake,
+        });
       } catch {
         nextErrors[i] = `${medicinesDraft[i].item_name} 저장 실패`;
       }
