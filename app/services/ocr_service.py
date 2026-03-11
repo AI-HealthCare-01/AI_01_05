@@ -11,13 +11,28 @@ from app.core import config
 from app.dtos.ocr_dto import OcrParsedItem, ParsedPrescriptionResponse
 from app.models.medicine import Medicine
 
-_NOISE_KEYWORDS = ["조제", "복약지도", "보험", "환자명", "병원명", "전화번호"]
+_NOISE_KEYWORDS = ["조제", "복약지도", "보험", "환자명", "병원명", "전화번호", "약품명", "약품사진", "복약안내"]
+# 투약일수(단독) 헤더 줄 필터: "연세라온치과 투약일수 3" 같은 줄 제외
+# "총투약일수"는 포함하지 않아야 하므로 별도 정규식으로 처리
+_NOISE_LINE_RE = re.compile(r"^(?!.*총투약일수).*투약일수")
 
 _PATTERN_INLINE = re.compile(
     r"^(?P<name>[가-힣a-zA-Z0-9%\.]+)\s+"
     r"(?P<dose>\d+\.?\d*)\s+"
     r"(?P<freq>\d+)\s+"
     r"(?P<days>\d+)$"
+)
+# 약품명(성분명) 1회투약량N.NN 1일투여횟수N 총투약일수N 형태
+_PATTERN_LABEL_INLINE = re.compile(
+    r"^(?P<name>[가-힣a-zA-Z0-9%\.]+)"
+    r"(?:\([^)]*\))?"
+    r".*?"
+    r"1회투약량\s*(?P<dose>\d+\.?\d*)"
+    r".*?"
+    r"1일투여횟수\s*(?P<freq>\d+)"
+    r".*?"
+    r"총투약일수\s*(?P<days>\d+)",
+    re.DOTALL,
 )
 _PATTERN_DOSE = re.compile(r"1회투약량\s*(\d+\.?\d*)")
 _PATTERN_FREQ = re.compile(r"1일투여횟수\s*(\d+)")
@@ -34,6 +49,11 @@ _TYPO_MAP = [
     ("캅셀", "캡슐"),
 ]
 _DOSE_STRIP = re.compile(r"\d+(\.\d+)?(밀리그램|그램|밀리리터|mg|g|ml)", re.IGNORECASE)
+# 한글로 시작하는 약품명 판별 패턴 (병합 조건 제한용)
+# 의약품 접미사(정/캐심/액/크림/연고/주/산/시럽/패치/주사/주사제/주사액)를 포함하는 줄만 허용
+_DRUG_NAME_START_RE = re.compile(
+    r"^[가-힣a-zA-Z0-9].*?(정|캐심|액|크림|연고|주|산|시럽|패치|주사|주사제|주사액|제|환|제제|제제제)"
+)
 
 
 class OcrService:
@@ -113,9 +133,9 @@ class OcrService:
 
     def _parse_prescription_text(self, lines: list[str]) -> list[dict]:
         results: list[dict] = []
-        filtered = [l for l in lines if not any(kw in l for kw in _NOISE_KEYWORDS)]
+        filtered = [l for l in lines if not any(kw in l for kw in _NOISE_KEYWORDS) and not _NOISE_LINE_RE.search(l)]
 
-        # 패턴 1: 인라인 (약품명 투약량 횟수 일수)
+        # 패턴 1: 순수 인라인 (약품명 투약량 횟수 일수)
         for line in filtered:
             m = _PATTERN_INLINE.match(line)
             if m:
@@ -125,11 +145,34 @@ class OcrService:
                     "daily_frequency": int(m.group("freq")),
                     "total_days": int(m.group("days")),
                 })
-
         if results:
             return results
 
-        # 패턴 2: 레이블 형식
+        # 패턴 2: 약품명+투약정보가 한 줄에 있는 레이블 인라인 형식
+        # (예: "시클러캐심250밀리그램(세파 1회투약량 1.00 1일투여횟수 3 총투약일수 3 ...")
+        # 총투약일수가 다음 줄에 있는 경우를 위해 연속 줄 병합 후 재시도
+        i = 0
+        while i < len(filtered):
+            line = filtered[i]
+            m = _PATTERN_LABEL_INLINE.match(line)
+            if not m and i + 1 < len(filtered) and _DRUG_NAME_START_RE.match(line):
+                # 앞 줄이 한글 약품명으로 시작할 때만 병합 시도
+                merged = line + " " + filtered[i + 1]
+                m = _PATTERN_LABEL_INLINE.match(merged)
+                if m:
+                    i += 1
+            if m:
+                results.append({
+                    "drug_name": m.group("name"),
+                    "dose_per_intake": float(m.group("dose")),
+                    "daily_frequency": int(m.group("freq")),
+                    "total_days": int(m.group("days")),
+                })
+            i += 1
+        if results:
+            return results
+
+        # 패턴 3: 순수 레이블 형식 (약품명 / 1회투약량 / 1일투여횟수 / 총투약일수 각각 별도 줄)
         full_text = "\n".join(filtered)
         dose_m = _PATTERN_DOSE.search(full_text)
         freq_m = _PATTERN_FREQ.search(full_text)
