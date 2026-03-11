@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { useRef, useState } from "react";
+import ocrSample from "../assets/images/ocr_sample/ocr_sample.png";
 import { useNavigate } from "react-router-dom";
 import { parsePrescription } from "../api/medicines";
 import { COLORS } from "../constants/theme";
@@ -135,35 +136,26 @@ export default function AddMedicationPage() {
         <div style={{ ...cardStyle, padding: 0, overflow: "hidden", marginBottom: 12 }}>
           <div
             style={{
-              background: "linear-gradient(135deg, #e8f0e4 0%, #d4e6cc 100%)",
-              padding: "20px 20px 16px",
+              background: "linear-gradient(135deg, #eef1ec 0%, #d4e6cc 100%)",
+              padding: "6px 20px",
               display: "flex",
               justifyContent: "center",
             }}
           >
-            <svg width="220" height="130" viewBox="0 0 220 130" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="20" y="10" width="180" height="110" rx="8" fill="white" stroke="#99A988" strokeWidth="2"/>
-              <path d="M20 10 L110 60 L200 10" stroke="#99A988" strokeWidth="1.5" fill="none" strokeDasharray="4 2"/>
-              <rect x="36" y="68" width="80" height="7" rx="3" fill="#c8dcc0"/>
-              <rect x="36" y="82" width="55" height="6" rx="3" fill="#dde8d8"/>
-              <rect x="36" y="95" width="100" height="5" rx="2.5" fill="#e8f0e4"/>
-              <rect x="36" y="106" width="75" height="5" rx="2.5" fill="#e8f0e4"/>
-              <path d="M4 22 L4 8 L18 8" stroke="#99A988" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-              <path d="M216 22 L216 8 L202 8" stroke="#99A988" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-              <path d="M4 108 L4 122 L18 122" stroke="#99A988" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-              <path d="M216 108 L216 122 L202 122" stroke="#99A988" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-              <circle cx="185" cy="28" r="12" fill="#99A988"/>
-              <path d="M179 28 L183 32 L191 24" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-            </svg>
+            <img
+              src={ocrSample}
+              alt="약 봉투 촬영 예시"
+              style={{ width: "100%", maxWidth: 320, borderRadius: 8, display: "block" }}
+            />
           </div>
           <div style={{ padding: "14px 18px 16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-              <span style={{ fontSize: 14 }}>📋</span>
-              <span style={{ fontWeight: 700, fontSize: 13, color: COLORS.text }}>약 봉투 촬영 가이드</span>
+              <span style={{ fontSize: 23 }}>📸</span>
+              <span style={{ fontWeight: 700, fontSize: 17, color: COLORS.text }}>약 봉투 촬영 가이드</span>
               <span
                 style={{
                   marginLeft: "auto",
-                  fontSize: 10,
+                  fontSize: 13,
                   fontWeight: 600,
                   color: "#99A988",
                   background: "#e8f0e4",
@@ -182,10 +174,10 @@ export default function AddMedicationPage() {
                 ["🎯", "초점 맞추기", "카메라가 흔들리지 않게 주의해 주세요"],
               ] as [string, string, string][]).map(([icon, title, desc]) => (
                 <div key={title} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                  <span style={{ fontSize: 13, lineHeight: "18px", flexShrink: 0 }}>{icon}</span>
+                  <span style={{ fontSize: 15, lineHeight: "18px", flexShrink: 0 }}>{icon}</span>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "baseline" }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.text, whiteSpace: "nowrap" }}>{title}</span>
-                    <span style={{ fontSize: 11, color: COLORS.subText, lineHeight: "16px" }}>{desc}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, whiteSpace: "nowrap" }}>{title}</span>
+                    <span style={{ fontSize: 13, color: COLORS.subText, lineHeight: "16px" }}>{desc}</span>
                   </div>
                 </div>
               ))}
@@ -262,7 +254,7 @@ export default function AddMedicationPage() {
           onClick={() => navigate("/medications/search")}
           style={{
             ...cardStyle,
-            border: `1px solid ${COLORS.border}`,
+            border: `2px solid ${COLORS.button}`,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
@@ -281,7 +273,7 @@ export default function AddMedicationPage() {
             const el = e.currentTarget as HTMLDivElement;
             el.style.transform = "translateY(0)";
             el.style.boxShadow = "none";
-            el.style.borderColor = COLORS.border;
+            el.style.borderColor = COLORS.button;
             const icon = el.querySelector(".btn-icon") as HTMLElement | null;
             if (icon) icon.style.transform = "scale(1)";
           }}
@@ -354,7 +346,7 @@ export default function AddMedicationPage() {
                 gap: 14,
                 padding: "14px 16px",
                 background: COLORS.selectedCellBg,
-                border: `1px solid ${COLORS.button}`,
+                border: `2px solid ${COLORS.button}`,
                 borderRadius: 14,
                 cursor: "pointer",
                 marginBottom: 10,
@@ -380,7 +372,7 @@ export default function AddMedicationPage() {
                 gap: 14,
                 padding: "14px 16px",
                 background: COLORS.cardBg,
-                border: `1px solid ${COLORS.border}`,
+                border: `2px solid ${COLORS.button}`,
                 borderRadius: 14,
                 cursor: "pointer",
                 marginBottom: 10,
