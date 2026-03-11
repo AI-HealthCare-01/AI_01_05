@@ -93,16 +93,18 @@ class OcrService:
     def _preprocess_image(self, image_bytes: bytes) -> bytes:
         """방향 보정 → Grayscale → Gaussian Blur. opencv 미설치 시 원본 반환."""
         try:
+            import io
+
             import cv2
             import numpy as np
             from PIL import Image, ImageOps
-            import io
 
-            pil_img = ImageOps.exif_transpose(Image.open(io.BytesIO(image_bytes)))
+            with io.BytesIO(image_bytes) as buf:
+                pil_img = ImageOps.exif_transpose(Image.open(buf))
             img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2GRAY)
             img = cv2.GaussianBlur(img, (3, 3), 0)
-            _, buf = cv2.imencode(".jpg", img)
-            return buf.tobytes()
+            _, encoded = cv2.imencode(".jpg", img)
+            return encoded.tobytes()
         except ImportError:
             return image_bytes
 
