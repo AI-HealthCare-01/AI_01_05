@@ -39,7 +39,18 @@ const DEFAULT_TIME_SLOTS: Record<number, string[]> = {
   3: ["MORNING", "LUNCH", "EVENING"],
 };
 
-const HOME_TIME_SLOTS: MedicationTimeSlot[] = ["MORNING", "LUNCH", "EVENING", "BEDTIME"];
+const TIME_SLOT_TO_API: Record<string, MedicationTimeSlot> = {
+  MORNING: "MORNING",
+  LUNCH: "LUNCH",
+  EVENING: "EVENING",
+  BEDTIME: "BEDTIME",
+  아침: "MORNING",
+  점심: "LUNCH",
+  저녁: "EVENING",
+  자기전: "BEDTIME",
+  OTHER: "MORNING",
+  기타: "MORNING",
+};
 
 const cardStyle: CSSProperties = {
   background: COLORS.cardBg,
@@ -304,10 +315,12 @@ export default function MedicineConfirmPage() {
     for (let i = 0; i < medicinesDraft.length; i++) {
       try {
         const current = medicinesDraft[i];
-        const selectedSlot =
-          current.time_slots.find((slot): slot is MedicationTimeSlot =>
-            HOME_TIME_SLOTS.includes(slot as MedicationTimeSlot)
-          ) ?? "MORNING";
+        const selectedRawSlot = current.time_slots.find((slot) => TIME_SLOT_TO_API[slot] !== undefined);
+        if (!selectedRawSlot) {
+          nextErrors[i] = `${current.item_name} 복용시간을 선택해주세요`;
+          continue;
+        }
+        const selectedSlot = TIME_SLOT_TO_API[selectedRawSlot];
 
         await postHomeMedicationToday({
           name: current.item_name,
