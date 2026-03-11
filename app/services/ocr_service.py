@@ -11,18 +11,27 @@ from app.core import config
 from app.dtos.ocr_dto import OcrParsedItem, ParsedPrescriptionResponse
 from app.models.medicine import Medicine
 
-_NOISE_KEYWORDS = ["조제", "복약지도", "보험", "환자명", "병원명", "전화번호", "약품명", "약품사진", "복약안내"]
-# 투약일수(단독) 헤더 줄 필터: "연세라온치과 투약일수 3" 같은 줄 제외
-# "총투약일수"는 포함하지 않아야 하므로 별도 정규식으로 처리
+_NOISE_KEYWORDS = [
+    "조제", "복약지도", "보험", "환자명", "병원명", "전화번호",
+    "약품명", "약품사진", "복약안내", "총수납금액",
+]
+# 줄 전체가 노이즈인 경우만 제외 (약품명이 포함된 줄은 유지)
+# 약품명 접미사가 없는 줄에서만 노이즈 키워드 필터 적용
+_NOISE_ONLY_KEYWORDS = ["조제", "복약지도", "환자명", "병원명", "전화번호", "총수납금액"]
+# 약품명 접미사가 없고 아래 키워드만 있는 줄 제외
+_NOISE_HEADER_KEYWORDS = ["약품명", "약품사진", "복약안내"]
+# 투약일수 단독 헤더 줄 필터 ("연세라온치과 투약일수 3" 등) — 총투약일수는 유지
 _NOISE_LINE_RE = re.compile(r"^(?!.*총투약일수).*투약일수")
 
+# 패턴 1: 순수 인라인 "약품명 투약량 횟수 일수"
 _PATTERN_INLINE = re.compile(
     r"^(?P<name>[가-힣a-zA-Z0-9%\.]+)\s+"
     r"(?P<dose>\d+\.?\d*)\s+"
     r"(?P<freq>\d+)\s+"
     r"(?P<days>\d+)$"
 )
-# 약품명(성분명) 1회투약량N.NN 1일투여횟수N 총투약일수N 형태
+# 패턴 2: 약품명+투약정보 한 줄 레이블 인라인
+# "시클러캡슐250밀리그램(세파 1회투약량 1.00 1일투여횟수3 총투약일수3 ..."
 _PATTERN_LABEL_INLINE = re.compile(
     r"^(?P<name>[가-힣a-zA-Z0-9%\.]+)"
     r"(?:\([^)]*\))?"
@@ -34,6 +43,13 @@ _PATTERN_LABEL_INLINE = re.compile(
     r"총투약일수\s*(?P<days>\d+)",
     re.DOTALL,
 )
+# 줄 끝 "N N N" 패턴 — 뒤에 비숫자 문자가 있어도 허용
+_PATTERN_TRAILING_NUMS = re.compile(
+    r"\b(?P<dose>\d+\.?\d*)\s+(?P<freq>\d+)\s+(?P<days>\d+)\s*(?:[^\d\n].*)?$"
+)
+# 패턴 5: 다중 약품 한 줄 "약품명1 약품명2 약품명3 투약량1 투약량2 투약량3 횟수1 횟수2 횟수3 일수1 일수2 일수3"
+_PATTERN_MULTI_DRUG = re.compile(r"^[가-힣]")
+
 _PATTERN_DOSE = re.compile(r"1회투약량\s*(\d+\.?\d*)")
 _PATTERN_FREQ = re.compile(r"1일투여횟수\s*(\d+)")
 _PATTERN_DAYS = re.compile(r"총투약일수\s*(\d+)")
@@ -49,10 +65,16 @@ _TYPO_MAP = [
     ("캅셀", "캡슐"),
 ]
 _DOSE_STRIP = re.compile(r"\d+(\.\d+)?(밀리그램|그램|밀리리터|mg|g|ml)", re.IGNORECASE)
-# 한글로 시작하는 약품명 판별 패턴 (병합 조건 제한용)
-# 의약품 접미사(정/캐심/액/크림/연고/주/산/시럽/패치/주사/주사제/주사액)를 포함하는 줄만 허용
+# 의약품 접미사 포함 여부 — 병합 조건 제한용
 _DRUG_NAME_START_RE = re.compile(
-    r"^[가-힣a-zA-Z0-9].*?(정|캐심|액|크림|연고|주|산|시럽|패치|주사|주사제|주사액|제|환|제제|제제제)"
+    r"^[가-힣a-zA-Z0-9].*?(정|캡슐|액|크림|연고|주|산|시럽|패치|주사|주사제|주사액|제|환)"
+)
+# 약품명 접미사 추출용
+# - 반드시 한글로 시작
+# - 접미사(정/캡슐/액/크림/연고 등) 포함
+# - 접미사 뒤 숫자/단위 허용 (예: 오메크라정625밀리그램)
+_DRUG_SUFFIX_RE = re.compile(
+    r"(?P<name>[가-힣][가-힣a-zA-Z0-9%\.]*(?:정|캡슐|액|크림|연고|산|시럽|패치|주사|주사제|주사액)[가-힣a-zA-Z0-9%\.]*)"
 )
 
 
@@ -133,9 +155,14 @@ class OcrService:
 
     def _parse_prescription_text(self, lines: list[str]) -> list[dict]:
         results: list[dict] = []
-        filtered = [l for l in lines if not any(kw in l for kw in _NOISE_KEYWORDS) and not _NOISE_LINE_RE.search(l)]
+        filtered = [
+            l for l in lines
+            if not any(kw in l for kw in _NOISE_ONLY_KEYWORDS)
+            and not _NOISE_LINE_RE.search(l)
+            and not (_DRUG_SUFFIX_RE.search(l) is None and any(kw in l for kw in _NOISE_HEADER_KEYWORDS))
+        ]
 
-        # 패턴 1: 순수 인라인 (약품명 투약량 횟수 일수)
+        # 패턴 1: 순수 인라인 "약품명 투약량 횟수 일수"
         for line in filtered:
             m = _PATTERN_INLINE.match(line)
             if m:
@@ -148,15 +175,13 @@ class OcrService:
         if results:
             return results
 
-        # 패턴 2: 약품명+투약정보가 한 줄에 있는 레이블 인라인 형식
-        # (예: "시클러캐심250밀리그램(세파 1회투약량 1.00 1일투여횟수 3 총투약일수 3 ...")
-        # 총투약일수가 다음 줄에 있는 경우를 위해 연속 줄 병합 후 재시도
+        # 패턴 2: 약품명+투약정보 한 줄 레이블 인라인
+        # 총투약일수가 다음 줄에 있는 경우 병합 후 재시도 (의약품 접미사 포함 줄만)
         i = 0
         while i < len(filtered):
             line = filtered[i]
             m = _PATTERN_LABEL_INLINE.match(line)
             if not m and i + 1 < len(filtered) and _DRUG_NAME_START_RE.match(line):
-                # 앞 줄이 한글 약품명으로 시작할 때만 병합 시도
                 merged = line + " " + filtered[i + 1]
                 m = _PATTERN_LABEL_INLINE.match(merged)
                 if m:
@@ -172,7 +197,57 @@ class OcrService:
         if results:
             return results
 
-        # 패턴 3: 순수 레이블 형식 (약품명 / 1회투약량 / 1일투여횟수 / 총투약일수 각각 별도 줄)
+        # 패턴 5: 다중 약품 한 줄 "약품명1 약품명2 ... 투약량1 투약량2 ... 횟수1 ... 일수1 ..."
+        for line in filtered:
+            if not _PATTERN_MULTI_DRUG.match(line):
+                continue
+            tokens = line.split()
+            names = [t for t in tokens if re.match(r"^[가-힣]", t) and _DRUG_SUFFIX_RE.search(t)]
+            nums = [t for t in tokens if re.match(r"^\d+\.?\d*$", t)]
+            n = len(names)
+            if n >= 2 and len(nums) == n * 3:
+                doses = nums[:n]
+                freqs = nums[n:n * 2]
+                days = nums[n * 2:]
+                for name, d, f, dy in zip(names, doses, freqs, days):
+                    results.append({
+                        "drug_name": name,
+                        "dose_per_intake": float(d),
+                        "daily_frequency": int(f),
+                        "total_days": int(dy),
+                    })
+                if results:
+                    return results
+
+        # 패턴 4: 약품명 줄 + 이후 3줄 이내 끝 "N N N" 연결
+        # - 약품명이 줄 중간에 있는 경우도 탐색 (search 사용)
+        # - 새 약품명이 나와도 투약정보를 찾을 때까지 이전 약품명 유지
+        i = 0
+        pending_name: str | None = None
+        pending_since: int = 0
+        while i < len(filtered):
+            line = filtered[i]
+            nums_m = _PATTERN_TRAILING_NUMS.search(line)
+            if nums_m and pending_name and (i - pending_since) <= 3:
+                results.append({
+                    "drug_name": pending_name,
+                    "dose_per_intake": float(nums_m.group("dose")),
+                    "daily_frequency": int(nums_m.group("freq")),
+                    "total_days": int(nums_m.group("days")),
+                })
+                pending_name = None
+            name_m = _DRUG_SUFFIX_RE.search(line)
+            if name_m and not nums_m:
+                # 투약정보가 없는 줄에서만 약품명 갱신
+                pending_name = name_m.group("name")
+                pending_since = i
+            elif pending_name and (i - pending_since) > 3:
+                pending_name = None
+            i += 1
+        if results:
+            return results
+
+        # 패턴 3 (fallback): 순수 레이블 형식 (각각 별도 줄)
         full_text = "\n".join(filtered)
         dose_m = _PATTERN_DOSE.search(full_text)
         freq_m = _PATTERN_FREQ.search(full_text)
@@ -189,11 +264,8 @@ class OcrService:
         return results
 
     def _clean_drug_name(self, raw: str) -> str:
-        # 수출명: 이후 전체 제거 (괄호 안팎 모두)
         name = re.sub(r"[（(]?수출명[：:].*", "", raw, flags=re.IGNORECASE).strip()
-        # 괄호 및 괄호 내용 제거
         name = re.sub(r"\(.*?\)", "", name).strip()
-        # 숫자+% 패턴(농도 표시)는 유지, 나머지 특수문자 제거
         name = re.sub(r"[^\w가-힣\d\.%]", "", name)
         for pattern, replacement in _UNIT_MAP:
             name = pattern.sub(replacement, name)
