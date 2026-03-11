@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.apis.v1.appointment_routers import router as appointment_router
 from app.apis.v1.auth_routers import auth_router
 from app.apis.v1.character_routers import router as character_router
+from app.apis.v1.chatbot import chatbot_router
 from app.apis.v1.diary_routers import router as diary_router
 from app.apis.v1.home_routers import router as home_router
 from app.apis.v1.medication_routers import router as medication_router
@@ -20,5 +21,6 @@ v1_routers.include_router(diary_router)
 v1_routers.include_router(mood_router)
 v1_routers.include_router(appointment_router)
 v1_routers.include_router(medication_router)
+v1_routers.include_router(chatbot_router)
 v1_routers.include_router(medicine_router)
 v1_routers.include_router(user_medication_router)

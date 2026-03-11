@@ -391,7 +391,8 @@ export default function MainPage() {
           <img
             src={chamkkaeImage}
             alt="기본 캐릭터"
-            style={{ width: 180, maxWidth: "70%", objectFit: "contain", marginBottom: 8 }}
+            style={{ width: 180, maxWidth: "70%", objectFit: "contain", marginBottom: 8, cursor: "pointer" }}
+            onClick={() => navigate("/chat")}
           />
           <p style={{ margin: 0, fontWeight: 600, lineHeight: 1.6 }}>{characterMessage}</p>
         </div>
