@@ -3,6 +3,8 @@ import re
 
 from openai import AsyncOpenAI
 
+from ai_worker.tasks.personas import get_persona_prompt
+
 CRISIS_KEYWORDS: dict[str, list[str]] = {
     "Direct": [
         "자살",
@@ -80,6 +82,7 @@ class MedicationChatbot:
         user_message: str,
         meds: list[str],
         user_note: str | None = None,
+        character_id: int | None = None,
     ) -> dict:
         """사용자 메시지를 분석하여 응답을 생성합니다.
 
@@ -97,11 +100,7 @@ class MedicationChatbot:
             }
 
         # 2) 정상 흐름: OpenAI 호출
-        system_prompt = (
-            "당신은 전문 약사입니다. 사용자가 복용 중인 약물 리스트를 참고하여 "
-            "질문에 대해 의학적으로 정확하고 친절하게 답변하십시오. "
-            "위험한 조합이 있다면 반드시 경고하십시오."
-        )
+        system_prompt = get_persona_prompt(character_id)
 
         user_content = f"복용 중인 약: {', '.join(meds) if meds else '없음'}"
         if user_note:
