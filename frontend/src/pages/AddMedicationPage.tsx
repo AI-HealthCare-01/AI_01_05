@@ -250,7 +250,7 @@ export default function AddMedicationPage() {
               <span style={{ fontSize: 24 }}>📷</span>
               <div style={{ textAlign: "left" }}>
                 <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>카메라로 촬영</div>
-                <div style={{ fontSize: 12, color: COLORS.subText, marginTop: 2 }}>지금 바로 약 봉투를 촬영합니다</div>
+                <div style={{ fontSize: 12, color: COLORS.subText, marginTop: 2 }}>지금 바로 약 봉투를 촬영합니다 (모바일)</div>
               </div>
             </button>
 
