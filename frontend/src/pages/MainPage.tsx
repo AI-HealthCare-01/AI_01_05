@@ -25,6 +25,7 @@ type MedicationUiItem = {
   dosage: number;
   timeSlot: UiSlot;
   checked: boolean;
+  itemImage: string | null;
 };
 
 const TIME_SLOTS: Array<{ key: UiSlot; label: string }> = [
@@ -221,6 +222,7 @@ export default function MainPage() {
       dosage: item.dosePerIntake,
       timeSlot: apiToUiSlot(item.timeSlot),
       checked: item.isTaken,
+      itemImage: item.itemImage,
     }));
     setTodayMedications(mapped);
   };
@@ -528,6 +530,10 @@ export default function MainPage() {
                       key={med.id}
                       onClick={() => handleMedicationToggle(med.medicationId, med.checked)}
                       style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 10,
                         padding: "8px",
                         marginBottom: "6px",
                         borderRadius: "8px",
@@ -537,7 +543,20 @@ export default function MainPage() {
                         cursor: "pointer",
                       }}
                     >
-                      {med.checked ? "☑" : "☐"} {med.name} {med.dosage}정
+                      <span>
+                        {med.checked ? "☑" : "☐"} {med.name} {med.dosage}정
+                      </span>
+                      {med.itemImage ? (
+                        <img
+                          src={med.itemImage}
+                          alt={med.name}
+                          style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
+                        />
+                      ) : (
+                        <span style={{ width: 40, height: 40, fontSize: 24, lineHeight: "40px", textAlign: "center", flexShrink: 0 }}>
+                          💊
+                        </span>
+                      )}
                     </div>
                   ))}
 

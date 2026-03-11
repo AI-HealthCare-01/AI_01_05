@@ -33,6 +33,7 @@ export interface HomeMedicationItem {
   dosePerIntake: number;
   isTaken: boolean;
   takenAt: string | null;
+  itemImage: string | null;
 }
 
 export interface HomeMedicationsTodayResponse {
