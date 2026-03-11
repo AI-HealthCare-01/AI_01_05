@@ -8,6 +8,11 @@ import { COLORS } from "../constants/theme";
 import { useMedicationFlow } from "../store/MedicationFlowContext";
 import type { MedicineDraftItem } from "../types/medicine";
 
+/** 수출명 이후 텍스트 제거 후 반환 */
+function trimDrugName(name: string): string {
+  return name.replace(/[(（]?수출명[：:].*/i, "").trim();
+}
+
 const TIME_SLOT_OPTIONS = [
   { value: "MORNING", label: "아침" },
   { value: "LUNCH", label: "점심" },
@@ -89,8 +94,8 @@ function EditCard({
         border: `2px solid ${COLORS.button}`,
       }}
     >
-      <div style={{ fontWeight: 700, fontSize: 16, color: COLORS.text, marginBottom: 12 }}>
-        {draft.item_name}
+      <div style={{ fontWeight: 700, fontSize: 16, color: COLORS.text, marginBottom: 12, wordBreak: "keep-all", overflowWrap: "break-word" }}>
+        {trimDrugName(draft.item_name)}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -195,8 +200,17 @@ function NormalCard({
           style={{ accentColor: COLORS.button, width: 16, height: 16, marginTop: 2, flexShrink: 0, cursor: "pointer" }}
         />
       )}
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 700, fontSize: 16, color: COLORS.text }}>{item.item_name}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontWeight: 700,
+          fontSize: 16,
+          color: COLORS.text,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}>
+          {trimDrugName(item.item_name)}
+        </div>
         <div style={{ fontSize: 12, color: COLORS.subText, marginTop: 2 }}>
           복용시작일: {item.start_date}
         </div>
