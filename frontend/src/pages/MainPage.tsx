@@ -9,8 +9,10 @@ import {
   postHomeMoodToday,
   type HomeMedicationItem,
 } from "../api/home";
+import { getMedicineDetail, type MedicineDetailItem } from "../api/medicines";
 import { getMyCharacter } from "../apis/characterApi";
 import { CHARACTER_IMAGE_BY_ID, DEFAULT_CHARACTER_IMAGE } from "../constants/characters";
+import { COLORS } from "../constants/theme";
 import { useAuthStore } from "../store/authStore";
 
 type UiSlot = "morning" | "lunch" | "dinner" | "night";
@@ -21,6 +23,7 @@ type MoodBySlot = Record<UiSlot, number | null>;
 type MedicationUiItem = {
   id: number;
   medicationId: number;
+  itemSeq: string;
   name: string;
   dosage: number;
   timeSlot: UiSlot;
@@ -176,6 +179,10 @@ export default function MainPage() {
 
   const [todayMedications, setTodayMedications] = useState<MedicationUiItem[]>([]);
   const [isSavingMedication, setIsSavingMedication] = useState(false);
+  const [expandedMedicationId, setExpandedMedicationId] = useState<number | null>(null);
+  const [detailByMedicationId, setDetailByMedicationId] = useState<Record<number, MedicineDetailItem | null>>({});
+  const [loadingDetailByMedicationId, setLoadingDetailByMedicationId] = useState<Record<number, boolean>>({});
+  const [detailErrorByMedicationId, setDetailErrorByMedicationId] = useState<Record<number, string>>({});
 
   const initialSlot = getCurrentUiSlot();
   const initialIndex = TIME_SLOTS.findIndex((slot) => slot.key === initialSlot);
@@ -218,6 +225,7 @@ export default function MainPage() {
     const mapped: MedicationUiItem[] = (res?.items ?? []).map((item: HomeMedicationItem) => ({
       id: item.medicationId,
       medicationId: item.medicationId,
+      itemSeq: item.itemSeq,
       name: item.name,
       dosage: item.dosePerIntake,
       timeSlot: apiToUiSlot(item.timeSlot),
@@ -338,6 +346,32 @@ export default function MainPage() {
     }
   };
 
+  const handleMedicationDetailToggle = async (med: MedicationUiItem) => {
+    if (expandedMedicationId === med.medicationId) {
+      setExpandedMedicationId(null);
+      return;
+    }
+
+    setExpandedMedicationId(med.medicationId);
+
+    const hasLoaded = Object.prototype.hasOwnProperty.call(detailByMedicationId, med.medicationId);
+    if (hasLoaded) return;
+
+    setLoadingDetailByMedicationId((prev) => ({ ...prev, [med.medicationId]: true }));
+    setDetailErrorByMedicationId((prev) => ({ ...prev, [med.medicationId]: "" }));
+    try {
+      const detail = await getMedicineDetail(med.itemSeq);
+      setDetailByMedicationId((prev) => ({ ...prev, [med.medicationId]: detail }));
+    } catch {
+      setDetailErrorByMedicationId((prev) => ({
+        ...prev,
+        [med.medicationId]: "약 상세 정보를 불러오지 못했습니다.",
+      }));
+    } finally {
+      setLoadingDetailByMedicationId((prev) => ({ ...prev, [med.medicationId]: false }));
+    }
+  };
+
   const dDayText = hasUpcoming && dDay !== null ? `D-${dDay}` : "진료 없음";
 
   const characterMessage = latestMood
@@ -404,6 +438,10 @@ export default function MainPage() {
       <style>{`
         .swipeContainer::-webkit-scrollbar {
           display: none;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
 
@@ -526,36 +564,112 @@ export default function MainPage() {
                   {allDone && <div style={stampStyle}>✔ 복용 완료</div>}
 
                   {medications.map((med) => (
-                    <div
-                      key={med.id}
-                      onClick={() => handleMedicationToggle(med.medicationId, med.checked)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 10,
-                        padding: "8px",
-                        marginBottom: "6px",
-                        borderRadius: "8px",
-                        border: "1px solid #E0E0E0",
-                        background: med.checked ? "#F0F5F0" : "#FFFFFF",
-                        textDecoration: med.checked ? "line-through" : "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span>
-                        {med.checked ? "☑" : "☐"} {med.name} {med.dosage}정
-                      </span>
-                      {med.itemImage ? (
-                        <img
-                          src={med.itemImage}
-                          alt={med.name}
-                          style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
-                        />
-                      ) : (
-                        <span style={{ width: 40, height: 40, fontSize: 24, lineHeight: "40px", textAlign: "center", flexShrink: 0 }}>
-                          💊
+                    <div key={med.id} style={{ marginBottom: "6px" }}>
+                      <div
+                        onClick={() => handleMedicationToggle(med.medicationId, med.checked)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          padding: "8px",
+                          borderRadius: "8px",
+                          border: "1px solid #E0E0E0",
+                          background: med.checked ? "#F0F5F0" : "#FFFFFF",
+                          textDecoration: med.checked ? "line-through" : "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span>
+                          {med.checked ? "☑" : "☐"} {med.name} {med.dosage}정
                         </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMedicationDetailToggle(med);
+                          }}
+                          style={{
+                            border: `1px solid ${COLORS.border}`,
+                            background: COLORS.cardBg,
+                            color: COLORS.text,
+                            borderRadius: 8,
+                            padding: "4px 10px",
+                            fontSize: 12,
+                            cursor: "pointer",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {expandedMedicationId === med.medicationId ? "접기 ▲" : "더보기 ▼"}
+                        </button>
+                      </div>
+
+                      {expandedMedicationId === med.medicationId && (
+                        <div
+                          style={{
+                            marginTop: 8,
+                            border: `1px solid ${COLORS.border}`,
+                            borderRadius: 8,
+                            background: COLORS.cardBg,
+                            padding: 10,
+                          }}
+                        >
+                          {loadingDetailByMedicationId[med.medicationId] ? (
+                            <div style={{ display: "flex", justifyContent: "center", padding: "16px 0" }}>
+                              <div
+                                style={{
+                                  width: 20,
+                                  height: 20,
+                                  border: `2px solid ${COLORS.border}`,
+                                  borderTop: `2px solid ${COLORS.button}`,
+                                  borderRadius: "50%",
+                                  animation: "spin 1s linear infinite",
+                                }}
+                              />
+                            </div>
+                          ) : detailErrorByMedicationId[med.medicationId] ? (
+                            <div style={{ color: COLORS.error, fontSize: 13 }}>
+                              {detailErrorByMedicationId[med.medicationId]}
+                            </div>
+                          ) : (
+                            <>
+                              {(detailByMedicationId[med.medicationId]?.item_image ?? med.itemImage) ? (
+                                <img
+                                  src={detailByMedicationId[med.medicationId]?.item_image ?? med.itemImage ?? ""}
+                                  alt={med.name}
+                                  style={{ width: "100%", maxHeight: 200, objectFit: "contain", borderRadius: 8 }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: "100%",
+                                    maxHeight: 200,
+                                    minHeight: 120,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: 64,
+                                  }}
+                                >
+                                  💊
+                                </div>
+                              )}
+
+                              <div style={{ marginTop: 10 }}>
+                                <div style={{ fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>효능/효과</div>
+                                <div style={{ color: COLORS.subText, fontSize: 13, lineHeight: 1.5 }}>
+                                  {detailByMedicationId[med.medicationId]?.efcy_qesitm ?? "정보가 없습니다."}
+                                </div>
+                              </div>
+
+                              <div style={{ marginTop: 10 }}>
+                                <div style={{ fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>복용법</div>
+                                <div style={{ color: COLORS.subText, fontSize: 13, lineHeight: 1.5 }}>
+                                  {detailByMedicationId[med.medicationId]?.use_method_qesitm ?? "정보가 없습니다."}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                   ))}
