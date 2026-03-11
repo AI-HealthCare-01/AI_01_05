@@ -146,8 +146,11 @@ class OcrService:
         return results
 
     def _clean_drug_name(self, raw: str) -> str:
-        name = re.sub(r"\(.*?\)", "", raw).strip()
-        # 숫자+% 패턴(롭도 표시)는 유지, 나머지 특수문자 제거
+        # 수출명: 이후 전체 제거 (괄호 안팎 모두)
+        name = re.sub(r"[（(]?수출명[：:].*", "", raw, flags=re.IGNORECASE).strip()
+        # 괄호 및 괄호 내용 제거
+        name = re.sub(r"\(.*?\)", "", name).strip()
+        # 숫자+% 패턴(농도 표시)는 유지, 나머지 특수문자 제거
         name = re.sub(r"[^\w가-힣\d\.%]", "", name)
         for pattern, replacement in _UNIT_MAP:
             name = pattern.sub(replacement, name)
