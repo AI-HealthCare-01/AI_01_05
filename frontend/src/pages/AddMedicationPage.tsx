@@ -136,7 +136,7 @@ export default function AddMedicationPage() {
         <div style={{ ...cardStyle, padding: 0, overflow: "hidden", marginBottom: 12 }}>
           <div
             style={{
-              background: "linear-gradient(135deg, #eef1ec 0%, #d4e6cc 100%)",
+              background: "#f5f5f5",
               padding: "6px 20px",
               display: "flex",
               justifyContent: "center",
@@ -145,7 +145,7 @@ export default function AddMedicationPage() {
             <img
               src={ocrSample}
               alt="약 봉투 촬영 예시"
-              style={{ width: "100%", maxWidth: 320, borderRadius: 8, display: "block" }}
+              style={{ width: "100%", maxWidth: 380, borderRadius: 8, display: "block" }}
             />
           </div>
           <div style={{ padding: "14px 18px 16px" }}>
@@ -168,13 +168,13 @@ export default function AddMedicationPage() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {([
-                ["📄", "평평하게 펼치기", "구겨지거나 접히지 않게 펼쳐주세요"],
-                ["💡", "밝은 곳에서 촬영", "빛 반사·그림자 없는 밝은 환경에서 찍어주세요"],
-                ["📐", "화면에 꽉 차게", "처방 내역과 약 이름이 모두 들어오게 맞춰주세요"],
-                ["🎯", "초점 맞추기", "카메라가 흔들리지 않게 주의해 주세요"],
+                ["∙", "평평하게 펼치기", "구겨지거나 접히지 않게 펼쳐주세요"],
+                ["∙", "밝은 곳에서 촬영", "빛 반사·그림자 없는 밝은 환경에서 찍어주세요"],
+                ["∙", "화면에 꽉 차게", "처방 내역과 약 이름이 모두 들어오게 맞춰주세요"],
+                ["∙", "초점 맞추기", "카메라가 흔들리지 않게 주의해 주세요"],
               ] as [string, string, string][]).map(([icon, title, desc]) => (
                 <div key={title} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                  <span style={{ fontSize: 15, lineHeight: "18px", flexShrink: 0 }}>{icon}</span>
+                  <span style={{ fontSize: 20, lineHeight: "18px", flexShrink: 0 }}>{icon}</span>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "baseline" }}>
                     <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, whiteSpace: "nowrap" }}>{title}</span>
                     <span style={{ fontSize: 13, color: COLORS.subText, lineHeight: "16px" }}>{desc}</span>
