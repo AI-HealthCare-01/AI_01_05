@@ -17,6 +17,8 @@ import AddMedicationPage from "../pages/AddMedicationPage.tsx";
 import MedicineSearchPage from "../pages/MedicineSearchPage.tsx";
 import MedicineConfirmPage from "../pages/MedicineConfirmPage.tsx";
 import { MedicationFlowProvider } from "../store/MedicationFlowContext.tsx";
+import { ChatProvider } from "../context/ChatContext.tsx";
+import ChatPage from "../pages/ChatPage.tsx";
 
 function MedicationFlowLayout() {
   return (
@@ -48,5 +50,6 @@ export const router = createBrowserRouter([
       { path: "/medications/confirm", element: <MedicineConfirmPage /> },
     ],
   },
+  { path: "/chat", element: <AuthRequired><ChatProvider><ChatPage /></ChatProvider></AuthRequired>},
   { path: "*", element: <Navigate to="/" replace /> },
 ]);

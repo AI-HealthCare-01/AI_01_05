@@ -1,5 +1,6 @@
 from .appointment import Appointment
 from .character import UserCharacter
+from .chat import ChatLog
 from .diary import Diary
 from .medication import MedicationLog, MedicationPrescription
 from .medicine import Medicine
