@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { deleteMyAccount, getMyInfo, updateMyInfo } from "../api/users";
@@ -100,7 +100,6 @@ function DeleteConfirmModal({ isOpen, isDeleting, error, onConfirm, onClose }: D
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, isDeleting, onClose]);
 
-  // focus trap
   useEffect(() => {
     if (!isOpen || !modalRef.current) return;
     const focusable = modalRef.current.querySelectorAll<HTMLElement>(
@@ -159,7 +158,7 @@ function DeleteConfirmModal({ isOpen, isDeleting, error, onConfirm, onClose }: D
             autoFocus
             style={{
               flex: 1, padding: "12px 0", borderRadius: 10, border: `1px solid ${COLORS.border}`,
-              background: "#fff", cursor: "pointer", fontWeight: 600,
+              background: "#fff", cursor: "pointer", fontWeight: 600, fontFamily: "inherit",
             }}
           >
             취소
@@ -171,6 +170,7 @@ function DeleteConfirmModal({ isOpen, isDeleting, error, onConfirm, onClose }: D
             style={{
               flex: 1, padding: "12px 0", borderRadius: 10, border: "none",
               background: "#fee2e2", color: "#dc2626", cursor: "pointer", fontWeight: 700,
+              fontFamily: "inherit",
             }}
           >
             {isDeleting ? "탈퇴 처리 중..." : "탈퇴하기"}
@@ -198,6 +198,7 @@ export function MyPage() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [characterId, setCharacterId] = useState<number | null>(null);
   const [characterName, setCharacterName] = useState<string>("");
@@ -205,9 +206,6 @@ export function MyPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  const [optimisticUserInfo, setOptimisticUserInfo] = useState<UserMe | null>(null);
-  const [isPending, startTransition] = useTransition();
 
   const isDirty =
     formValues.nickname !== initialValues.nickname ||
@@ -224,12 +222,7 @@ export function MyPage() {
         if (me.status === "fulfilled" && me.value) {
           const u = me.value;
           setUserInfo(u);
-          const vals = {
-            nickname: u.nickname,
-            email: u.email,
-            birthday: u.birthday,
-            gender: u.gender,
-          };
+          const vals = { nickname: u.nickname, email: u.email, birthday: u.birthday, gender: u.gender };
           setFormValues(vals);
           setInitialValues(vals);
         } else {
@@ -251,7 +244,7 @@ export function MyPage() {
     setFieldErrors((prev) => ({ ...prev, [field]: err ?? undefined }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const errors = validateAll(formValues);
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -259,29 +252,23 @@ export function MyPage() {
     }
     setSubmitError(null);
     setSubmitSuccess(false);
-
-    const payload = {
-      nickname: formValues.nickname,
-      email: formValues.email || null,
-      birthday: formValues.birthday || null,
-      gender: formValues.gender,
-    };
-    void startTransition(() => {
-      void (async () => {
-        setOptimisticUserInfo(userInfo ? { ...userInfo, ...payload } : null);
-        try {
-          const updated = await updateMyInfo(payload);
-          setUserInfo(updated);
-          setOptimisticUserInfo(null);
-          setInitialValues(formValues);
-          setSubmitSuccess(true);
-          setTimeout(() => setSubmitSuccess(false), 3000);
-        } catch (e) {
-          setOptimisticUserInfo(null);
-          setSubmitError(parseApiError(e));
-        }
-      })();
-    });
+    setIsSubmitting(true);
+    try {
+      const updated = await updateMyInfo({
+        nickname: formValues.nickname,
+        email: formValues.email || null,
+        birthday: formValues.birthday || null,
+        gender: formValues.gender,
+      });
+      setUserInfo(updated);
+      setInitialValues(formValues);
+      setSubmitSuccess(true);
+      setTimeout(() => setSubmitSuccess(false), 3000);
+    } catch (e) {
+      setSubmitError(parseApiError(e));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -298,7 +285,6 @@ export function MyPage() {
   };
 
   const charImage = characterId ? (CHARACTER_IMAGE_BY_ID[characterId] ?? DEFAULT_CHARACTER_IMAGE) : null;
-  const displayNickname = (optimisticUserInfo ?? userInfo)?.nickname ?? "";
 
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "10px 12px", borderRadius: 8,
@@ -434,17 +420,18 @@ export function MyPage() {
 
             <button
               type="button"
-              onClick={handleSubmit}
-              disabled={!isDirty || isPending}
+              onClick={() => void handleSubmit()}
+              disabled={!isDirty || isSubmitting}
               style={{
                 padding: "14px 0", borderRadius: 12, border: "none",
-                background: isDirty && !isPending ? COLORS.buttonBg : COLORS.border,
-                color: isDirty && !isPending ? "#fff" : COLORS.subText,
-                fontWeight: 700, fontSize: 15, cursor: isDirty && !isPending ? "pointer" : "default",
+                background: isDirty && !isSubmitting ? COLORS.buttonBg : COLORS.border,
+                color: isDirty && !isSubmitting ? "#fff" : COLORS.subText,
+                fontWeight: 700, fontSize: 15,
+                cursor: isDirty && !isSubmitting ? "pointer" : "default",
                 fontFamily: "inherit",
               }}
             >
-              {isPending ? "저장 중..." : "변경 저장"}
+              {isSubmitting ? "저장 중..." : "변경 저장"}
             </button>
           </section>
 
