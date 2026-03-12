@@ -8,6 +8,23 @@ import { COLORS } from "../constants/theme";
 import { useMedicationFlow } from "../store/MedicationFlowContext";
 import type { MedicineDraftItem } from "../types/medicine";
 
+const toolbarKeyframes = `
+@keyframes toolbarIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes successPop {
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.8); }
+  60%  { opacity: 1; transform: translateX(-50%) scale(1.05); }
+  100% { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+`;
+
+/** 수출명 이후 텍스트 제거 후 반환 */
+function trimDrugName(name: string): string {
+  return name.replace(/[(（]?수출명[：:].*/i, "").trim();
+}
+
 const TIME_SLOT_OPTIONS = [
   { value: "MORNING", label: "아침" },
   { value: "LUNCH", label: "점심" },
@@ -89,8 +106,8 @@ function EditCard({
         border: `2px solid ${COLORS.button}`,
       }}
     >
-      <div style={{ fontWeight: 700, fontSize: 16, color: COLORS.text, marginBottom: 12 }}>
-        {draft.item_name}
+      <div style={{ fontWeight: 700, fontSize: 16, color: COLORS.text, marginBottom: 12, wordBreak: "keep-all", overflowWrap: "break-word" }}>
+        {trimDrugName(draft.item_name)}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -195,8 +212,17 @@ function NormalCard({
           style={{ accentColor: COLORS.button, width: 16, height: 16, marginTop: 2, flexShrink: 0, cursor: "pointer" }}
         />
       )}
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 700, fontSize: 16, color: COLORS.text }}>{item.item_name}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontWeight: 700,
+          fontSize: 16,
+          color: COLORS.text,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}>
+          {trimDrugName(item.item_name)}
+        </div>
         <div style={{ fontSize: 12, color: COLORS.subText, marginTop: 2 }}>
           복용시작일: {item.start_date}
         </div>
@@ -249,6 +275,7 @@ export default function MedicineConfirmPage() {
   const [checkedIndices, setCheckedIndices] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<number, string>>({});
+  const [successToast, setSuccessToast] = useState(false);
 
   const toggleCheck = (i: number) =>
     setCheckedIndices((prev) =>
@@ -285,7 +312,8 @@ export default function MedicineConfirmPage() {
       return;
     }
     clearDraft();
-    navigate("/main");
+    setSuccessToast(true);
+    setTimeout(() => navigate("/main"), 1200);
   };
 
   const handleCancel = () => {
@@ -303,6 +331,7 @@ export default function MedicineConfirmPage() {
         justifyContent: "center",
       }}
     >
+      <style>{toolbarKeyframes}</style>
       <div style={{ width: "100%", maxWidth: 460, paddingBottom: 100 }}>
         <div
           style={{
@@ -310,34 +339,54 @@ export default function MedicineConfirmPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            position: "relative",
             marginBottom: 16,
             background: deleteMode ? "#FFF3F3" : COLORS.cardBg,
+            ...(deleteMode ? { animation: "toolbarIn 0.25s ease" } : {}),
           }}
         >
           {deleteMode ? (
             <>
               <span style={{ fontWeight: 700, color: COLORS.error }}>삭제 모드</span>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <Button variant="secondary" onClick={() => { setDeleteMode(false); setCheckedIndices([]); }} style={{ fontSize: 12, padding: "6px 10px" }}>
+                  취소
+                </Button>
                 <Button variant="secondary" onClick={toggleAll} style={{ fontSize: 12, padding: "6px 10px" }}>
-                  전체선택
+                  전체 선택
                 </Button>
                 <Button variant="danger" onClick={handleDelete} disabled={checkedIndices.length === 0} style={{ fontSize: 12, padding: "6px 10px" }}>
                   선택 삭제
-                </Button>
-                <Button variant="secondary" onClick={() => { setDeleteMode(false); setCheckedIndices([]); }} style={{ fontSize: 12, padding: "6px 10px" }}>
-                  완료
                 </Button>
               </div>
             </>
           ) : (
             <>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <button
-                  onClick={() => navigate("/medications/search")}
-                  style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: COLORS.text }}
-                >
-                  ←
-                </button>
+              <button
+                onClick={() => navigate("/main")}
+                style={{
+                  position: "absolute",
+                  left: 16,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: COLORS.text,
+                  display: "flex",
+                  alignItems: "center",
+                  padding: 4,
+                  transition: "all 0.15s ease",
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.1)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
+                onMouseDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.95)"; }}
+                onMouseUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.1)"; }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+              </button>
+              <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
                 <span style={{ fontWeight: 800, fontSize: 18, color: COLORS.text }}>추가할 약 목록</span>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
@@ -376,7 +425,15 @@ export default function MedicineConfirmPage() {
               onCancel={() => setEditIndex(null)}
             />
           ) : (
-            <div key={i}>
+            <div
+              key={i}
+              style={{
+                transition: "all 0.2s ease",
+                ...(deleteMode && checkedIndices.includes(i)
+                  ? { outline: `2px solid ${COLORS.button}`, borderRadius: 20, background: COLORS.selectedCellBg }
+                  : {}),
+              }}
+            >
               <NormalCard
                 item={item}
                 onEdit={() => setEditIndex(i)}
@@ -394,6 +451,31 @@ export default function MedicineConfirmPage() {
         )}
 
       </div>
+
+      {successToast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 90,
+            left: "50%",
+            background: COLORS.button,
+            color: "#fff",
+            padding: "12px 24px",
+            borderRadius: 20,
+            fontSize: 14,
+            fontWeight: 600,
+            zIndex: 200,
+            whiteSpace: "nowrap",
+            animation: "successPop 0.4s ease forwards",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span>✓</span>
+          <span>약이 목록에 추가되었습니다.</span>
+        </div>
+      )}
 
       {!deleteMode && (
         <div
