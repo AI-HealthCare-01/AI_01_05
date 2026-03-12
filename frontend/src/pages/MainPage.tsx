@@ -114,12 +114,12 @@ const stampStyle: CSSProperties = {
 };
 
 const emojiButtonBaseStyle: CSSProperties = {
-  width: "48px",
-  height: "48px",
+  width: "36px",
+  height: "36px",
   borderRadius: "50%",
   border: "1px solid #ddd",
   background: "#fff",
-  fontSize: "20px",
+  fontSize: "16px",
   cursor: "pointer",
 };
 
@@ -463,7 +463,7 @@ export default function MainPage() {
               <div key={slot.key} style={swipePageStyle}>
                 <h3 style={{ margin: "0 0 10px", fontSize: 15, lineHeight: 1.4, paddingTop: 2 }}>오늘의 {slot.label} 기분</h3>
 
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "nowrap" }}>
                   {Object.entries(MOOD_EMOJI).map(([level, emoji]) => {
                     const numeric = Number(level);
                     const selected = todayMoods[slot.key] === numeric;
