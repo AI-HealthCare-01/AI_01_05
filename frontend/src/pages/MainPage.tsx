@@ -183,18 +183,6 @@ export default function MainPage() {
   const [detailByMedicationId, setDetailByMedicationId] = useState<Record<number, MedicineDetailItem | null>>({});
   const [loadingDetailByMedicationId, setLoadingDetailByMedicationId] = useState<Record<number, boolean>>({});
   const [detailErrorByMedicationId, setDetailErrorByMedicationId] = useState<Record<number, string>>({});
-  const [pawAnimatingBySlot, setPawAnimatingBySlot] = useState<Record<UiSlot, boolean>>({
-    morning: false,
-    lunch: false,
-    dinner: false,
-    night: false,
-  });
-  const prevSlotDoneRef = useRef<Record<UiSlot, boolean>>({
-    morning: false,
-    lunch: false,
-    dinner: false,
-    night: false,
-  });
 
   const initialSlot = getCurrentUiSlot();
   const initialIndex = TIME_SLOTS.findIndex((slot) => slot.key === initialSlot);
@@ -399,27 +387,6 @@ export default function MainPage() {
     };
   }, [todayMedications]);
 
-  useEffect(() => {
-    const timers: Array<ReturnType<typeof setTimeout>> = [];
-    (Object.keys(medsBySlot) as UiSlot[]).forEach((slot) => {
-      const meds = medsBySlot[slot];
-      const nowDone = meds.length > 0 && meds.every((m) => m.checked);
-      const wasDone = prevSlotDoneRef.current[slot];
-      if (nowDone && !wasDone) {
-        setPawAnimatingBySlot((prev) => ({ ...prev, [slot]: true }));
-        timers.push(
-          setTimeout(() => {
-            setPawAnimatingBySlot((prev) => ({ ...prev, [slot]: false }));
-          }, 800)
-        );
-      }
-      prevSlotDoneRef.current[slot] = nowDone;
-    });
-    return () => {
-      timers.forEach((timer) => clearTimeout(timer));
-    };
-  }, [medsBySlot]);
-
   const totalCount = todayMedications.length;
   const completeCount = todayMedications.filter((med) => med.checked).length;
 
@@ -478,12 +445,6 @@ export default function MainPage() {
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
-        }
-        @keyframes pawStamp {
-          0% { opacity: 0; transform: translate(-50%, -50%) rotate(-15deg) scale(3); }
-          20% { opacity: 0.7; transform: translate(-50%, -50%) rotate(-15deg) scale(1.1); }
-          40% { opacity: 0.45; transform: translate(-50%, -50%) rotate(-15deg) scale(1); }
-          100% { opacity: 0.45; transform: translate(-50%, -50%) rotate(-15deg) scale(1); }
         }
       `}</style>
 
@@ -587,25 +548,6 @@ export default function MainPage() {
                     <button style={topButtonStyle} onClick={() => navigate("/medications/add")}>약 추가</button>
                   </div>
 
-                  {allDone && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "50%",
-                        left: "50%",
-                        transform: "translate(-50%, -50%) rotate(-15deg)",
-                        fontSize: 120,
-                        opacity: 0.45,
-                        zIndex: 5,
-                        pointerEvents: "none",
-                        userSelect: "none",
-                        animation: pawAnimatingBySlot[slot.key] ? "pawStamp 0.8s ease-out" : undefined,
-                      }}
-                    >
-                      🐾
-                    </div>
-                  )}
-
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                     <div style={{ minWidth: 74, fontSize: 13, color: "#757575" }}>
                       {completed} / {total}
@@ -623,7 +565,7 @@ export default function MainPage() {
 
                   {allDone && <div style={stampStyle}>✔ 복용 완료</div>}
 
-                  <div className="med-list" style={{ height: 200, overflowY: "auto", paddingRight: 2 }}>
+                  <div className="med-list" style={{ height: 200, overflowY: "scroll", paddingRight: 2 }}>
                     {medications.map((med) => (
                       <div key={med.id} style={{ marginBottom: "6px" }}>
                         <div
@@ -664,80 +606,74 @@ export default function MainPage() {
                           </button>
                         </div>
 
-                        <div
-                          style={{
-                            marginTop: 8,
-                            border: `1px solid ${COLORS.border}`,
-                            borderRadius: 8,
-                            background: COLORS.cardBg,
-                            padding: expandedMedicationId === med.medicationId ? 10 : 0,
-                            overflow: "hidden",
-                            transition: "max-height 0.3s ease, opacity 0.3s ease",
-                            maxHeight: expandedMedicationId === med.medicationId ? 500 : 0,
-                            opacity: expandedMedicationId === med.medicationId ? 1 : 0,
-                          }}
-                        >
-                          {expandedMedicationId === med.medicationId ? (
-                            <>
-                              {loadingDetailByMedicationId[med.medicationId] ? (
-                                <div style={{ display: "flex", justifyContent: "center", padding: "16px 0" }}>
+                        {expandedMedicationId === med.medicationId && (
+                          <div
+                            style={{
+                              marginTop: 8,
+                              border: `1px solid ${COLORS.border}`,
+                              borderRadius: 8,
+                              background: COLORS.cardBg,
+                              padding: 10,
+                            }}
+                          >
+                            {loadingDetailByMedicationId[med.medicationId] ? (
+                              <div style={{ display: "flex", justifyContent: "center", padding: "16px 0" }}>
+                                <div
+                                  style={{
+                                    width: 20,
+                                    height: 20,
+                                    border: `2px solid ${COLORS.border}`,
+                                    borderTop: `2px solid ${COLORS.button}`,
+                                    borderRadius: "50%",
+                                    animation: "spin 1s linear infinite",
+                                  }}
+                                />
+                              </div>
+                            ) : detailErrorByMedicationId[med.medicationId] ? (
+                              <div style={{ color: COLORS.error, fontSize: 13 }}>
+                                {detailErrorByMedicationId[med.medicationId]}
+                              </div>
+                            ) : (
+                              <>
+                                {(detailByMedicationId[med.medicationId]?.item_image ?? med.itemImage) ? (
+                                  <img
+                                    src={detailByMedicationId[med.medicationId]?.item_image ?? med.itemImage ?? ""}
+                                    alt={med.name}
+                                    style={{ width: "100%", maxHeight: 200, objectFit: "contain", borderRadius: 8 }}
+                                  />
+                                ) : (
                                   <div
                                     style={{
-                                      width: 20,
-                                      height: 20,
-                                      border: `2px solid ${COLORS.border}`,
-                                      borderTop: `2px solid ${COLORS.button}`,
-                                      borderRadius: "50%",
-                                      animation: "spin 1s linear infinite",
+                                      width: "100%",
+                                      maxHeight: 200,
+                                      minHeight: 120,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontSize: 64,
                                     }}
-                                  />
-                                </div>
-                              ) : detailErrorByMedicationId[med.medicationId] ? (
-                                <div style={{ color: COLORS.error, fontSize: 13 }}>
-                                  {detailErrorByMedicationId[med.medicationId]}
-                                </div>
-                              ) : (
-                                <>
-                                  {(detailByMedicationId[med.medicationId]?.item_image ?? med.itemImage) ? (
-                                    <img
-                                      src={detailByMedicationId[med.medicationId]?.item_image ?? med.itemImage ?? ""}
-                                      alt={med.name}
-                                      style={{ width: "100%", maxHeight: 200, objectFit: "contain", borderRadius: 8 }}
-                                    />
-                                  ) : (
-                                    <div
-                                      style={{
-                                        width: "100%",
-                                        maxHeight: 200,
-                                        minHeight: 120,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        fontSize: 64,
-                                      }}
-                                    >
-                                      💊
-                                    </div>
-                                  )}
-
-                                  <div style={{ marginTop: 10 }}>
-                                    <div style={{ fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>효능/효과</div>
-                                    <div style={{ color: COLORS.subText, fontSize: 13, lineHeight: 1.5 }}>
-                                      {detailByMedicationId[med.medicationId]?.efcy_qesitm ?? "정보가 없습니다."}
-                                    </div>
+                                  >
+                                    💊
                                   </div>
+                                )}
 
-                                  <div style={{ marginTop: 10 }}>
-                                    <div style={{ fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>복용법</div>
-                                    <div style={{ color: COLORS.subText, fontSize: 13, lineHeight: 1.5 }}>
-                                      {detailByMedicationId[med.medicationId]?.use_method_qesitm ?? "정보가 없습니다."}
-                                    </div>
+                                <div style={{ marginTop: 10 }}>
+                                  <div style={{ fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>효능/효과</div>
+                                  <div style={{ color: COLORS.subText, fontSize: 13, lineHeight: 1.5 }}>
+                                    {detailByMedicationId[med.medicationId]?.efcy_qesitm ?? "정보가 없습니다."}
                                   </div>
-                                </>
-                              )}
-                            </>
-                          ) : null}
-                        </div>
+                                </div>
+
+                                <div style={{ marginTop: 10 }}>
+                                  <div style={{ fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>복용법</div>
+                                  <div style={{ color: COLORS.subText, fontSize: 13, lineHeight: 1.5 }}>
+                                    {detailByMedicationId[med.medicationId]?.use_method_qesitm ?? "정보가 없습니다."}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
 
