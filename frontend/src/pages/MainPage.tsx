@@ -536,7 +536,6 @@ export default function MainPage() {
                   style={{
                     ...swipePageStyle,
                     position: "relative",
-                    height: 200,
                     display: "flex",
                     flexDirection: "column",
                     opacity: allDone ? 0.5 : 1,
@@ -565,7 +564,7 @@ export default function MainPage() {
 
                   {allDone && <div style={stampStyle}>✔ 복용 완료</div>}
 
-                  <div className="med-list" style={{ height: 200, overflowY: "scroll", paddingRight: 2 }}>
+                  <div className="med-list" style={{ maxHeight: 200, overflowY: "auto", paddingRight: 2 }}>
                     {medications.map((med) => (
                       <div key={med.id} style={{ marginBottom: "6px" }}>
                         <div
