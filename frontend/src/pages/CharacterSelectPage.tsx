@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { changeCharacter, getMyCharacter, selectCharacter } from '../apis/characterApi'
 import { useAuthStore } from '../store/authStore'
 
@@ -17,6 +17,7 @@ const CHARACTERS = [
 
 export default function CharacterSelectPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const setSelectedCharacter = useAuthStore((s) => s.setSelectedCharacter)
 
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -45,7 +46,8 @@ export default function CharacterSelectPage() {
         ? await selectCharacter(selectedId)
         : await changeCharacter(selectedId)
       setSelectedCharacter({ id: result.character_id, name: result.name, imageUrl: selectedChar.image })
-      navigate('/main', { replace: true })
+      const from = (location.state as { from?: string } | null)?.from
+      navigate(from === 'mypage' ? '/mypage' : '/main', { replace: true })
     } catch (e: unknown) {
       const err = e as { detail?: string }
       setError(err.detail ?? '오류가 발생했습니다.')
