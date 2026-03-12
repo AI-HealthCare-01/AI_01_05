@@ -4,7 +4,6 @@ from tortoise.contrib.test import TestCase
 
 from app.main import app
 from app.models.character import UserCharacter
-from app.models.user_medication import UserMedication
 from app.models.users import User
 from app.services.jwt import JwtService
 
