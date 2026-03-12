@@ -26,3 +26,11 @@ async def update_user_me_info(
 ) -> Response:
     updated_user = await user_manage_service.update_user(user=user, data=update_data)
     return Response(UserInfoResponse.model_validate(updated_user).model_dump(), status_code=status.HTTP_200_OK)
+
+
+@user_router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user_me(
+    user: Annotated[User, Depends(get_request_user)],
+    user_manage_service: Annotated[UserManageService, Depends(UserManageService)],
+) -> None:
+    await user_manage_service.delete_user(user)

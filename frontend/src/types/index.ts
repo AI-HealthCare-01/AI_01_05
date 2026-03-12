@@ -45,11 +45,13 @@ export interface CalendarDay {
 
 export interface UserMe {
   user_id: number;
-  nickname?: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-  profile_image_url?: string | null;
+  nickname: string;
+  email: string | null;
+  phone_number: string | null;
+  birthday: string | null;
+  gender: "MALE" | "FEMALE" | "UNKNOWN";
+  created_at: string;
+  onboarding_completed: boolean;
 }
 
 export interface ApiError {
