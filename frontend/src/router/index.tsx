@@ -37,7 +37,7 @@ export const router = createBrowserRouter([
   { path: "/report/:reportId", element: <ReportDetailPage /> },
   { path: "/moods", element: <MoodPage /> },
   { path: "/appointments", element: <AppointmentPage /> },
-  { path: "/mypage", element: <MyPage /> },
+  { path: "/mypage", element: <AuthRequired><MyPage /></AuthRequired>},
   { path: "/auth/kakao/callback", element: <KakaoCallbackPage /> },
   { path: "/signup", element : <SignupRequired><SignupPage /></SignupRequired>},
   { path: "/main", element: <AuthRequired><MainPage /></AuthRequired>},
