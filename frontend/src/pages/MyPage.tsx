@@ -1,4 +1,4 @@
-import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { deleteMyAccount, getMyInfo, updateMyInfo } from "../api/users";
@@ -206,10 +206,7 @@ export function MyPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const [optimisticUserInfo, setOptimisticUserInfo] = useOptimistic(
-    userInfo,
-    (current, update: Partial<UserMe>) => (current ? { ...current, ...update } : current),
-  );
+  const [optimisticUserInfo, setOptimisticUserInfo] = useState<UserMe | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const isDirty =
@@ -263,23 +260,27 @@ export function MyPage() {
     setSubmitError(null);
     setSubmitSuccess(false);
 
-    startTransition(async () => {
-      const payload = {
-        nickname: formValues.nickname,
-        email: formValues.email || null,
-        birthday: formValues.birthday || null,
-        gender: formValues.gender,
-      };
-      setOptimisticUserInfo(payload);
-      try {
-        const updated = await updateMyInfo(payload);
-        setUserInfo(updated);
-        setInitialValues(formValues);
-        setSubmitSuccess(true);
-        setTimeout(() => setSubmitSuccess(false), 3000);
-      } catch (e) {
-        setSubmitError(parseApiError(e));
-      }
+    const payload = {
+      nickname: formValues.nickname,
+      email: formValues.email || null,
+      birthday: formValues.birthday || null,
+      gender: formValues.gender,
+    };
+    void startTransition(() => {
+      void (async () => {
+        setOptimisticUserInfo(userInfo ? { ...userInfo, ...payload } : null);
+        try {
+          const updated = await updateMyInfo(payload);
+          setUserInfo(updated);
+          setOptimisticUserInfo(null);
+          setInitialValues(formValues);
+          setSubmitSuccess(true);
+          setTimeout(() => setSubmitSuccess(false), 3000);
+        } catch (e) {
+          setOptimisticUserInfo(null);
+          setSubmitError(parseApiError(e));
+        }
+      })();
     });
   };
 
@@ -297,7 +298,7 @@ export function MyPage() {
   };
 
   const charImage = characterId ? (CHARACTER_IMAGE_BY_ID[characterId] ?? DEFAULT_CHARACTER_IMAGE) : null;
-  const displayNickname = optimisticUserInfo?.nickname ?? userInfo?.nickname ?? "";
+  const displayNickname = (optimisticUserInfo ?? userInfo)?.nickname ?? "";
 
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "10px 12px", borderRadius: 8,
