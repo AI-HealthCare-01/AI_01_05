@@ -191,6 +191,8 @@ export default function MainPage() {
 
   const moodSwipeRef = useRef<HTMLDivElement | null>(null);
   const medSwipeRef = useRef<HTMLDivElement | null>(null);
+  const wasAllMedicationCompleteRef = useRef(false);
+  const [showPawStampAnim, setShowPawStampAnim] = useState(false);
 
   const fetchTodayMoods = async () => {
     const res = await getHomeMoodsToday();
@@ -389,6 +391,21 @@ export default function MainPage() {
 
   const totalCount = todayMedications.length;
   const completeCount = todayMedications.filter((med) => med.checked).length;
+  const isAllMedicationComplete = totalCount > 0 && completeCount === totalCount;
+
+  useEffect(() => {
+    if (isAllMedicationComplete && !wasAllMedicationCompleteRef.current) {
+      setShowPawStampAnim(true);
+      const timer = setTimeout(() => setShowPawStampAnim(false), 800);
+      wasAllMedicationCompleteRef.current = true;
+      return () => clearTimeout(timer);
+    }
+    if (!isAllMedicationComplete) {
+      wasAllMedicationCompleteRef.current = false;
+      setShowPawStampAnim(false);
+    }
+    return undefined;
+  }, [isAllMedicationComplete]);
 
   const updateMoodIndicator = () => {
     if (!moodSwipeRef.current) return;
@@ -443,6 +460,12 @@ export default function MainPage() {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+        @keyframes pawStamp {
+          0% { opacity: 0; transform: translate(-50%, -50%) rotate(-15deg) scale(3); }
+          20% { opacity: 0.7; transform: translate(-50%, -50%) rotate(-15deg) scale(1.1); }
+          40% { opacity: 0.45; transform: translate(-50%, -50%) rotate(-15deg) scale(1); }
+          100% { opacity: 0.45; transform: translate(-50%, -50%) rotate(-15deg) scale(1); }
+        }
       `}</style>
 
       <div style={{ width: "100%", maxWidth: 460 }}>
@@ -450,15 +473,6 @@ export default function MainPage() {
           <button style={topButtonStyle} onClick={() => navigate("/diary")}>일기</button>
           <div style={{ color: "#99A988", fontWeight: 800, fontSize: 18 }}>{dDayText}</div>
           <button style={topButtonStyle} onClick={() => navigate("/mypage")}>내 정보</button>
-        </div>
-
-        <div style={{ ...cardStyle, textAlign: "center" }}>
-          <img
-            src={characterImage}
-            alt="선택 캐릭터"
-            style={{ width: 180, maxWidth: "70%", objectFit: "contain", marginBottom: 8 }}
-          />
-          <p style={{ margin: 0, fontWeight: 600, lineHeight: 1.6 }}>{characterMessage}</p>
         </div>
 
         <div style={cardStyle}>
@@ -516,7 +530,33 @@ export default function MainPage() {
           )}
         </div>
 
-        <div style={cardStyle}>
+        <div style={{ ...cardStyle, textAlign: "center" }}>
+          <img
+            src={characterImage}
+            alt="선택 캐릭터"
+            style={{ width: 180, maxWidth: "70%", objectFit: "contain", marginBottom: 8 }}
+          />
+          <p style={{ margin: 0, fontWeight: 600, lineHeight: 1.6 }}>{characterMessage}</p>
+        </div>
+
+        <div style={{ ...cardStyle, position: "relative", overflow: "hidden" }}>
+          {isAllMedicationComplete && (
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%) rotate(-15deg)",
+                fontSize: 160,
+                opacity: 0.45,
+                zIndex: 5,
+                pointerEvents: "none",
+                animation: showPawStampAnim ? "pawStamp 0.8s ease-out" : undefined,
+              }}
+            >
+              🐾
+            </div>
+          )}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h2 style={{ margin: 0 }}>오늘의 복약</h2>
             <button style={topButtonStyle} onClick={() => navigate("/medications/add")}>약 추가</button>
@@ -718,6 +758,13 @@ export default function MainPage() {
               🎉 오늘 복약을 모두 완료했어요!
             </div>
           )}
+
+          <button
+            style={{ ...topButtonStyle, width: "100%", marginTop: 12 }}
+            onClick={() => navigate("/medications/add")}
+          >
+            {isAllMedicationComplete ? "🐾 복약 완료!" : "약 추가 하기"}
+          </button>
         </div>
 
         {loading && <div style={cardStyle}>데이터를 불러오는 중입니다...</div>}
