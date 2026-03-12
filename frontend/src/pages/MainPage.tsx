@@ -461,9 +461,9 @@ export default function MainPage() {
           >
             {TIME_SLOTS.map((slot) => (
               <div key={slot.key} style={swipePageStyle}>
-                <h3 style={{ margin: "0 0 10px", fontSize: 15, lineHeight: 1.4, paddingTop: 2 }}>오늘의 {slot.label} 기분</h3>
+                <h3 style={{ margin: "0 0 8px", fontSize: 14, lineHeight: 1.3, paddingTop: 2 }}>오늘의 {slot.label} 기분</h3>
 
-                <div style={{ display: "flex", gap: "6px", flexWrap: "nowrap" }}>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "nowrap", justifyContent: "center" }}>
                   {Object.entries(MOOD_EMOJI).map(([level, emoji]) => {
                     const numeric = Number(level);
                     const selected = todayMoods[slot.key] === numeric;
