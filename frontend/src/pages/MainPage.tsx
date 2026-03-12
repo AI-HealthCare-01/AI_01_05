@@ -506,15 +506,15 @@ export default function MainPage() {
           {TIME_SLOTS.every((slot) => todayMoods[slot.key] === null) && (
             <div style={{ marginTop: 10, fontSize: 14, color: "#757575" }}>아직 기록된 기분이 없어요.</div>
           )}
-        </div>
 
-        <div style={{ ...cardStyle, textAlign: "center" }}>
-          <img
-            src={characterImage}
-            alt="선택 캐릭터"
-            style={{ width: 180, maxWidth: "70%", objectFit: "contain", marginBottom: 8 }}
-          />
-          <p style={{ margin: 0, fontWeight: 600, lineHeight: 1.6 }}>{characterMessage}</p>
+          <div style={{ marginTop: 16, textAlign: "center" }}>
+            <img
+              src={characterImage}
+              alt="선택 캐릭터"
+              style={{ width: 180, maxWidth: "70%", objectFit: "contain", marginBottom: 8 }}
+            />
+            <p style={{ margin: 0, fontWeight: 600, lineHeight: 1.6 }}>{characterMessage}</p>
+          </div>
         </div>
 
         <div style={cardStyle}>
