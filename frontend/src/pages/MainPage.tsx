@@ -515,21 +515,6 @@ export default function MainPage() {
         </div>
 
         <div style={cardStyle}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <div style={{ minWidth: 74, fontSize: 13, color: "#757575" }}>
-              {completeCount} / {totalCount}
-            </div>
-            <div style={{ flex: 1, height: 8, borderRadius: 999, background: "#E8E8E8", overflow: "hidden" }}>
-              <div
-                style={{
-                  width: totalCount === 0 ? "0%" : `${(completeCount / totalCount) * 100}%`,
-                  height: "100%",
-                  background: "#99A988",
-                }}
-              />
-            </div>
-          </div>
-
           <div
             ref={medSwipeRef}
             className="swipeContainer"
@@ -693,6 +678,21 @@ export default function MainPage() {
                 }}
               />
             ))}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, marginBottom: 12 }}>
+            <div style={{ minWidth: 74, fontSize: 13, color: "#757575" }}>
+              {completeCount} / {totalCount}
+            </div>
+            <div style={{ flex: 1, height: 8, borderRadius: 999, background: "#E8E8E8", overflow: "hidden" }}>
+              <div
+                style={{
+                  width: totalCount === 0 ? "0%" : `${(completeCount / totalCount) * 100}%`,
+                  height: "100%",
+                  background: "#99A988",
+                }}
+              />
+            </div>
           </div>
 
           {totalCount === 0 && (
