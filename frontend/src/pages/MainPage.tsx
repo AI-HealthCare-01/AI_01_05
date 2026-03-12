@@ -141,6 +141,7 @@ function apiToUiSlot(apiSlot: string): UiSlot {
 function getEmojiButtonStyle(level: number, selected: boolean): CSSProperties {
   return {
     ...emojiButtonBaseStyle,
+    border: selected ? "3px solid #99A988" : "2px solid transparent",
     background: selected ? MOOD_COLORS[level] : `${MOOD_COLORS[level]}22`,
     transform: selected ? "scale(1.2)" : "scale(1)",
     boxShadow: selected ? "0 4px 10px rgba(0,0,0,0.15)" : "none",
@@ -456,6 +457,16 @@ export default function MainPage() {
         </div>
 
         <div style={cardStyle}>
+          <p style={{ margin: "0 0 12px", fontWeight: 600, lineHeight: 1.6, textAlign: "center" }}>{characterMessage}</p>
+
+          <div style={{ marginBottom: 16, textAlign: "center" }}>
+            <img
+              src={characterImage}
+              alt="선택 캐릭터"
+              style={{ width: 180, maxWidth: "70%", objectFit: "contain", margin: "0 auto", display: "block" }}
+            />
+          </div>
+
           <div
             ref={moodSwipeRef}
             className="swipeContainer"
@@ -506,15 +517,6 @@ export default function MainPage() {
           {TIME_SLOTS.every((slot) => todayMoods[slot.key] === null) && (
             <div style={{ marginTop: 10, fontSize: 14, color: "#757575" }}>아직 기록된 기분이 없어요.</div>
           )}
-
-          <div style={{ marginTop: 16, textAlign: "center" }}>
-            <img
-              src={characterImage}
-              alt="선택 캐릭터"
-              style={{ width: 180, maxWidth: "70%", objectFit: "contain", marginBottom: 8 }}
-            />
-            <p style={{ margin: 0, fontWeight: 600, lineHeight: 1.6 }}>{characterMessage}</p>
-          </div>
         </div>
 
         <div style={cardStyle}>
