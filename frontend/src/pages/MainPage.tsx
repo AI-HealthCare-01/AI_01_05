@@ -515,11 +515,6 @@ export default function MainPage() {
         </div>
 
         <div style={cardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h2 style={{ margin: 0 }}>오늘의 복약</h2>
-            <button style={topButtonStyle} onClick={() => navigate("/medications/add")}>약 추가</button>
-          </div>
-
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
             <div style={{ minWidth: 74, fontSize: 13, color: "#757575" }}>
               {completeCount} / {totalCount}
@@ -557,7 +552,10 @@ export default function MainPage() {
                     filter: allDone ? "grayscale(40%)" : "none",
                   }}
                 >
-                  <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>오늘의 {slot.label} 약</h3>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <h3 style={{ margin: 0, fontSize: 15 }}>오늘의 {slot.label} 약</h3>
+                    <button style={topButtonStyle} onClick={() => navigate("/medications/add")}>약 추가</button>
+                  </div>
 
                   {allDone && <div style={stampStyle}>✔ 복용 완료</div>}
 
