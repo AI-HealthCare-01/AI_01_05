@@ -542,6 +542,21 @@ export default function MainPage() {
                     <button style={topButtonStyle} onClick={() => navigate("/medications/add")}>약 추가</button>
                   </div>
 
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                    <div style={{ minWidth: 74, fontSize: 13, color: "#757575" }}>
+                      {completed} / {total}
+                    </div>
+                    <div style={{ flex: 1, height: 8, borderRadius: 999, background: "#E8E8E8", overflow: "hidden" }}>
+                      <div
+                        style={{
+                          width: total === 0 ? "0%" : `${(completed / total) * 100}%`,
+                          height: "100%",
+                          background: "#99A988",
+                        }}
+                      />
+                    </div>
+                  </div>
+
                   {allDone && <div style={stampStyle}>✔ 복용 완료</div>}
 
                   {medications.map((med) => (
@@ -679,25 +694,6 @@ export default function MainPage() {
               />
             ))}
           </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, marginBottom: 12 }}>
-            <div style={{ minWidth: 74, fontSize: 13, color: "#757575" }}>
-              {completeCount} / {totalCount}
-            </div>
-            <div style={{ flex: 1, height: 8, borderRadius: 999, background: "#E8E8E8", overflow: "hidden" }}>
-              <div
-                style={{
-                  width: totalCount === 0 ? "0%" : `${(completeCount / totalCount) * 100}%`,
-                  height: "100%",
-                  background: "#99A988",
-                }}
-              />
-            </div>
-          </div>
-
-          {totalCount === 0 && (
-            <div style={{ marginTop: 10, fontSize: 14, color: "#757575" }}>오늘 등록된 복약 항목이 없어요.</div>
-          )}
 
           {totalCount > 0 && completeCount === totalCount && (
             <div
