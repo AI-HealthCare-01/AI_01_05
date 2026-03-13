@@ -96,19 +96,20 @@ const topButtonStyle: CSSProperties = {
 
 const swipeContainerStyle: CSSProperties = {
   display: "flex",
-  overflowX: "auto",
+  overflow: "hidden",
   overflowY: "hidden",
   scrollSnapType: "x mandatory",
   WebkitOverflowScrolling: "touch",
-  gap: "16px",
-  paddingLeft: "16px",
-  paddingRight: "16px",
+  gap: "0px",
+  paddingLeft: "0px",
+  paddingRight: "0px",
   scrollbarWidth: "none",
   msOverflowStyle: "none",
 };
 
 const swipePageStyle: CSSProperties = {
-  minWidth: "100%",
+  flex: "0 0 100%",
+  width: "100%",
   scrollSnapAlign: "start",
 };
 
@@ -131,6 +132,16 @@ const emojiButtonBaseStyle: CSSProperties = {
   background: "#fff",
   fontSize: "16px",
   cursor: "pointer",
+};
+
+const EMOJI_ANIMATIONS: Record<number, string> = {
+  1: "mood-shake 0.5s ease-in-out 1",
+  2: "mood-sob 1.2s ease-in-out 1",
+  3: "mood-worry 1.5s ease-in-out 1",
+  4: "mood-neutral 2s ease-in-out 1",
+  5: "mood-bounce 1s ease-in-out 1",
+  6: "mood-happy 0.8s ease-in-out 1",
+  7: "mood-spin 1s ease-in-out 1",
 };
 
 
@@ -214,6 +225,7 @@ export default function MainPage() {
   });
   const [latestMood, setLatestMood] = useState<number | null>(null);
   const [isSavingMood, setIsSavingMood] = useState(false);
+  const [animatedEmoji, setAnimatedEmoji] = useState<{ slot: UiSlot; level: number; nonce: number } | null>(null);
 
   const [todayMedications, setTodayMedications] = useState<MedicationUiItem[]>([]);
   const [isSavingMedication, setIsSavingMedication] = useState(false);
@@ -335,6 +347,7 @@ export default function MainPage() {
   }, []);
 
   const handleMoodClick = async (slot: UiSlot, level: number) => {
+    setAnimatedEmoji({ slot, level, nonce: Date.now() });
     const previousLevel = todayMoods[slot];
     setTodayMoods((prev) => ({
       ...prev,
@@ -453,7 +466,7 @@ export default function MainPage() {
     if (!moodSwipeRef.current) return;
     const container = moodSwipeRef.current;
     const firstPage = container.firstElementChild as HTMLElement | null;
-    const pageWidth = (firstPage?.clientWidth ?? container.clientWidth) + 16;
+    const pageWidth = firstPage?.clientWidth ?? container.clientWidth;
     container.scrollTo({ left: pageWidth * index, behavior: "smooth" });
     setMoodSwipeIndex(index);
   };
@@ -462,7 +475,7 @@ export default function MainPage() {
     if (!medSwipeRef.current) return;
     const container = medSwipeRef.current;
     const firstPage = container.firstElementChild as HTMLElement | null;
-    const pageWidth = (firstPage?.clientWidth ?? container.clientWidth) + 16;
+    const pageWidth = firstPage?.clientWidth ?? container.clientWidth;
     container.scrollTo({ left: pageWidth * index, behavior: "smooth" });
     setMedSwipeIndex(index);
   };
@@ -485,6 +498,41 @@ export default function MainPage() {
         .med-list::-webkit-scrollbar { width: 4px; }
         .med-list::-webkit-scrollbar-track { background: #F5F5F5; border-radius: 2px; }
         .med-list::-webkit-scrollbar-thumb { background: #99A988; border-radius: 2px; }
+        @keyframes mood-shake {
+          0%,100%{ transform: translateX(0); }
+          20%{ transform: translateX(-4px); }
+          40%{ transform: translateX(4px); }
+          60%{ transform: translateX(-4px); }
+          80%{ transform: translateX(4px); }
+        }
+        @keyframes mood-sob {
+          0%,100%{ transform: translateY(0); }
+          50%{ transform: translateY(4px); }
+        }
+        @keyframes mood-worry {
+          0%,100%{ transform: rotate(0deg); }
+          25%{ transform: rotate(-8deg); }
+          75%{ transform: rotate(8deg); }
+        }
+        @keyframes mood-neutral {
+          0%,100%{ transform: translateY(0); }
+          50%{ transform: translateY(-2px); }
+        }
+        @keyframes mood-bounce {
+          0%,100%{ transform: translateY(0); }
+          40%{ transform: translateY(-6px); }
+          60%{ transform: translateY(-4px); }
+        }
+        @keyframes mood-happy {
+          0%,100%{ transform: rotate(0deg) scale(1); }
+          25%{ transform: rotate(-10deg) scale(1.05); }
+          75%{ transform: rotate(10deg) scale(1.05); }
+        }
+        @keyframes mood-spin {
+          0%{ transform: translateY(0) rotate(0deg) scale(1); }
+          50%{ transform: translateY(-10px) rotate(360deg) scale(1.12); }
+          100%{ transform: translateY(0) rotate(360deg) scale(1); }
+        }
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
@@ -529,7 +577,7 @@ export default function MainPage() {
           <button style={topButtonStyle} onClick={() => navigate("/mypage")}>내 정보</button>
         </div>
 
-        <div style={cardStyle}>
+        <div style={{ ...cardStyle, overflow: "hidden", paddingTop: 32, paddingBottom: 32 }}>
           <p style={{ margin: "0 0 12px", fontWeight: 600, lineHeight: 1.6, textAlign: "center" }}>{characterMessage}</p>
 
           <div style={{ marginBottom: 16, textAlign: "center" }}>
@@ -546,20 +594,21 @@ export default function MainPage() {
             style={{
               ...swipeContainerStyle,
               overflowX: "auto",
-              overflowY: "visible",
+              overflowY: "hidden",
               paddingTop: 12,
               paddingBottom: 12,
             }}
             onScroll={updateMoodIndicator}
           >
             {TIME_SLOTS.map((slot) => (
-              <div key={slot.key} style={{ ...swipePageStyle, overflowY: "visible" }}>
+              <div key={slot.key} style={swipePageStyle}>
                 <h3 style={{ margin: "0 0 8px", fontSize: 14, lineHeight: 1.3, paddingTop: 2 }}>오늘의 {slot.label} 기분</h3>
 
                 <div style={{ display: "flex", gap: "6px", flexWrap: "nowrap", justifyContent: "center", width: "max-content", margin: "0 auto" }}>
                   {Object.entries(MOOD_EMOJI).map(([level, emoji]) => {
                     const numeric = Number(level);
                     const selected = todayMoods[slot.key] === numeric;
+                    const animated = animatedEmoji?.slot === slot.key && animatedEmoji.level === numeric;
                     return (
                       <button
                         key={`${slot.key}-${level}`}
@@ -567,7 +616,15 @@ export default function MainPage() {
                         disabled={loading || isSavingMood}
                         style={getEmojiButtonStyle(numeric, selected)}
                       >
-                        {emoji}
+                        <span
+                          key={`${slot.key}-${level}-${animated ? animatedEmoji?.nonce : 0}`}
+                          style={{
+                            display: "inline-block",
+                            animation: animated ? EMOJI_ANIMATIONS[numeric] : "none",
+                          }}
+                        >
+                          {emoji}
+                        </span>
                       </button>
                     );
                   })}
