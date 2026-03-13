@@ -25,7 +25,9 @@ async def create_appointment(
     service: Annotated[AppointmentService, Depends(AppointmentService)],
 ) -> Response:
     appt = await service.create_appointment(user, body.appointment_date, body.hospital_name, body.appointment_time)
-    return Response(AppointmentResponse.model_validate(appt).model_dump(mode="json"), status_code=status.HTTP_201_CREATED)
+    return Response(
+        AppointmentResponse.model_validate(appt).model_dump(mode="json"), status_code=status.HTTP_201_CREATED
+    )
 
 
 @router.get("", response_model=AppointmentListResponse, status_code=status.HTTP_200_OK)
