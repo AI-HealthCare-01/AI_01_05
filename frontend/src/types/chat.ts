@@ -40,4 +40,5 @@ export type ChatAction =
   | { type: "HIDE_RED_ALERT" }
   | { type: "TOGGLE_MENU" }
   | { type: "CLOSE_MENU" }
-  | { type: "SET_MEDICATIONS"; payload: string[] };
+  | { type: "SET_MEDICATIONS"; payload: string[] }
+  | { type: "LOAD_HISTORY"; payload: Message[] };

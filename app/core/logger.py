@@ -3,7 +3,7 @@ import sys
 
 
 def setup_logger(
-    name: str = "ai_worker",
+    name: str = "dodaktalk",
     level: int = logging.INFO,
 ) -> logging.Logger:
     _logger = logging.getLogger(name)
