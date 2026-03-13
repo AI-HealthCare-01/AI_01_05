@@ -65,6 +65,23 @@ const MOOD_COLORS: Record<number, string> = {
   7: "#2e67b1",
 };
 
+const GREETING_MESSAGES = [
+  "오늘 기분은 어때요? 😊",
+  "밥은 먹었어요? 🍚",
+  "오늘 산책 나가는 건 어때요? 🐾",
+  "물 충분히 마셨어요? 💧",
+  "잠은 잘 잤어요? 😴",
+  "오늘도 함께해서 좋아요 🐶",
+  "오늘 하루도 잘 부탁해요! 🌿",
+];
+
+const COMPLETION_MESSAGES: Record<UiSlot, string> = {
+  morning: "아침 약을 다 드셨네요! 대단해요! 💊",
+  lunch: "점심 약을 다 드셨네요! 대단해요! 💊",
+  dinner: "저녁 약을 다 드셨네요! 잘하고 있어요! 💊",
+  night: "오늘 하루 약을 모두 챙겼어요! 최고예요 🐾",
+};
+
 const MOOD_MESSAGES: Record<string, string> = {
   1: "오늘 많이 힘드셨군요. 푹 쉬어요 🥺",
   2: "마음이 무거운 하루였나요? 내일은 더 나아질 거예요.",
@@ -73,7 +90,6 @@ const MOOD_MESSAGES: Record<string, string> = {
   5: "기분이 괜찮은 하루네요! 좋은 하루 보내요.",
   6: "오늘 기분이 좋군요! 그 기운 유지해요 😄",
   7: "오늘 기분 최고네요! 신나는 하루 보내요 🎉",
-  default: "오늘 기분은 어때요? 😊",
 };
 
 const cardStyle: CSSProperties = {
@@ -88,9 +104,11 @@ const topButtonStyle: CSSProperties = {
   background: "#99A988",
   color: "#FFFFFF",
   border: "none",
-  borderRadius: "12px",
-  padding: "10px 14px",
+  borderRadius: "14px",
+  padding: "10px 18px",
   fontWeight: 700,
+  fontSize: 14,
+  boxShadow: "0 4px 12px rgba(153,169,136,0.35)",
   cursor: "pointer",
 };
 
@@ -113,15 +131,16 @@ const swipePageStyle: CSSProperties = {
   scrollSnapAlign: "start",
 };
 
-const stampStyle: CSSProperties = {
+const pawStampStyle: CSSProperties = {
   position: "absolute",
-  top: "10px",
-  right: "10px",
-  background: "rgba(0,0,0,0.6)",
-  color: "#fff",
-  padding: "6px 12px",
-  borderRadius: "10px",
-  fontSize: "12px",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%) rotate(-15deg)",
+  fontSize: 160,
+  opacity: 0.35,
+  zIndex: 5,
+  pointerEvents: "none",
+  userSelect: "none",
 };
 
 const emojiButtonBaseStyle: CSSProperties = {
@@ -224,11 +243,21 @@ export default function MainPage() {
     night: null,
   });
   const [latestMood, setLatestMood] = useState<number | null>(null);
+  const [greetingMessage] = useState(() => {
+    const idx = Math.floor(Math.random() * GREETING_MESSAGES.length);
+    return GREETING_MESSAGES[idx];
+  });
   const [isSavingMood, setIsSavingMood] = useState(false);
   const [animatedEmoji, setAnimatedEmoji] = useState<{ slot: UiSlot; level: number; nonce: number } | null>(null);
 
   const [todayMedications, setTodayMedications] = useState<MedicationUiItem[]>([]);
   const [isSavingMedication, setIsSavingMedication] = useState(false);
+  const [pawStampTokenBySlot, setPawStampTokenBySlot] = useState<Record<UiSlot, number>>({
+    morning: 0,
+    lunch: 0,
+    dinner: 0,
+    night: 0,
+  });
   const [expandedMedicationId, setExpandedMedicationId] = useState<number | null>(null);
   const [detailByMedicationId, setDetailByMedicationId] = useState<Record<number, MedicineDetailItem | null>>({});
   const [loadingDetailByMedicationId, setLoadingDetailByMedicationId] = useState<Record<number, boolean>>({});
@@ -430,10 +459,6 @@ export default function MainPage() {
     }
   };
 
-  const characterMessage = latestMood
-    ? MOOD_MESSAGES[String(latestMood)] ?? MOOD_MESSAGES.default
-    : MOOD_MESSAGES.default;
-
   const medsBySlot = useMemo(() => {
     return {
       morning: todayMedications.filter((med) => med.timeSlot === "morning"),
@@ -445,6 +470,55 @@ export default function MainPage() {
 
   const totalCount = todayMedications.length;
   const completeCount = todayMedications.filter((med) => med.checked).length;
+  const lastActiveSlot = useMemo(
+    () => [...TIME_SLOTS].reverse().find((slot) => medsBySlot[slot.key].length > 0)?.key ?? null,
+    [medsBySlot]
+  );
+  const allDoneBySlot = useMemo<Record<UiSlot, boolean>>(
+    () => ({
+      morning: medsBySlot.morning.length > 0 && medsBySlot.morning.every((med) => med.checked),
+      lunch: medsBySlot.lunch.length > 0 && medsBySlot.lunch.every((med) => med.checked),
+      dinner: medsBySlot.dinner.length > 0 && medsBySlot.dinner.every((med) => med.checked),
+      night: medsBySlot.night.length > 0 && medsBySlot.night.every((med) => med.checked),
+    }),
+    [medsBySlot]
+  );
+  const [prevAllDoneBySlot, setPrevAllDoneBySlot] = useState<Record<UiSlot, boolean>>({
+    morning: false,
+    lunch: false,
+    dinner: false,
+    night: false,
+  });
+
+  useEffect(() => {
+    const nextTokens: Partial<Record<UiSlot, number>> = {};
+    TIME_SLOTS.forEach((slot) => {
+      if (!prevAllDoneBySlot[slot.key] && allDoneBySlot[slot.key]) {
+        nextTokens[slot.key] = Date.now();
+      }
+    });
+    if (Object.keys(nextTokens).length > 0) {
+      setPawStampTokenBySlot((prev) => ({ ...prev, ...nextTokens }));
+    }
+    setPrevAllDoneBySlot(allDoneBySlot);
+  }, [allDoneBySlot, prevAllDoneBySlot]);
+
+  const currentSlot = getCurrentUiSlot();
+  void currentSlot;
+
+  const characterMessage = (() => {
+    if (lastActiveSlot && allDoneBySlot[lastActiveSlot]) {
+      return COMPLETION_MESSAGES[lastActiveSlot];
+    }
+    if (latestMood) {
+      return MOOD_MESSAGES[String(latestMood)];
+    }
+    return greetingMessage;
+  })();
+  const bubbleBaseColor = latestMood ? MOOD_COLORS[latestMood] : "#F3FAFF";
+  const bubbleColor = latestMood ? `${bubbleBaseColor}55` : bubbleBaseColor;
+  const bubbleBorderColor = latestMood ? `${bubbleBaseColor}88` : "#CDE2F2";
+  const bubbleTextColor = "#3a3228";
 
   const updateMoodIndicator = () => {
     if (!moodSwipeRef.current) return;
@@ -537,13 +611,26 @@ export default function MainPage() {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+        @keyframes pawStamp {
+          0% { opacity: 0; transform: translate(-50%,-50%) rotate(-15deg) scale(3); }
+          20% { opacity: 0.6; transform: translate(-50%,-50%) rotate(-15deg) scale(1.1); }
+          40% { opacity: 0.35; transform: translate(-50%,-50%) rotate(-15deg) scale(1); }
+          100% { opacity: 0.35; transform: translate(-50%,-50%) rotate(-15deg) scale(1); }
+        }
       `}</style>
 
       <div style={{ width: "100%", maxWidth: 460 }}>
         <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <button style={topButtonStyle} onClick={() => navigate("/diary")}>일기</button>
           <button
-            style={{ ...topButtonStyle, fontSize: 16, background: "transparent", color: "#99A988", padding: 0 }}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#2C2C2C",
+              padding: 0,
+              cursor: "pointer",
+              fontSize: 16,
+            }}
             onClick={() => navigate("/appointments")}
           >
             {nextAppointment ? (
@@ -578,7 +665,54 @@ export default function MainPage() {
         </div>
 
         <div style={{ ...cardStyle, overflow: "hidden", paddingTop: 32, paddingBottom: 32 }}>
-          <p style={{ margin: "0 0 12px", fontWeight: 600, lineHeight: 1.6, textAlign: "center" }}>{characterMessage}</p>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+            <div
+              style={{
+                position: "relative",
+                background: bubbleColor,
+                border: `1px solid ${bubbleBorderColor}`,
+                borderRadius: 16,
+                padding: "10px 14px",
+                maxWidth: "88%",
+                textAlign: "center",
+                fontWeight: 600,
+                lineHeight: 1.6,
+                color: bubbleTextColor,
+                boxShadow: "0 6px 16px rgba(137,175,207,0.18)",
+                zIndex: 1,
+              }}
+            >
+              {characterMessage}
+              <span
+                style={{
+                  position: "absolute",
+                  left: "52%",
+                  bottom: -15,
+                  width: 18,
+                  height: 12,
+                  borderRadius: 999,
+                  border: `1px solid ${bubbleBorderColor}`,
+                  background: bubbleColor,
+                  transform: "translateX(-50%)",
+                  pointerEvents: "none",
+                }}
+              />
+              <span
+                style={{
+                  position: "absolute",
+                  left: "58%",
+                  bottom: -29,
+                  width: 10,
+                  height: 8,
+                  borderRadius: 999,
+                  border: `1px solid ${bubbleBorderColor}`,
+                  background: bubbleColor,
+                  transform: "translateX(-50%)",
+                  pointerEvents: "none",
+                }}
+              />
+            </div>
+          </div>
 
           <div style={{ marginBottom: 16, textAlign: "center" }}>
             <img
@@ -676,18 +810,18 @@ export default function MainPage() {
                     position: "relative",
                     display: "flex",
                     flexDirection: "column",
-                    opacity: allDone ? 0.5 : 1,
-                    filter: allDone ? "grayscale(40%)" : "none",
+                    opacity: allDone && slot.key !== lastActiveSlot ? 0.5 : 1,
+                    filter: allDone && slot.key !== lastActiveSlot ? "grayscale(40%)" : "none",
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <h3 style={{ margin: 0, fontSize: 15 }}>오늘의 {slot.label} 약</h3>
+                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#3a3228" }}>오늘의 {slot.label} 약</h3>
                     <button style={topButtonStyle} onClick={() => navigate("/medications/add")}>약 추가</button>
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                    <div style={{ minWidth: 74, fontSize: 13, color: "#757575" }}>
-                      {completed} / {total}
+                    <div style={{ minWidth: 74, fontSize: 13, color: "#a09070" }}>
+                      {completeCount} / {totalCount}
                     </div>
                     <div style={{ flex: 1, height: 8, borderRadius: 999, background: "#E8E8E8", overflow: "hidden" }}>
                       <div
@@ -700,9 +834,19 @@ export default function MainPage() {
                     </div>
                   </div>
 
-                  {allDone && <div style={stampStyle}>✔ 복용 완료</div>}
+                  {allDone && (
+                    <div
+                      key={`paw-${slot.key}-${pawStampTokenBySlot[slot.key]}`}
+                      style={{
+                        ...pawStampStyle,
+                        animation: `pawStamp 0.6s ease-out ${pawStampTokenBySlot[slot.key] > 0 ? "forwards" : "none"}`,
+                      }}
+                    >
+                      🐾
+                    </div>
+                  )}
 
-                  <div className="med-list" style={{ maxHeight: 200, overflowY: "auto", paddingRight: 2 }}>
+                <div className="med-list" style={{ maxHeight: 200, overflowY: "auto", paddingRight: 2 }}>
                     {medications.map((med) => (
                       <div key={med.id} style={{ marginBottom: "6px" }}>
                         <div
@@ -714,14 +858,41 @@ export default function MainPage() {
                             gap: 10,
                             padding: "8px",
                             borderRadius: "8px",
-                            border: "1px solid #E0E0E0",
-                            background: med.checked ? "#F0F5F0" : "#FFFFFF",
+                            border: med.checked ? "1px solid #C5D4B8" : "1px solid #E8E8E8",
+                            background: med.checked ? "#F0F5EE" : "#FFFFFF",
                             textDecoration: med.checked ? "line-through" : "none",
+                            color: med.checked ? "#9aaa8a" : "#3a3228",
                             cursor: "pointer",
                           }}
                         >
-                          <span>
-                            {med.checked ? "☑" : "☐"} {med.name} {med.dosage}정
+                          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div
+                              style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: 6,
+                                border: med.checked ? "none" : "2px solid #C5D4B8",
+                                background: med.checked ? "#99A988" : "#FFFFFF",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                                transition: "all 0.2s ease",
+                              }}
+                            >
+                              {med.checked && (
+                                <svg width="13" height="10" viewBox="0 0 13 10" fill="none">
+                                  <path
+                                    d="M1.5 5L5 8.5L11.5 1.5"
+                                    stroke="white"
+                                    strokeWidth="2.2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              )}
+                            </div>
+                            {med.name} {med.dosage}정
                           </span>
                           <button
                             onClick={(e) => {
@@ -729,12 +900,13 @@ export default function MainPage() {
                               handleMedicationDetailToggle(med);
                             }}
                             style={{
-                              border: `1px solid ${COLORS.border}`,
-                              background: COLORS.cardBg,
-                              color: COLORS.text,
-                              borderRadius: 8,
-                              padding: "4px 10px",
+                              background: "rgba(153,169,136,0.1)",
+                              border: "1px solid rgba(153,169,136,0.25)",
+                              color: "#5a7a4a",
+                              borderRadius: 10,
+                              padding: "4px 12px",
                               fontSize: 12,
+                              fontWeight: 600,
                               cursor: "pointer",
                               flexShrink: 0,
                             }}
@@ -814,10 +986,26 @@ export default function MainPage() {
                       </div>
                     ))}
 
-                    {medications.length === 0 && (
-                      <div style={{ fontSize: 14, color: "#757575" }}>등록된 약이 없습니다.</div>
-                    )}
+                  {medications.length === 0 && (
+                    <div style={{ fontSize: 14, color: "#757575" }}>등록된 약이 없습니다.</div>
+                  )}
+                </div>
+                {allDone && slot.key === lastActiveSlot && (
+                  <div
+                    style={{
+                      background: "#99A988",
+                      borderRadius: 14,
+                      padding: "14px 16px",
+                      textAlign: "center",
+                      fontWeight: 800,
+                      fontSize: 16,
+                      color: "#FFFFFF",
+                      marginTop: 16,
+                    }}
+                  >
+                    🎉 복약 완료를 축하해요!
                   </div>
+                )}
                 </div>
               );
             })}
@@ -840,21 +1028,6 @@ export default function MainPage() {
             ))}
           </div>
 
-          {totalCount > 0 && completeCount === totalCount && (
-            <div
-              style={{
-                marginTop: 12,
-                borderRadius: 12,
-                background: "#F0F5F0",
-                color: "#99A988",
-                fontWeight: 800,
-                padding: "10px 12px",
-                textAlign: "center",
-              }}
-            >
-              🎉 오늘 복약을 모두 완료했어요!
-            </div>
-          )}
         </div>
 
         {loading && <div style={cardStyle}>데이터를 불러오는 중입니다...</div>}
