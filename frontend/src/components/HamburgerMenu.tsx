@@ -1,18 +1,25 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { getChatHistory } from "../api/chatApi";
+import { useAuthStore } from "../store/authStore";
 
-const HISTORY_ITEMS = [
-  "현재 복용 약과 감기약 혼입 가능 여부",
-  "알코올 섭취 가능 여부",
-  "오늘의 일기 작성",
-];
 
 interface HamburgerMenuProps {
   isOpen: boolean;
   onClose: () => void;
   onNewChat: () => void;
+  onSelectSession?: (id: number, title: string) => void;
 }
 
-export default function HamburgerMenu({ isOpen, onClose, onNewChat }: HamburgerMenuProps) {
+export default function HamburgerMenu({ isOpen, onClose, onNewChat, onSelectSession }: HamburgerMenuProps) {
+  const userId = useAuthStore((s) => s.userId);
+  const [history, setHistory] = useState<{ id: number; title: string; created_at: string }[]>([]);
+
+  useEffect(() => {
+    if (isOpen && userId) {
+      getChatHistory(userId).then(setHistory).catch(() => {});
+    }
+  }, [isOpen, userId]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -115,10 +122,10 @@ export default function HamburgerMenu({ isOpen, onClose, onNewChat }: HamburgerM
           = 지난 채팅 내역
         </div>
         <ul style={{ listStyle: "none", margin: 0, padding: 0, flex: 1 }}>
-          {HISTORY_ITEMS.map((item) => (
-            <li key={item}>
+          {history.map((item) => (
+            <li key={item.id}>
               <button
-                onClick={onClose}
+                onClick={() => { onSelectSession?.(item.id, item.title); onClose(); }}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -134,7 +141,7 @@ export default function HamburgerMenu({ isOpen, onClose, onNewChat }: HamburgerM
                 }}
               >
                 <span style={{ color: "#99A988" }}>•</span>
-                {item}
+                {item.title}
               </button>
             </li>
           ))}

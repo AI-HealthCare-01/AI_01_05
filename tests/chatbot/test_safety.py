@@ -4,7 +4,7 @@ Design spec: crisis-filter.design.md §7.2
 Target: 정탐률 > 95%, 오탐률 < 5%, 테스트 케이스 >= 15개
 """
 
-from ai_worker.tasks.chatbot_engine import check_response_safety, check_safety
+from app.services.chatbot_service import check_response_safety, check_safety
 
 # ──────────────────────────────────────────────
 # check_safety() — Direct 카테고리

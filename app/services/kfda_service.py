@@ -10,6 +10,7 @@ import os
 import httpx
 
 logger = logging.getLogger("dodaktalk.kfda")
+_cache: dict[str, dict] = {}
 
 KFDA_BASE_URL = "https://apis.data.go.kr/1471000/DrbEasyDrugInfoService/getDrbEasyDrugList"
 
@@ -41,8 +42,10 @@ class KFDAClient:
             "numOfRows": "1",
         }
 
+        if drug_name in _cache:
+            return _cache[drug_name]
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.get(KFDA_BASE_URL, params=params)
                 response.raise_for_status()
                 data = response.json()
@@ -53,7 +56,7 @@ class KFDAClient:
                 return None
 
             item = items[0]
-            return {
+            result = {
                 "name": item.get("itemName", drug_name),
                 "efcy": item.get("efcyQesitm", ""),
                 "use_method": item.get("useMethodQesitm", ""),
@@ -62,6 +65,8 @@ class KFDAClient:
                 "side_effect": item.get("seQesitm", ""),
                 "storage": item.get("depositMethodQesitm", ""),
             }
+            _cache[drug_name] = result
+            return result
         except Exception as e:
             logger.warning("식약처 API 호출 실패 (약물: %s): %s", drug_name, e)
             return None
@@ -79,7 +84,10 @@ class KFDAClient:
             return ""
 
         context_parts: list[str] = []
+        import re
         for med in meds:
+            # "탁센연질캡슐(나프록센) (1.00정, 하루 1회)" → "탁센연질캡슐"
+            med = re.sub(r'\s*\(.*', '', med).strip()
             info = await self.search_drug(med)
             if info:
                 part = f"[{info['name']}]\n"

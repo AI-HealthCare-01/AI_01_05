@@ -5,11 +5,18 @@ description = "AI 헬스케어 파이널 프로젝트 예시용"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "chromadb>=1.5.5",
     "cryptography>=46.0.3",
+    "langchain-core>=1.2.19",
+    "langchain-openai>=1.1.11",
+    "langchain-text-splitters>=1.1.1",
+    "langgraph>=1.1.2",
+    "pdfplumber>=0.11.9",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
     "python-dateutil>=2.9.0.post0",
     "redis>=7.1.0",
+    "sentence-transformers>=5.2.0",
     "tomlkit>=0.14.0",
 ]
 
@@ -28,6 +35,7 @@ app = [
     "bcrypt<=4.0.1",
     "fastapi[standard]>=0.128.0",
     "httpx>=0.28.1",
+    "openai>=1.0.0",
     "opencv-python-headless>=4.9",
     "orjson>=3.11.5",
     "passlib[bcrypt]>=1.7.4",
