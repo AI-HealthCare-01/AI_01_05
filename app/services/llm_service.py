@@ -71,6 +71,7 @@ class LlmService:
             )
             raw = await self._openai_chat_completion(prompt)
             import json
+
             try:
                 return json.loads(raw)
             except json.JSONDecodeError:

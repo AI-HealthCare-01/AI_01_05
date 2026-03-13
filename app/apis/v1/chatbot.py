@@ -29,21 +29,18 @@ async def ask_question(request: ChatRequest) -> ChatResponse:
         chatbot = _get_chatbot()
 
         # DB에서 사용자 활성 복약 정보 자동 조회
-        db_meds = await UserMedication.filter(
-            user_id=request.user_id, status="ACTIVE"
-        ).prefetch_related("medicine")
+        db_meds = await UserMedication.filter(user_id=request.user_id, status="ACTIVE").prefetch_related("medicine")
 
         # 약물명(API 검색용)과 복용량 정보 분리
         import re
-        med_names = []      # API 검색용 (정제된 이름)
-        med_dosages = []    # 복용량 포함 전체 정보
+
+        med_names = []  # API 검색용 (정제된 이름)
+        med_dosages = []  # 복용량 포함 전체 정보
         for um in db_meds:
             if um.medicine:
-                clean_name = re.sub(r'\s*\(.*', '', um.medicine.item_name).strip()
+                clean_name = re.sub(r"\s*\(.*", "", um.medicine.item_name).strip()
                 med_names.append(clean_name)
-                med_dosages.append(
-                    f"{um.medicine.item_name} {um.dose_per_intake}정, 하루 {um.daily_frequency}회"
-                )
+                med_dosages.append(f"{um.medicine.item_name} {um.dose_per_intake}정, 하루 {um.daily_frequency}회")
         meds = med_names if med_names else request.medication_list
 
         result = await chatbot.get_response(
@@ -103,5 +100,5 @@ async def get_chat_log(log_id: int) -> dict:
                 "response_content": log.response_content,
             }
             for log in all_logs
-        ]
+        ],
     }

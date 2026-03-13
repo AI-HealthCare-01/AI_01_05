@@ -85,9 +85,10 @@ class KFDAClient:
 
         context_parts: list[str] = []
         import re
+
         for med in meds:
             # "탁센연질캡슐(나프록센) (1.00정, 하루 1회)" → "탁센연질캡슐"
-            med = re.sub(r'\s*\(.*', '', med).strip()
+            med = re.sub(r"\s*\(.*", "", med).strip()
             info = await self.search_drug(med)
             if info:
                 part = f"[{info['name']}]\n"

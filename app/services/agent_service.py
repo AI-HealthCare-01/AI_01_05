@@ -14,6 +14,7 @@ from app.services.kfda_service import KFDAClient
 logger = logging.getLogger("dodaktalk.agent")
 kfda_client = KFDAClient()
 
+
 @tool
 async def search_medicine_info(medicine_name: str) -> str:
     """식약처 e약은요 API에서 약물의 효능, 주의사항, 상호작용, 부작용 정보를 검색합니다."""
@@ -32,6 +33,7 @@ async def search_medicine_info(medicine_name: str) -> str:
         result += f"부작용: {info['side_effect'][:200]}\n"
     return result
 
+
 @tool
 def check_drug_interaction(drug_a: str, drug_b: str) -> str:
     """두 약물을 함께 복용해도 되는지 기본 규칙을 반환합니다."""
@@ -46,6 +48,7 @@ def check_drug_interaction(drug_a: str, drug_b: str) -> str:
     if (a_is_nsaid and b_is_acet) or (a_is_acet and b_is_nsaid):
         return f"주의: {drug_a}와 {drug_b}는 함께 복용 가능하지만 용량을 엄격히 지켜야 합니다."
     return f"{drug_a}와 {drug_b}의 상호작용은 search_medicine_info로 각각 확인하세요."
+
 
 class AgentService:
     def __init__(self) -> None:
@@ -69,15 +72,19 @@ class AgentService:
             + "\n\n필요한 경우 search_medicine_info, check_drug_interaction 툴을 사용해서 정확한 정보를 찾아 답변해줘."
             + "\n\n답변 규칙: 빈 줄을 최소화하고, 내용은 간결하게 작성해. 단락 사이 빈 줄은 1줄만 사용해."
         )
-        result = await self.agent.ainvoke({
-            "messages": [
-                SystemMessage(content=full_system),
-                HumanMessage(content=user_message),
-            ]
-        })
+        result = await self.agent.ainvoke(
+            {
+                "messages": [
+                    SystemMessage(content=full_system),
+                    HumanMessage(content=user_message),
+                ]
+            }
+        )
         return result["messages"][-1].content
 
+
 _agent_service: AgentService | None = None
+
 
 def get_agent_service() -> AgentService:
     global _agent_service
