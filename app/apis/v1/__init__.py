@@ -13,7 +13,10 @@ from app.apis.v1.ocr_routers import router as ocr_router
 from app.apis.v1.user_medication_routers import router as user_medication_router
 from app.apis.v1.user_routers import user_router
 
+# 모든 v1 API는 `/api/v1` prefix를 공유한다.
 v1_routers = APIRouter(prefix="/api/v1")
+# include 순서는 문서화 태그 정렬/가독성에 영향을 준다.
+# 기능별 엔드포인트를 여기에서 중앙 등록해 앱 엔트리포인트(app.main)를 단순화한다.
 v1_routers.include_router(auth_router)
 v1_routers.include_router(user_router)
 v1_routers.include_router(character_router)

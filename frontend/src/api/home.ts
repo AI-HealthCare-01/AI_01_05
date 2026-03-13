@@ -33,12 +33,21 @@ export interface HomeMedicationItem {
   dosePerIntake: number;
   isTaken: boolean;
   takenAt: string | null;
+  itemImage: string | null;
 }
 
 export interface HomeMedicationsTodayResponse {
   date: string;
   items: HomeMedicationItem[];
   remainingCount: number;
+}
+
+export type MedicationTimeSlot = "MORNING" | "LUNCH" | "EVENING" | "BEDTIME";
+
+export interface HomeCreateMedicationRequest {
+  name: string;
+  timeSlot: MedicationTimeSlot;
+  dosage: number;
 }
 
 export interface HomeCreateMedicationResponse {
@@ -72,11 +81,7 @@ export function getHomeMedicationsToday() {
   return apiRequest<HomeMedicationsTodayResponse>("/home/medications/today", { method: "GET" });
 }
 
-export function postHomeMedicationToday(payload: {
-  name: string;
-  timeSlot: string;
-  dosage: number;
-}) {
+export function postHomeMedicationToday(payload: HomeCreateMedicationRequest) {
   return apiRequest<HomeCreateMedicationResponse>("/home/medications/today", {
     method: "POST",
     body: JSON.stringify(payload),
