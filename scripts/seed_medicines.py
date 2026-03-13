@@ -1,6 +1,9 @@
 import asyncio
 import csv
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from tortoise import Tortoise
 
