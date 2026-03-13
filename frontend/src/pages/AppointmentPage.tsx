@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   createAppointment,
@@ -15,6 +15,8 @@ import { COLORS } from "../constants/theme";
 
 export function AppointmentPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const mode = (location.state as { mode?: "create" | "edit" } | null)?.mode ?? "edit";
   const [currentAppointment, setCurrentAppointment] = useState<AppointmentItem | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,8 +43,15 @@ export function AppointmentPage() {
   };
 
   useEffect(() => {
+    if (mode === "create") {
+      setCurrentAppointment(null);
+      setHospitalName("");
+      setAppointmentDate("");
+      setAppointmentTime("");
+      return;
+    }
     void fetchNext();
-  }, []);
+  }, [mode]);
 
   const submit = async () => {
     if (!appointmentDate) {
@@ -72,7 +81,7 @@ export function AppointmentPage() {
 
   const remove = async () => {
     if (!currentAppointment?.appointment_id) return;
-    if (!window.confirm("정말 삭제할까요?")) return;
+    if (!window.confirm("진료 일정을 삭제할까요?")) return;
     try {
       setIsDeleting(true);
       setError(null);
@@ -115,9 +124,25 @@ export function AppointmentPage() {
           일정 저장
         </Button>
         {currentAppointment?.appointment_id ? (
-          <Button type="button" variant="danger" onClick={() => void remove()} loading={isDeleting}>
-            일정 삭제
-          </Button>
+          <button
+            type="button"
+            onClick={() => void remove()}
+            disabled={isDeleting}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              marginTop: 4,
+              color: "#C0392B",
+              fontSize: 13,
+              textDecoration: "underline",
+              cursor: isDeleting ? "not-allowed" : "pointer",
+              opacity: isDeleting ? 0.65 : 1,
+              justifySelf: "start",
+            }}
+          >
+            {isDeleting ? "삭제 중..." : "일정 삭제"}
+          </button>
         ) : null}
       </section>
 
