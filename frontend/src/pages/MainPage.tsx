@@ -97,9 +97,12 @@ const topButtonStyle: CSSProperties = {
 const swipeContainerStyle: CSSProperties = {
   display: "flex",
   overflowX: "auto",
+  overflowY: "hidden",
   scrollSnapType: "x mandatory",
   WebkitOverflowScrolling: "touch",
   gap: "16px",
+  paddingLeft: "16px",
+  paddingRight: "16px",
   scrollbarWidth: "none",
   msOverflowStyle: "none",
 };
@@ -547,7 +550,7 @@ export default function MainPage() {
               <div key={slot.key} style={swipePageStyle}>
                 <h3 style={{ margin: "0 0 8px", fontSize: 14, lineHeight: 1.3, paddingTop: 2 }}>오늘의 {slot.label} 기분</h3>
 
-                <div style={{ display: "flex", gap: "6px", flexWrap: "nowrap", justifyContent: "center" }}>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "nowrap", justifyContent: "center", width: "max-content", margin: "0 auto" }}>
                   {Object.entries(MOOD_EMOJI).map(([level, emoji]) => {
                     const numeric = Number(level);
                     const selected = todayMoods[slot.key] === numeric;
