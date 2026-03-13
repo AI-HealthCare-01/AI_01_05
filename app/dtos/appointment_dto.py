@@ -28,5 +28,12 @@ class AppointmentResponse(BaseSerializerModel):
     created_at: datetime
 
 
+class AppointmentNextResponse(BaseModel):
+    appointment_id: int
+    hospital_name: str | None
+    appointment_date: date
+    appointment_time: time | None
+
+
 class AppointmentListResponse(BaseModel):
     appointments: list[AppointmentResponse]

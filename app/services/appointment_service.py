@@ -26,6 +26,13 @@ class AppointmentService:
     async def get_appointments(self, user: User) -> list[Appointment]:
         return await Appointment.filter(user_id=user.user_id).order_by("appointment_date")
 
+    async def get_next_appointment(self, user: User, today: date) -> Appointment | None:
+        return (
+            await Appointment.filter(user_id=user.user_id, appointment_date__gte=today)
+            .order_by("appointment_date", "appointment_time")
+            .first()
+        )
+
     async def update_appointment(
         self,
         user: User,

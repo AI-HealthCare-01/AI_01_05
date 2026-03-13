@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -7,6 +8,7 @@ from app.dependencies.security import get_request_user
 from app.dtos.appointment_dto import (
     AppointmentCreateRequest,
     AppointmentListResponse,
+    AppointmentNextResponse,
     AppointmentResponse,
     AppointmentUpdateRequest,
 )
@@ -33,6 +35,24 @@ async def get_appointments(
 ) -> Response:
     appts = await service.get_appointments(user)
     return Response({"appointments": [AppointmentResponse.model_validate(a).model_dump() for a in appts]})
+
+
+@router.get("/next", response_model=AppointmentNextResponse | None, status_code=status.HTTP_200_OK)
+async def get_next_appointment(
+    user: Annotated[User, Depends(get_request_user)],
+    service: Annotated[AppointmentService, Depends(AppointmentService)],
+) -> Response:
+    appt = await service.get_next_appointment(user, date.today())
+    if appt is None:
+        return Response(None)
+    return Response(
+        AppointmentNextResponse(
+            appointment_id=appt.appointment_id,
+            hospital_name=appt.hospital_name,
+            appointment_date=appt.appointment_date,
+            appointment_time=appt.appointment_time,
+        ).model_dump()
+    )
 
 
 @router.patch("/{appointment_id}", response_model=AppointmentResponse, status_code=status.HTTP_200_OK)
