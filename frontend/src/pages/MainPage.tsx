@@ -493,7 +493,7 @@ export default function MainPage() {
           <button style={topButtonStyle} onClick={() => navigate("/diary")}>일기</button>
           <button
             style={{ ...topButtonStyle, fontSize: 16, background: "transparent", color: "#99A988", padding: 0 }}
-            onClick={() => navigate("/appointments", { state: { mode: nextAppointment ? "edit" : "create" } })}
+            onClick={() => navigate("/appointments")}
           >
             {nextAppointment ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>

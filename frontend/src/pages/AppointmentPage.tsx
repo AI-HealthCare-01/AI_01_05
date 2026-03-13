@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
-import {
-  createAppointment,
-  deleteAppointment,
-  getNextAppointment,
-  type AppointmentItem,
-  updateAppointment,
-} from "../api/appointments";
+import { createAppointment, deleteAppointment, getAppointments, type AppointmentItem, updateAppointment } from "../api/appointments";
 import { Button } from "../components/Button";
 import { ErrorMessage } from "../components/ErrorMessage";
 import { Loading } from "../components/Loading";
@@ -15,8 +9,10 @@ import { COLORS } from "../constants/theme";
 
 export function AppointmentPage() {
   const navigate = useNavigate();
+  const params = useParams<{ appointmentId: string }>();
   const location = useLocation();
-  const mode = (location.state as { mode?: "create" | "edit" } | null)?.mode ?? "edit";
+  const mode = (location.state as { mode?: "create" | "edit"; appointment?: AppointmentItem } | null)?.mode ?? "create";
+  const stateAppointment = (location.state as { appointment?: AppointmentItem } | null)?.appointment ?? null;
   const [currentAppointment, setCurrentAppointment] = useState<AppointmentItem | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,17 +22,25 @@ export function AppointmentPage() {
   const [appointmentDate, setAppointmentDate] = useState("");
   const [appointmentTime, setAppointmentTime] = useState("");
 
-  const fetchNext = async () => {
+  const fetchCurrent = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const result = await getNextAppointment();
+      if (stateAppointment && String(stateAppointment.appointment_id) === params.appointmentId) {
+        setCurrentAppointment(stateAppointment);
+        setHospitalName(stateAppointment.hospital_name ?? "");
+        setAppointmentDate(stateAppointment.appointment_date ?? "");
+        setAppointmentTime(stateAppointment.appointment_time ?? "");
+        return;
+      }
+      const list = await getAppointments();
+      const result = (list?.appointments ?? []).find((item) => String(item.appointment_id) === params.appointmentId) ?? null;
       setCurrentAppointment(result);
       setHospitalName(result?.hospital_name ?? "");
       setAppointmentDate(result?.appointment_date ?? "");
       setAppointmentTime(result?.appointment_time ?? "");
     } catch {
-      setError("다음 진료 일정을 불러오지 못했습니다.");
+      setError("진료 일정을 불러오지 못했습니다.");
     } finally {
       setIsLoading(false);
     }
@@ -50,8 +54,8 @@ export function AppointmentPage() {
       setAppointmentTime("");
       return;
     }
-    void fetchNext();
-  }, [mode]);
+    void fetchCurrent();
+  }, [mode, params.appointmentId, stateAppointment]);
 
   const submit = async () => {
     if (!appointmentDate) {
@@ -71,7 +75,7 @@ export function AppointmentPage() {
       } else {
         await createAppointment(payload);
       }
-      navigate("/main");
+      navigate("/appointments");
     } catch {
       setError("진료 일정 저장에 실패했습니다.");
     } finally {
@@ -86,7 +90,7 @@ export function AppointmentPage() {
       setIsDeleting(true);
       setError(null);
       await deleteAppointment(currentAppointment.appointment_id);
-      navigate("/main");
+      navigate("/appointments");
     } catch {
       setError("진료 일정 삭제에 실패했습니다.");
     } finally {
@@ -114,7 +118,7 @@ export function AppointmentPage() {
       >
         ‹ 뒤로
       </button>
-      <h1 style={{ margin: 0, color: COLORS.text, fontSize: 20 }}>진료 일정</h1>
+      <h1 style={{ margin: 0, color: COLORS.text, fontSize: 20 }}>{mode === "edit" ? "진료 일정 수정" : "진료 일정 등록"}</h1>
 
       <section style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12, background: "#fff", display: "grid", gap: 8 }}>
         <input value={hospitalName} onChange={(event) => setHospitalName(event.target.value)} placeholder="병원명" />
@@ -147,7 +151,7 @@ export function AppointmentPage() {
       </section>
 
       {isLoading ? <Loading /> : null}
-      {error ? <ErrorMessage message={error} onRetry={() => void fetchNext()} /> : null}
+      {error ? <ErrorMessage message={error} onRetry={() => void fetchCurrent()} /> : null}
     </main>
   );
 }
