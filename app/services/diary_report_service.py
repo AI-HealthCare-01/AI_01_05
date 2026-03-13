@@ -14,11 +14,18 @@ TIME_SLOT_ORDER = {"MORNING": 0, "LUNCH": 1, "EVENING": 2, "BEDTIME": 3}
 
 
 class DiaryReportService:
+    """일기/리포트 도메인 서비스.
+
+    현재는 일부 플로우(OCR/챗봇 임시 결과)를 메모리 저장소(memory_db)로 운영하며,
+    핵심 영속 데이터(일기/기분/리포트)는 Tortoise 모델을 통해 DB에 저장한다.
+    """
+
     def __init__(self) -> None:
         self.ocr_service = OcrService()
         self.llm_service = LlmService()
 
     def next_entry_id(self) -> int:
+        # OCR/챗봇 임시 엔트리 식별자용 시퀀스.
         entry_id = memory_db.diary_entry_sequence
         memory_db.diary_entry_sequence += 1
         return entry_id
@@ -92,11 +99,13 @@ class DiaryReportService:
         return {"entryId": diary.diary_id, "message": "일기가 저장되었습니다."}
 
     async def extract_ocr_text(self, entry_date: date, file_type: str, file_bytes: bytes) -> dict:
+        # OCR 입력 검증(포맷/크기)을 먼저 수행해 외부 API 호출 비용을 줄인다.
         if file_type not in {"image/jpeg", "image/png"}:
             raise ValueError("UNSUPPORTED_FORMAT")
         if len(file_bytes) > 10 * 1024 * 1024:
             raise ValueError("FILE_TOO_LARGE")
 
+        # OCR 추출 결과는 "확정 저장" 전까지 메모리에 pending 상태로 보관한다.
         pending_id = self.next_entry_id()
         extracted_text = await self.ocr_service.extract_text(file_bytes=file_bytes, file_type=file_type)
         memory_db.fake_ocr_pending[pending_id] = {"date": entry_date, "extractedText": extracted_text}
@@ -126,6 +135,7 @@ class DiaryReportService:
 
         texts = [diary.content for diary in diaries[:5]]
         try:
+            # LLM 요약 실패 시 UX 보존을 위해 deterministic fallback을 사용한다.
             summary = await self.llm_service.summarize_chat(chat_texts=texts, entry_date=entry_date.isoformat())
         except Exception:
             summary = " ".join(diary.content for diary in diaries[:3]).strip()

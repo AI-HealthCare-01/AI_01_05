@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, time
 
 from fastapi import HTTPException, status
 
@@ -8,11 +8,17 @@ from app.models.users import User
 
 class AppointmentService:
     async def create_appointment(
-        self, user: User, appointment_date: date | None, hospital_name: str | None, notes: str | None
+        self,
+        user: User,
+        appointment_date: date | None,
+        hospital_name: str | None,
+        notes: str | None,
+        appointment_time: time | None = None,
     ) -> Appointment:
         return await Appointment.create(
             user_id=user.user_id,
             appointment_date=appointment_date,
+            appointment_time=appointment_time,
             hospital_name=hospital_name,
             notes=notes,
         )
@@ -27,6 +33,7 @@ class AppointmentService:
         appointment_date: date | None,
         hospital_name: str | None,
         notes: str | None,
+        appointment_time: time | None = None,
     ) -> Appointment:
         appt = await Appointment.get_or_none(appointment_id=appointment_id, user_id=user.user_id)
         if not appt:
@@ -34,6 +41,8 @@ class AppointmentService:
         update: dict = {}
         if appointment_date is not None:
             update["appointment_date"] = appointment_date
+        if appointment_time is not None:
+            update["appointment_time"] = appointment_time
         if hospital_name is not None:
             update["hospital_name"] = hospital_name
         if notes is not None:
