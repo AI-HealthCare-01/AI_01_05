@@ -36,3 +36,4 @@ frontend/.env.local
 frontend/.env.production
 .bkit/
 .bkit-memory.json
+docs/
