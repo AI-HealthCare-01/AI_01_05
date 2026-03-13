@@ -146,7 +146,7 @@ async def seed(db_host: str | None = None) -> None:
             logger.info("  %d / %d 완료", loaded, total)
         except Exception as exc:
             logger.error("chunk %d 실패: %s", i, exc)
-            raise SystemExit(1)
+            raise SystemExit(1) from exc
 
     logger.info("적재 완료: %d건", loaded)
     await Tortoise.close_connections()
