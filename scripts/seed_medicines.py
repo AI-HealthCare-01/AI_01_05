@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import csv
 import sys
@@ -123,8 +124,13 @@ async def _upsert_chunk(rows: list[dict]) -> None:
     )
 
 
-async def seed() -> None:
-    await Tortoise.init(config=TORTOISE_ORM)
+async def seed(db_host: str | None = None) -> None:
+    config = TORTOISE_ORM
+    if db_host:
+        config["connections"]["default"]["credentials"]["host"] = db_host
+        logger.info("DB host override: %s", db_host)
+
+    await Tortoise.init(config=config)
 
     loader = MedicineCsvLoader()
     rows = loader.load()
@@ -139,11 +145,15 @@ async def seed() -> None:
             loaded += len(chunk)
             logger.info("  %d / %d 완료", loaded, total)
         except Exception as exc:
-            logger.warning("  chunk %d 실패 (skip): %s", i, exc)
+            logger.error("chunk %d 실패: %s", i, exc)
+            raise SystemExit(1)
 
     logger.info("적재 완료: %d건", loaded)
     await Tortoise.close_connections()
 
 
 if __name__ == "__main__":
-    asyncio.run(seed())
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--db-host", default=None, help="DB host override (예: localhost)")
+    args = parser.parse_args()
+    asyncio.run(seed(db_host=args.db_host))
