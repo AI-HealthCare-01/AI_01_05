@@ -150,7 +150,13 @@ class DiaryReportService:
 
         pending_id = self.next_entry_id()
         memory_db.fake_chatbot_pending[pending_id] = {"date": entry_date, "summary": summary}
-        return {"hasChatHistory": True, "entryId": pending_id, "title": title, "summary": summary, "redirectToChatbot": False}
+        return {
+            "hasChatHistory": True,
+            "entryId": pending_id,
+            "title": title,
+            "summary": summary,
+            "redirectToChatbot": False,
+        }
 
     async def save_chatbot_summary(
         self, user_id: int, entry_date: date, entry_id: int, title: str, content: str

@@ -1,4 +1,5 @@
 """낱알식별 API 서비스."""
+
 import logging
 import os
 
@@ -7,13 +8,20 @@ import httpx
 logger = logging.getLogger("dodaktalk.pill")
 PILL_API_URL = "https://apis.data.go.kr/1471000/MdcinGrnIdntfcInfoService03/getMdcinGrnIdntfcInfoList03"
 
+
 class PillIdentifier:
     def __init__(self) -> None:
         self.api_key = os.getenv("KFDA_API_KEY") or os.getenv("MFDS_API_KEY")
         if not self.api_key:
             logger.warning("API 키가 설정되지 않았습니다.")
 
-    async def search(self, item_name: str | None = None, entp_name: str | None = None, color: str | None = None, shape: str | None = None) -> list[dict]:
+    async def search(
+        self,
+        item_name: str | None = None,
+        entp_name: str | None = None,
+        color: str | None = None,
+        shape: str | None = None,
+    ) -> list[dict]:
         if not self.api_key:
             return []
         params = {
@@ -42,14 +50,16 @@ class PillIdentifier:
                 return []
             results = []
             for item in items:
-                results.append({
-                    "name": item.get("ITEM_NAME", ""),
-                    "company": item.get("ENTP_NAME", ""),
-                    "shape": item.get("DRUG_SHAPE", ""),
-                    "color": item.get("COLOR_CLASS1", ""),
-                    "imprint": item.get("PRINT_FRONT", ""),
-                    "image_url": item.get("ITEM_IMAGE", ""),
-                })
+                results.append(
+                    {
+                        "name": item.get("ITEM_NAME", ""),
+                        "company": item.get("ENTP_NAME", ""),
+                        "shape": item.get("DRUG_SHAPE", ""),
+                        "color": item.get("COLOR_CLASS1", ""),
+                        "imprint": item.get("PRINT_FRONT", ""),
+                        "image_url": item.get("ITEM_IMAGE", ""),
+                    }
+                )
             return results
         except Exception as e:
             logger.warning("낱알식별 API 호출 실패: %s", e)
