@@ -21,7 +21,9 @@ export function AppointmentPage() {
   const navigate = useNavigate();
   const params = useParams<{ appointmentId: string }>();
   const location = useLocation();
-  const mode = (location.state as { mode?: "create" | "edit"; appointment?: AppointmentItem } | null)?.mode ?? "create";
+  const mode =
+    (location.state as { mode?: "create" | "edit"; appointment?: AppointmentItem } | null)?.mode ??
+    (params.appointmentId ? "edit" : "create");
   const stateAppointment = (location.state as { appointment?: AppointmentItem } | null)?.appointment ?? null;
   const [currentAppointment, setCurrentAppointment] = useState<AppointmentItem | null>(null);
   const [isLoading, setIsLoading] = useState(false);
