@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 
+import { AppointmentListPage } from "../pages/AppointmentListPage";
 import { AppointmentPage } from "../pages/AppointmentPage";
 import { DiaryDetailPage } from "../pages/DiaryDetailPage";
 import { DiaryPage } from "../pages/DiaryPage";
@@ -21,6 +22,7 @@ import { ChatProvider } from "../context/ChatContext.tsx";
 import ChatPage from "../pages/ChatPage.tsx";
 
 function MedicationFlowLayout() {
+  // 복약 등록 플로우 내부 페이지 간 상태를 공유하기 위한 Provider 경계.
   return (
     <MedicationFlowProvider>
       <Outlet />
@@ -28,6 +30,7 @@ function MedicationFlowLayout() {
   );
 }
 
+// 라우트 테이블: 페이지 컴포넌트 매핑 + 인증 가드(AuthRequired/SignupRequired) 적용.
 export const router = createBrowserRouter([
   { path: "/", element: <LoginPage /> },
   { path: "/login", element: <LoginPage /> },
@@ -36,7 +39,9 @@ export const router = createBrowserRouter([
   { path: "/report", element: <ReportPage /> },
   { path: "/report/:reportId", element: <ReportDetailPage /> },
   { path: "/moods", element: <MoodPage /> },
-  { path: "/appointments", element: <AppointmentPage /> },
+  { path: "/appointments", element: <AppointmentListPage /> },
+  { path: "/appointments/new", element: <AppointmentPage /> },
+  { path: "/appointments/:appointmentId/edit", element: <AppointmentPage /> },
   { path: "/mypage", element: <AuthRequired><MyPage /></AuthRequired>},
   { path: "/auth/kakao/callback", element: <KakaoCallbackPage /> },
   { path: "/signup", element : <SignupRequired><SignupPage /></SignupRequired>},

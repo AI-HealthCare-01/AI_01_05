@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.core import memory_db
 from app.dependencies.security import get_request_user
+from app.models.medicine import Medicine
 from app.models.mood import Mood
 from app.models.users import User
 
@@ -93,6 +94,10 @@ async def get_home_medications_today(user: Annotated[User, Depends(get_request_u
     today = date.today().isoformat()
     items = memory_db.fake_home_medications.get(user.user_id, [])
     today_items = [item for item in items if item["date"] == today]
+    name_to_image = {
+        med.item_name: med.item_image
+        for med in await Medicine.filter(item_name__in=[item["name"] for item in today_items]).all()
+    }
     response_items = [
         {
             "medicationId": item["medicationId"],
@@ -102,6 +107,7 @@ async def get_home_medications_today(user: Annotated[User, Depends(get_request_u
             "dosePerIntake": item["dosePerIntake"],
             "isTaken": item["isTaken"],
             "takenAt": item["takenAt"],
+            "itemImage": item.get("itemImage", name_to_image.get(item["name"])),
         }
         for item in today_items
     ]
@@ -120,6 +126,7 @@ async def post_home_medication_today(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="INVALID_TIME_SLOT") from None
     medication_id = memory_db.home_medication_sequence
     memory_db.home_medication_sequence += 1
+    medicine = await Medicine.get_or_none(item_name=request.name)
     new_item = {
         "date": date.today().isoformat(),
         "medicationId": medication_id,
@@ -129,6 +136,7 @@ async def post_home_medication_today(
         "dosePerIntake": request.dosage,
         "isTaken": False,
         "takenAt": None,
+        "itemImage": medicine.item_image if medicine else None,
     }
     user_items = memory_db.fake_home_medications.setdefault(user.user_id, [])
     user_items.append(new_item)

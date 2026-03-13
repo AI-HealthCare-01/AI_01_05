@@ -2,15 +2,17 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useNavigate } from "react-router-dom";
 
 import {
-  getHomeAppointmentNext,
   getHomeMedicationsToday,
   getHomeMoodsToday,
   patchHomeMedicationCheck,
   postHomeMoodToday,
   type HomeMedicationItem,
 } from "../api/home";
+import { getNextAppointment } from "../api/appointments";
+import { getMedicineDetail, type MedicineDetailItem } from "../api/medicines";
 import { getMyCharacter } from "../apis/characterApi";
 import { CHARACTER_IMAGE_BY_ID, DEFAULT_CHARACTER_IMAGE } from "../constants/characters";
+import { COLORS } from "../constants/theme";
 import { useAuthStore } from "../store/authStore";
 
 type UiSlot = "morning" | "lunch" | "dinner" | "night";
@@ -21,10 +23,19 @@ type MoodBySlot = Record<UiSlot, number | null>;
 type MedicationUiItem = {
   id: number;
   medicationId: number;
+  itemSeq: string;
   name: string;
   dosage: number;
   timeSlot: UiSlot;
   checked: boolean;
+  itemImage: string | null;
+};
+
+type NextAppointmentUi = {
+  dDay: string;
+  hospitalName: string | null;
+  dateLabel: string;
+  timeLabel: string | null;
 };
 
 const TIME_SLOTS: Array<{ key: UiSlot; label: string }> = [
@@ -54,6 +65,23 @@ const MOOD_COLORS: Record<number, string> = {
   7: "#2e67b1",
 };
 
+const GREETING_MESSAGES = [
+  "오늘 기분은 어때요? 😊",
+  "밥은 먹었어요? 🍚",
+  "오늘 산책 나가는 건 어때요? 🐾",
+  "물 충분히 마셨어요? 💧",
+  "잠은 잘 잤어요? 😴",
+  "오늘도 함께해서 좋아요 🐶",
+  "오늘 하루도 잘 부탁해요! 🌿",
+];
+
+const COMPLETION_MESSAGES: Record<UiSlot, string> = {
+  morning: "아침 약을 다 드셨네요! 대단해요! 💊",
+  lunch: "점심 약을 다 드셨네요! 대단해요! 💊",
+  dinner: "저녁 약을 다 드셨네요! 잘하고 있어요! 💊",
+  night: "오늘 하루 약을 모두 챙겼어요! 최고예요 🐾",
+};
+
 const MOOD_MESSAGES: Record<string, string> = {
   1: "오늘 많이 힘드셨군요. 푹 쉬어요 🥺",
   2: "마음이 무거운 하루였나요? 내일은 더 나아질 거예요.",
@@ -62,7 +90,6 @@ const MOOD_MESSAGES: Record<string, string> = {
   5: "기분이 괜찮은 하루네요! 좋은 하루 보내요.",
   6: "오늘 기분이 좋군요! 그 기운 유지해요 😄",
   7: "오늘 기분 최고네요! 신나는 하루 보내요 🎉",
-  default: "오늘 기분은 어때요? 😊",
 };
 
 const cardStyle: CSSProperties = {
@@ -77,46 +104,63 @@ const topButtonStyle: CSSProperties = {
   background: "#99A988",
   color: "#FFFFFF",
   border: "none",
-  borderRadius: "12px",
-  padding: "10px 14px",
+  borderRadius: "14px",
+  padding: "10px 18px",
   fontWeight: 700,
+  fontSize: 14,
+  boxShadow: "0 4px 12px rgba(153,169,136,0.35)",
   cursor: "pointer",
 };
 
 const swipeContainerStyle: CSSProperties = {
   display: "flex",
-  overflowX: "auto",
+  overflow: "hidden",
+  overflowY: "hidden",
   scrollSnapType: "x mandatory",
   WebkitOverflowScrolling: "touch",
-  gap: "16px",
+  gap: "0px",
+  paddingLeft: "0px",
+  paddingRight: "0px",
   scrollbarWidth: "none",
   msOverflowStyle: "none",
 };
 
 const swipePageStyle: CSSProperties = {
-  minWidth: "100%",
+  flex: "0 0 100%",
+  width: "100%",
   scrollSnapAlign: "start",
 };
 
-const stampStyle: CSSProperties = {
+const pawStampStyle: CSSProperties = {
   position: "absolute",
-  top: "10px",
-  right: "10px",
-  background: "rgba(0,0,0,0.6)",
-  color: "#fff",
-  padding: "6px 12px",
-  borderRadius: "10px",
-  fontSize: "12px",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%) rotate(-15deg)",
+  fontSize: 160,
+  opacity: 0.35,
+  zIndex: 5,
+  pointerEvents: "none",
+  userSelect: "none",
 };
 
 const emojiButtonBaseStyle: CSSProperties = {
-  width: "48px",
-  height: "48px",
+  width: "36px",
+  height: "36px",
   borderRadius: "50%",
   border: "1px solid #ddd",
   background: "#fff",
-  fontSize: "20px",
+  fontSize: "16px",
   cursor: "pointer",
+};
+
+const EMOJI_ANIMATIONS: Record<number, string> = {
+  1: "mood-shake 0.5s ease-in-out 1",
+  2: "mood-sob 1.2s ease-in-out 1",
+  3: "mood-worry 1.5s ease-in-out 1",
+  4: "mood-neutral 2s ease-in-out 1",
+  5: "mood-bounce 1s ease-in-out 1",
+  6: "mood-happy 0.8s ease-in-out 1",
+  7: "mood-spin 1s ease-in-out 1",
 };
 
 
@@ -137,6 +181,7 @@ function apiToUiSlot(apiSlot: string): UiSlot {
 function getEmojiButtonStyle(level: number, selected: boolean): CSSProperties {
   return {
     ...emojiButtonBaseStyle,
+    border: selected ? "3px solid #99A988" : "2px solid transparent",
     background: selected ? MOOD_COLORS[level] : `${MOOD_COLORS[level]}22`,
     transform: selected ? "scale(1.2)" : "scale(1)",
     boxShadow: selected ? "0 4px 10px rgba(0,0,0,0.15)" : "none",
@@ -152,6 +197,34 @@ function getCurrentUiSlot(): UiSlot {
   return "night";
 }
 
+function toDateLabel(appointmentDate: string): string {
+  const [year, month, day] = appointmentDate.split("-").map(Number);
+  if (!year || !month || !day) return "진료 일정";
+  return `${month}월 ${day}일`;
+}
+
+function toTimeLabel(appointmentTime: string | null): string | null {
+  if (!appointmentTime) return null;
+  const [hourText, minuteText] = appointmentTime.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+  const period = hour < 12 ? "오전" : "오후";
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${period} ${displayHour}:${String(minute).padStart(2, "0")}`;
+}
+
+function toDdayLabel(appointmentDate: string): string {
+  const [year, month, day] = appointmentDate.split("-").map(Number);
+  if (!year || !month || !day) return "D-day";
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const target = new Date(year, month - 1, day);
+  const diffDays = Math.floor((target.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays <= 0) return "D-day";
+  return `D-${diffDays}`;
+}
+
 export default function MainPage() {
   const navigate = useNavigate();
   const selectedCharacter = useAuthStore((s) => s.selectedCharacter);
@@ -161,8 +234,7 @@ export default function MainPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [hasUpcoming, setHasUpcoming] = useState(false);
-  const [dDay, setDDay] = useState<number | null>(null);
+  const [nextAppointment, setNextAppointment] = useState<NextAppointmentUi | null>(null);
 
   const [todayMoods, setTodayMoods] = useState<MoodBySlot>({
     morning: null,
@@ -171,12 +243,25 @@ export default function MainPage() {
     night: null,
   });
   const [latestMood, setLatestMood] = useState<number | null>(null);
+  const [greetingMessage] = useState(() => {
+    const idx = Math.floor(Math.random() * GREETING_MESSAGES.length);
+    return GREETING_MESSAGES[idx];
+  });
   const [isSavingMood, setIsSavingMood] = useState(false);
+  const [animatedEmoji, setAnimatedEmoji] = useState<{ slot: UiSlot; level: number; nonce: number } | null>(null);
 
   const [todayMedications, setTodayMedications] = useState<MedicationUiItem[]>([]);
   const [isSavingMedication, setIsSavingMedication] = useState(false);
-
-
+  const [pawStampTokenBySlot, setPawStampTokenBySlot] = useState<Record<UiSlot, number>>({
+    morning: 0,
+    lunch: 0,
+    dinner: 0,
+    night: 0,
+  });
+  const [expandedMedicationId, setExpandedMedicationId] = useState<number | null>(null);
+  const [detailByMedicationId, setDetailByMedicationId] = useState<Record<number, MedicineDetailItem | null>>({});
+  const [loadingDetailByMedicationId, setLoadingDetailByMedicationId] = useState<Record<number, boolean>>({});
+  const [detailErrorByMedicationId, setDetailErrorByMedicationId] = useState<Record<number, string>>({});
 
   const initialSlot = getCurrentUiSlot();
   const initialIndex = TIME_SLOTS.findIndex((slot) => slot.key === initialSlot);
@@ -219,10 +304,12 @@ export default function MainPage() {
     const mapped: MedicationUiItem[] = (res?.items ?? []).map((item: HomeMedicationItem) => ({
       id: item.medicationId,
       medicationId: item.medicationId,
+      itemSeq: item.itemSeq,
       name: item.name,
       dosage: item.dosePerIntake,
       timeSlot: apiToUiSlot(item.timeSlot),
       checked: item.isTaken,
+      itemImage: item.itemImage,
     }));
     setTodayMedications(mapped);
   };
@@ -232,16 +319,23 @@ export default function MainPage() {
     setLoading(true);
 
     try {
-      const appointment = await getHomeAppointmentNext();
-      setHasUpcoming(Boolean(appointment?.hasUpcoming));
-      setDDay(appointment?.dDay ?? null);
+      const appointment = await getNextAppointment();
+      if (appointment && appointment.appointment_date) {
+        setNextAppointment({
+          dDay: toDdayLabel(appointment.appointment_date),
+          hospitalName: appointment.hospital_name ?? null,
+          dateLabel: toDateLabel(appointment.appointment_date),
+          timeLabel: toTimeLabel(appointment.appointment_time),
+        });
+      } else {
+        setNextAppointment(null);
+      }
 
       await Promise.all([fetchTodayMoods(), fetchTodayMedications()]);
     } catch (fetchError) {
       const message = fetchError instanceof Error ? fetchError.message : "홈 데이터를 불러오지 못했습니다.";
       setError(message);
-      setHasUpcoming(false);
-      setDDay(null);
+      setNextAppointment(null);
       setTodayMoods({ morning: null, lunch: null, dinner: null, night: null });
       setLatestMood(null);
       setTodayMedications([]);
@@ -282,6 +376,7 @@ export default function MainPage() {
   }, []);
 
   const handleMoodClick = async (slot: UiSlot, level: number) => {
+    setAnimatedEmoji({ slot, level, nonce: Date.now() });
     const previousLevel = todayMoods[slot];
     setTodayMoods((prev) => ({
       ...prev,
@@ -338,11 +433,31 @@ export default function MainPage() {
     }
   };
 
-  const dDayText = hasUpcoming && dDay !== null ? `D-${dDay}` : "진료 없음";
+  const handleMedicationDetailToggle = async (med: MedicationUiItem) => {
+    if (expandedMedicationId === med.medicationId) {
+      setExpandedMedicationId(null);
+      return;
+    }
 
-  const characterMessage = latestMood
-    ? MOOD_MESSAGES[String(latestMood)] ?? MOOD_MESSAGES.default
-    : MOOD_MESSAGES.default;
+    setExpandedMedicationId(med.medicationId);
+
+    const hasLoaded = Object.prototype.hasOwnProperty.call(detailByMedicationId, med.medicationId);
+    if (hasLoaded) return;
+
+    setLoadingDetailByMedicationId((prev) => ({ ...prev, [med.medicationId]: true }));
+    setDetailErrorByMedicationId((prev) => ({ ...prev, [med.medicationId]: "" }));
+    try {
+      const detail = await getMedicineDetail(med.itemSeq);
+      setDetailByMedicationId((prev) => ({ ...prev, [med.medicationId]: detail }));
+    } catch {
+      setDetailErrorByMedicationId((prev) => ({
+        ...prev,
+        [med.medicationId]: "약 상세 정보를 불러오지 못했습니다.",
+      }));
+    } finally {
+      setLoadingDetailByMedicationId((prev) => ({ ...prev, [med.medicationId]: false }));
+    }
+  };
 
   const medsBySlot = useMemo(() => {
     return {
@@ -355,6 +470,55 @@ export default function MainPage() {
 
   const totalCount = todayMedications.length;
   const completeCount = todayMedications.filter((med) => med.checked).length;
+  const lastActiveSlot = useMemo(
+    () => [...TIME_SLOTS].reverse().find((slot) => medsBySlot[slot.key].length > 0)?.key ?? null,
+    [medsBySlot]
+  );
+  const allDoneBySlot = useMemo<Record<UiSlot, boolean>>(
+    () => ({
+      morning: medsBySlot.morning.length > 0 && medsBySlot.morning.every((med) => med.checked),
+      lunch: medsBySlot.lunch.length > 0 && medsBySlot.lunch.every((med) => med.checked),
+      dinner: medsBySlot.dinner.length > 0 && medsBySlot.dinner.every((med) => med.checked),
+      night: medsBySlot.night.length > 0 && medsBySlot.night.every((med) => med.checked),
+    }),
+    [medsBySlot]
+  );
+  const [prevAllDoneBySlot, setPrevAllDoneBySlot] = useState<Record<UiSlot, boolean>>({
+    morning: false,
+    lunch: false,
+    dinner: false,
+    night: false,
+  });
+
+  useEffect(() => {
+    const nextTokens: Partial<Record<UiSlot, number>> = {};
+    TIME_SLOTS.forEach((slot) => {
+      if (!prevAllDoneBySlot[slot.key] && allDoneBySlot[slot.key]) {
+        nextTokens[slot.key] = Date.now();
+      }
+    });
+    if (Object.keys(nextTokens).length > 0) {
+      setPawStampTokenBySlot((prev) => ({ ...prev, ...nextTokens }));
+    }
+    setPrevAllDoneBySlot(allDoneBySlot);
+  }, [allDoneBySlot, prevAllDoneBySlot]);
+
+  const currentSlot = getCurrentUiSlot();
+  void currentSlot;
+
+  const characterMessage = (() => {
+    if (lastActiveSlot && allDoneBySlot[lastActiveSlot]) {
+      return COMPLETION_MESSAGES[lastActiveSlot];
+    }
+    if (latestMood) {
+      return MOOD_MESSAGES[String(latestMood)];
+    }
+    return greetingMessage;
+  })();
+  const bubbleBaseColor = latestMood ? MOOD_COLORS[latestMood] : "#F3FAFF";
+  const bubbleColor = latestMood ? `${bubbleBaseColor}55` : bubbleBaseColor;
+  const bubbleBorderColor = latestMood ? `${bubbleBaseColor}88` : "#CDE2F2";
+  const bubbleTextColor = "#3a3228";
 
   const updateMoodIndicator = () => {
     if (!moodSwipeRef.current) return;
@@ -376,7 +540,7 @@ export default function MainPage() {
     if (!moodSwipeRef.current) return;
     const container = moodSwipeRef.current;
     const firstPage = container.firstElementChild as HTMLElement | null;
-    const pageWidth = (firstPage?.clientWidth ?? container.clientWidth) + 16;
+    const pageWidth = firstPage?.clientWidth ?? container.clientWidth;
     container.scrollTo({ left: pageWidth * index, behavior: "smooth" });
     setMoodSwipeIndex(index);
   };
@@ -385,7 +549,7 @@ export default function MainPage() {
     if (!medSwipeRef.current) return;
     const container = medSwipeRef.current;
     const firstPage = container.firstElementChild as HTMLElement | null;
-    const pageWidth = (firstPage?.clientWidth ?? container.clientWidth) + 16;
+    const pageWidth = firstPage?.clientWidth ?? container.clientWidth;
     container.scrollTo({ left: pageWidth * index, behavior: "smooth" });
     setMedSwipeIndex(index);
   };
@@ -405,41 +569,180 @@ export default function MainPage() {
         .swipeContainer::-webkit-scrollbar {
           display: none;
         }
+        .med-list::-webkit-scrollbar { width: 4px; }
+        .med-list::-webkit-scrollbar-track { background: #F5F5F5; border-radius: 2px; }
+        .med-list::-webkit-scrollbar-thumb { background: #99A988; border-radius: 2px; }
+        @keyframes mood-shake {
+          0%,100%{ transform: translateX(0); }
+          20%{ transform: translateX(-4px); }
+          40%{ transform: translateX(4px); }
+          60%{ transform: translateX(-4px); }
+          80%{ transform: translateX(4px); }
+        }
+        @keyframes mood-sob {
+          0%,100%{ transform: translateY(0); }
+          50%{ transform: translateY(4px); }
+        }
+        @keyframes mood-worry {
+          0%,100%{ transform: rotate(0deg); }
+          25%{ transform: rotate(-8deg); }
+          75%{ transform: rotate(8deg); }
+        }
+        @keyframes mood-neutral {
+          0%,100%{ transform: translateY(0); }
+          50%{ transform: translateY(-2px); }
+        }
+        @keyframes mood-bounce {
+          0%,100%{ transform: translateY(0); }
+          40%{ transform: translateY(-6px); }
+          60%{ transform: translateY(-4px); }
+        }
+        @keyframes mood-happy {
+          0%,100%{ transform: rotate(0deg) scale(1); }
+          25%{ transform: rotate(-10deg) scale(1.05); }
+          75%{ transform: rotate(10deg) scale(1.05); }
+        }
+        @keyframes mood-spin {
+          0%{ transform: translateY(0) rotate(0deg) scale(1); }
+          50%{ transform: translateY(-10px) rotate(360deg) scale(1.12); }
+          100%{ transform: translateY(0) rotate(360deg) scale(1); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pawStamp {
+          0% { opacity: 0; transform: translate(-50%,-50%) rotate(-15deg) scale(3); }
+          20% { opacity: 0.6; transform: translate(-50%,-50%) rotate(-15deg) scale(1.1); }
+          40% { opacity: 0.35; transform: translate(-50%,-50%) rotate(-15deg) scale(1); }
+          100% { opacity: 0.35; transform: translate(-50%,-50%) rotate(-15deg) scale(1); }
+        }
       `}</style>
 
       <div style={{ width: "100%", maxWidth: 460 }}>
         <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <button style={topButtonStyle} onClick={() => navigate("/diary")}>일기</button>
-          <div style={{ color: "#99A988", fontWeight: 800, fontSize: 18 }}>{dDayText}</div>
+          <button
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#2C2C2C",
+              padding: 0,
+              cursor: "pointer",
+              fontSize: 16,
+            }}
+            onClick={() => navigate("/appointments")}
+          >
+            {nextAppointment ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <span
+                  style={{
+                    background: "#F0EDE3",
+                    color: "#7A7040",
+                    borderRadius: 999,
+                    padding: "2px 10px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {nextAppointment.dDay}
+                </span>
+                <span style={{ fontSize: 19, fontWeight: 500, lineHeight: 1.2, color: "#2C2C2C" }}>
+                  {nextAppointment.hospitalName ?? nextAppointment.dateLabel}
+                </span>
+                <span style={{ fontSize: 13, color: "#8A8A8A", lineHeight: 1.3 }}>
+                  {nextAppointment.hospitalName
+                    ? `${nextAppointment.dateLabel}${nextAppointment.timeLabel ? ` · ${nextAppointment.timeLabel}` : ""}`
+                    : nextAppointment.timeLabel ?? "시간 미정"}
+                </span>
+              </div>
+            ) : (
+              "진료 없음"
+            )}
+          </button>
           <button style={topButtonStyle} onClick={() => navigate("/mypage")}>내 정보</button>
         </div>
 
-        <div style={{ ...cardStyle, textAlign: "center" }}>
-          <img
-            src={characterImage}
-            alt="선택 캐릭터"
-            style={{ width: 180, maxWidth: "70%", objectFit: "contain", marginBottom: 8 }}
-          />
-          <p style={{ margin: 0, fontWeight: 600, lineHeight: 1.6 }}>{characterMessage}</p>
-        </div>
+        <div style={{ ...cardStyle, overflow: "hidden", paddingTop: 32, paddingBottom: 32 }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+            <div
+              style={{
+                position: "relative",
+                background: bubbleColor,
+                border: `1px solid ${bubbleBorderColor}`,
+                borderRadius: 16,
+                padding: "10px 14px",
+                maxWidth: "88%",
+                textAlign: "center",
+                fontWeight: 600,
+                lineHeight: 1.6,
+                color: bubbleTextColor,
+                boxShadow: "0 6px 16px rgba(137,175,207,0.18)",
+                zIndex: 1,
+              }}
+            >
+              {characterMessage}
+              <span
+                style={{
+                  position: "absolute",
+                  left: "52%",
+                  bottom: -15,
+                  width: 18,
+                  height: 12,
+                  borderRadius: 999,
+                  border: `1px solid ${bubbleBorderColor}`,
+                  background: bubbleColor,
+                  transform: "translateX(-50%)",
+                  pointerEvents: "none",
+                }}
+              />
+              <span
+                style={{
+                  position: "absolute",
+                  left: "58%",
+                  bottom: -29,
+                  width: 10,
+                  height: 8,
+                  borderRadius: 999,
+                  border: `1px solid ${bubbleBorderColor}`,
+                  background: bubbleColor,
+                  transform: "translateX(-50%)",
+                  pointerEvents: "none",
+                }}
+              />
+            </div>
+          </div>
 
-        <div style={cardStyle}>
-          <h2 style={{ margin: "0 0 12px" }}>오늘의 기분</h2>
+          <div style={{ marginBottom: 16, textAlign: "center" }}>
+            <img
+              src={characterImage}
+              alt="선택 캐릭터"
+              style={{ width: 180, maxWidth: "70%", objectFit: "contain", margin: "0 auto", display: "block" }}
+            />
+          </div>
 
           <div
             ref={moodSwipeRef}
             className="swipeContainer"
-            style={swipeContainerStyle}
+            style={{
+              ...swipeContainerStyle,
+              overflowX: "auto",
+              overflowY: "hidden",
+              paddingTop: 12,
+              paddingBottom: 12,
+            }}
             onScroll={updateMoodIndicator}
           >
             {TIME_SLOTS.map((slot) => (
               <div key={slot.key} style={swipePageStyle}>
-                <h3 style={{ margin: "0 0 10px", fontSize: 15, lineHeight: 1.4, paddingTop: 2 }}>오늘의 {slot.label} 기분</h3>
+                <h3 style={{ margin: "0 0 8px", fontSize: 14, lineHeight: 1.3, paddingTop: 2 }}>오늘의 {slot.label} 기분</h3>
 
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "nowrap", justifyContent: "center", width: "max-content", margin: "0 auto" }}>
                   {Object.entries(MOOD_EMOJI).map(([level, emoji]) => {
                     const numeric = Number(level);
                     const selected = todayMoods[slot.key] === numeric;
+                    const animated = animatedEmoji?.slot === slot.key && animatedEmoji.level === numeric;
                     return (
                       <button
                         key={`${slot.key}-${level}`}
@@ -447,7 +750,15 @@ export default function MainPage() {
                         disabled={loading || isSavingMood}
                         style={getEmojiButtonStyle(numeric, selected)}
                       >
-                        {emoji}
+                        <span
+                          key={`${slot.key}-${level}-${animated ? animatedEmoji?.nonce : 0}`}
+                          style={{
+                            display: "inline-block",
+                            animation: animated ? EMOJI_ANIMATIONS[numeric] : "none",
+                          }}
+                        >
+                          {emoji}
+                        </span>
                       </button>
                     );
                   })}
@@ -479,26 +790,6 @@ export default function MainPage() {
         </div>
 
         <div style={cardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h2 style={{ margin: 0 }}>오늘의 복약</h2>
-            <button style={topButtonStyle} onClick={() => navigate('/medications/add')}>약 추가</button>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <div style={{ minWidth: 74, fontSize: 13, color: "#757575" }}>
-              {completeCount} / {totalCount}
-            </div>
-            <div style={{ flex: 1, height: 8, borderRadius: 999, background: "#E8E8E8", overflow: "hidden" }}>
-              <div
-                style={{
-                  width: totalCount === 0 ? "0%" : `${(completeCount / totalCount) * 100}%`,
-                  height: "100%",
-                  background: "#99A988",
-                }}
-              />
-            </div>
-          </div>
-
           <div
             ref={medSwipeRef}
             className="swipeContainer"
@@ -517,35 +808,204 @@ export default function MainPage() {
                   style={{
                     ...swipePageStyle,
                     position: "relative",
-                    opacity: allDone ? 0.5 : 1,
-                    filter: allDone ? "grayscale(40%)" : "none",
+                    display: "flex",
+                    flexDirection: "column",
+                    opacity: allDone && slot.key !== lastActiveSlot ? 0.5 : 1,
+                    filter: allDone && slot.key !== lastActiveSlot ? "grayscale(40%)" : "none",
                   }}
                 >
-                  <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>오늘의 {slot.label} 약</h3>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#3a3228" }}>오늘의 {slot.label} 약</h3>
+                    <button style={topButtonStyle} onClick={() => navigate("/medications/add")}>약 추가</button>
+                  </div>
 
-                  {allDone && <div style={stampStyle}>✔ 복용 완료</div>}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                    <div style={{ minWidth: 74, fontSize: 13, color: "#a09070" }}>
+                      {completeCount} / {totalCount}
+                    </div>
+                    <div style={{ flex: 1, height: 8, borderRadius: 999, background: "#E8E8E8", overflow: "hidden" }}>
+                      <div
+                        style={{
+                          width: total === 0 ? "0%" : `${(completed / total) * 100}%`,
+                          height: "100%",
+                          background: "#99A988",
+                        }}
+                      />
+                    </div>
+                  </div>
 
-                  {medications.map((med) => (
+                  {allDone && (
                     <div
-                      key={med.id}
-                      onClick={() => handleMedicationToggle(med.medicationId, med.checked)}
+                      key={`paw-${slot.key}-${pawStampTokenBySlot[slot.key]}`}
                       style={{
-                        padding: "8px",
-                        marginBottom: "6px",
-                        borderRadius: "8px",
-                        border: "1px solid #E0E0E0",
-                        background: med.checked ? "#F0F5F0" : "#FFFFFF",
-                        textDecoration: med.checked ? "line-through" : "none",
-                        cursor: "pointer",
+                        ...pawStampStyle,
+                        animation: `pawStamp 0.6s ease-out ${pawStampTokenBySlot[slot.key] > 0 ? "forwards" : "none"}`,
                       }}
                     >
-                      {med.checked ? "☑" : "☐"} {med.name} {med.dosage}정
+                      🐾
                     </div>
-                  ))}
+                  )}
+
+                <div className="med-list" style={{ maxHeight: 200, overflowY: "auto", paddingRight: 2 }}>
+                    {medications.map((med) => (
+                      <div key={med.id} style={{ marginBottom: "6px" }}>
+                        <div
+                          onClick={() => handleMedicationToggle(med.medicationId, med.checked)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 10,
+                            padding: "8px",
+                            borderRadius: "8px",
+                            border: med.checked ? "1px solid #C5D4B8" : "1px solid #E8E8E8",
+                            background: med.checked ? "#F0F5EE" : "#FFFFFF",
+                            textDecoration: med.checked ? "line-through" : "none",
+                            color: med.checked ? "#9aaa8a" : "#3a3228",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div
+                              style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: 6,
+                                border: med.checked ? "none" : "2px solid #C5D4B8",
+                                background: med.checked ? "#99A988" : "#FFFFFF",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                                transition: "all 0.2s ease",
+                              }}
+                            >
+                              {med.checked && (
+                                <svg width="13" height="10" viewBox="0 0 13 10" fill="none">
+                                  <path
+                                    d="M1.5 5L5 8.5L11.5 1.5"
+                                    stroke="white"
+                                    strokeWidth="2.2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              )}
+                            </div>
+                            {med.name} {med.dosage}정
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMedicationDetailToggle(med);
+                            }}
+                            style={{
+                              background: "rgba(153,169,136,0.1)",
+                              border: "1px solid rgba(153,169,136,0.25)",
+                              color: "#5a7a4a",
+                              borderRadius: 10,
+                              padding: "4px 12px",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {expandedMedicationId === med.medicationId ? "접기 ▲" : "더보기 ▼"}
+                          </button>
+                        </div>
+
+                        {expandedMedicationId === med.medicationId && (
+                          <div
+                            style={{
+                              marginTop: 8,
+                              border: `1px solid ${COLORS.border}`,
+                              borderRadius: 8,
+                              background: COLORS.cardBg,
+                              padding: 10,
+                            }}
+                          >
+                            {loadingDetailByMedicationId[med.medicationId] ? (
+                              <div style={{ display: "flex", justifyContent: "center", padding: "16px 0" }}>
+                                <div
+                                  style={{
+                                    width: 20,
+                                    height: 20,
+                                    border: `2px solid ${COLORS.border}`,
+                                    borderTop: `2px solid ${COLORS.button}`,
+                                    borderRadius: "50%",
+                                    animation: "spin 1s linear infinite",
+                                  }}
+                                />
+                              </div>
+                            ) : detailErrorByMedicationId[med.medicationId] ? (
+                              <div style={{ color: COLORS.error, fontSize: 13 }}>
+                                {detailErrorByMedicationId[med.medicationId]}
+                              </div>
+                            ) : (
+                              <>
+                                {(detailByMedicationId[med.medicationId]?.item_image ?? med.itemImage) ? (
+                                  <img
+                                    src={detailByMedicationId[med.medicationId]?.item_image ?? med.itemImage ?? ""}
+                                    alt={med.name}
+                                    style={{ width: "100%", maxHeight: 200, objectFit: "contain", borderRadius: 8 }}
+                                  />
+                                ) : (
+                                  <div
+                                    style={{
+                                      width: "100%",
+                                      maxHeight: 200,
+                                      minHeight: 120,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontSize: 64,
+                                    }}
+                                  >
+                                    💊
+                                  </div>
+                                )}
+
+                                <div style={{ marginTop: 10 }}>
+                                  <div style={{ fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>효능/효과</div>
+                                  <div style={{ color: COLORS.subText, fontSize: 13, lineHeight: 1.5 }}>
+                                    {detailByMedicationId[med.medicationId]?.efcy_qesitm ?? "정보가 없습니다."}
+                                  </div>
+                                </div>
+
+                                <div style={{ marginTop: 10 }}>
+                                  <div style={{ fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>복용법</div>
+                                  <div style={{ color: COLORS.subText, fontSize: 13, lineHeight: 1.5 }}>
+                                    {detailByMedicationId[med.medicationId]?.use_method_qesitm ?? "정보가 없습니다."}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
 
                   {medications.length === 0 && (
                     <div style={{ fontSize: 14, color: "#757575" }}>등록된 약이 없습니다.</div>
                   )}
+                </div>
+                {allDone && slot.key === lastActiveSlot && (
+                  <div
+                    style={{
+                      background: "#99A988",
+                      borderRadius: 14,
+                      padding: "14px 16px",
+                      textAlign: "center",
+                      fontWeight: 800,
+                      fontSize: 16,
+                      color: "#FFFFFF",
+                      marginTop: 16,
+                    }}
+                  >
+                    🎉 복약 완료를 축하해요!
+                  </div>
+                )}
                 </div>
               );
             })}
@@ -568,25 +1028,6 @@ export default function MainPage() {
             ))}
           </div>
 
-          {totalCount === 0 && (
-            <div style={{ marginTop: 10, fontSize: 14, color: "#757575" }}>오늘 등록된 복약 항목이 없어요.</div>
-          )}
-
-          {totalCount > 0 && completeCount === totalCount && (
-            <div
-              style={{
-                marginTop: 12,
-                borderRadius: 12,
-                background: "#F0F5F0",
-                color: "#99A988",
-                fontWeight: 800,
-                padding: "10px 12px",
-                textAlign: "center",
-              }}
-            >
-              🎉 오늘 복약을 모두 완료했어요!
-            </div>
-          )}
         </div>
 
         {loading && <div style={cardStyle}>데이터를 불러오는 중입니다...</div>}
@@ -597,6 +1038,7 @@ export default function MainPage() {
           </div>
         )}
       </div>
+
     </div>
   );
 }

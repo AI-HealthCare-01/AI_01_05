@@ -15,13 +15,21 @@ class Env(StrEnum):
 
 
 class Config(BaseSettings):
+    """애플리케이션 전역 설정 객체.
+
+    - `.env`와 OS 환경변수에서 값을 읽어온다.
+    - 코드에서는 `from app.core import config`로 싱글톤처럼 사용한다.
+    """
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
 
     ENV: Env = Env.LOCAL
     SECRET_KEY: str = f"default-secret-key{uuid.uuid4().hex}"
+    # 서버 전역 시간대. JWT 만료 시각/DB 업데이트 시각 계산에 사용된다.
     TIMEZONE: zoneinfo.ZoneInfo = field(default_factory=lambda: zoneinfo.ZoneInfo("Asia/Seoul"))
     TEMPLATE_DIR: str = os.path.join(Path(__file__).resolve().parent.parent, "templates")
 
+    # Database (MySQL + asyncmy)
     DB_HOST: str = "localhost"
     DB_PORT: int = 3306
     DB_USER: str = "root"
@@ -30,18 +38,22 @@ class Config(BaseSettings):
     DB_CONNECT_TIMEOUT: int = 5
     DB_CONNECTION_POOL_MAXSIZE: int = 10
 
+    # 브라우저 쿠키/보안 설정
     COOKIE_DOMAIN: str = "localhost"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:5173"]
 
+    # JWT 수명 및 검증 옵션
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 14 * 24 * 60
     JWT_LEEWAY: int = 5
 
+    # OAuth (Kakao)
     KAKAO_REST_API_KEY: str
     KAKAO_REDIRECT_URI: str
     KAKAO_CLIENT_SECRET: str
 
+    # SMS 인증 (Solapi)
     SOLAPI_API_KEY: str
     SOLAPI_API_SECRET: str
     SOLAPI_SENDER_NUMBER: str
