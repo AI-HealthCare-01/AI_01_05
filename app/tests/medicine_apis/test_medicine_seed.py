@@ -1,11 +1,7 @@
-import re
-
-import pytest
 from tortoise.contrib.test import TestCase
 
 from app.models.medicine import Medicine
 from app.services.medicine_service import MedicineService
-
 
 # ---------------------------------------------------------------------------
 # 단위 테스트 — DB 불필요
@@ -54,7 +50,9 @@ class TestMedicineCsvLoaderUnit:
         from scripts.seed_medicines import MedicineCsvLoader
 
         pot = {"001": {"item_seq": "001", "item_name": "약A", "entp_name": "회사A", "item_image": "https://pot.img"}}
-        easy = {"001": {"item_name": "약A", "entp_name": "회사A", "item_image": "https://easy.img", "efcy_qesitm": "효능"}}
+        easy = {
+            "001": {"item_name": "약A", "entp_name": "회사A", "item_image": "https://easy.img", "efcy_qesitm": "효능"}
+        }
         result = MedicineCsvLoader._merge(pot, easy)
         assert result[0]["item_image"] == "https://pot.img"
 
