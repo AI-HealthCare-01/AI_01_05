@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useNavigate } from "react-router-dom";
 
 import {
-  getHomeAppointmentNext,
   getHomeMedicationsToday,
   getHomeMoodsToday,
   patchHomeMedicationCheck,
   postHomeMoodToday,
   type HomeMedicationItem,
 } from "../api/home";
+import { getNextAppointment } from "../api/appointments";
 import { getMedicineDetail, type MedicineDetailItem } from "../api/medicines";
 import { getMyCharacter } from "../apis/characterApi";
 import { CHARACTER_IMAGE_BY_ID, DEFAULT_CHARACTER_IMAGE } from "../constants/characters";
@@ -166,8 +166,7 @@ export default function MainPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [hasUpcoming, setHasUpcoming] = useState(false);
-  const [dDay, setDDay] = useState<number | null>(null);
+  const [nextAppointmentLabel, setNextAppointmentLabel] = useState("진료 없음");
 
   const [todayMoods, setTodayMoods] = useState<MoodBySlot>({
     morning: null,
@@ -241,16 +240,24 @@ export default function MainPage() {
     setLoading(true);
 
     try {
-      const appointment = await getHomeAppointmentNext();
-      setHasUpcoming(Boolean(appointment?.hasUpcoming));
-      setDDay(appointment?.dDay ?? null);
+      const appointment = await getNextAppointment();
+      if (appointment && appointment.appointment_date) {
+        const [year, month, day] = appointment.appointment_date.split("-").map(Number);
+        const hospital = appointment.hospital_name ?? "병원 미정";
+        if (year && month && day) {
+          setNextAppointmentLabel(`${month}월 ${day}일 · ${hospital}`);
+        } else {
+          setNextAppointmentLabel(`진료 일정 · ${hospital}`);
+        }
+      } else {
+        setNextAppointmentLabel("진료 없음");
+      }
 
       await Promise.all([fetchTodayMoods(), fetchTodayMedications()]);
     } catch (fetchError) {
       const message = fetchError instanceof Error ? fetchError.message : "홈 데이터를 불러오지 못했습니다.";
       setError(message);
-      setHasUpcoming(false);
-      setDDay(null);
+      setNextAppointmentLabel("진료 없음");
       setTodayMoods({ morning: null, lunch: null, dinner: null, night: null });
       setLatestMood(null);
       setTodayMedications([]);
@@ -373,8 +380,6 @@ export default function MainPage() {
     }
   };
 
-  const dDayText = hasUpcoming && dDay !== null ? `D-${dDay}` : "진료 없음";
-
   const characterMessage = latestMood
     ? MOOD_MESSAGES[String(latestMood)] ?? MOOD_MESSAGES.default
     : MOOD_MESSAGES.default;
@@ -452,7 +457,12 @@ export default function MainPage() {
       <div style={{ width: "100%", maxWidth: 460 }}>
         <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <button style={topButtonStyle} onClick={() => navigate("/diary")}>일기</button>
-          <div style={{ color: "#99A988", fontWeight: 800, fontSize: 18 }}>{dDayText}</div>
+          <button
+            style={{ ...topButtonStyle, fontSize: 16, background: "transparent", color: "#99A988", padding: 0 }}
+            onClick={() => navigate("/appointments")}
+          >
+            {nextAppointmentLabel}
+          </button>
           <button style={topButtonStyle} onClick={() => navigate("/mypage")}>내 정보</button>
         </div>
 

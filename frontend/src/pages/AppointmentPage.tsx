@@ -1,66 +1,68 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { createAppointment, getAppointments, getAppointmentsByDate } from "../api/appointments";
+import {
+  createAppointment,
+  deleteAppointment,
+  getNextAppointment,
+  type AppointmentItem,
+  updateAppointment,
+} from "../api/appointments";
 import { Button } from "../components/Button";
-import { EmptyState } from "../components/EmptyState";
 import { ErrorMessage } from "../components/ErrorMessage";
 import { Loading } from "../components/Loading";
 import { COLORS } from "../constants/theme";
 
-interface AppointmentItem {
-  appointment_id?: number;
-  hospital_name?: string;
-  appointment_date?: string;
-  appointment_time?: string;
-}
-
 export function AppointmentPage() {
   const navigate = useNavigate();
-  const [items, setItems] = useState<AppointmentItem[]>([]);
+  const [currentAppointment, setCurrentAppointment] = useState<AppointmentItem | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hospitalName, setHospitalName] = useState("");
   const [appointmentDate, setAppointmentDate] = useState("");
   const [appointmentTime, setAppointmentTime] = useState("");
-  const [searchDate, setSearchDate] = useState("");
 
-  const normalize = (result: unknown): AppointmentItem[] => {
-    if (Array.isArray(result)) return result as AppointmentItem[];
-    if (result && typeof result === "object" && "data" in result && Array.isArray((result as { data: unknown }).data)) {
-      return (result as { data: AppointmentItem[] }).data;
-    }
-    return [];
-  };
-
-  const fetchAll = async () => {
+  const fetchNext = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const result = await getAppointments();
-      setItems(normalize(result));
+      const result = await getNextAppointment();
+      setCurrentAppointment(result);
+      setHospitalName(result?.hospital_name ?? "");
+      setAppointmentDate(result?.appointment_date ?? "");
+      setAppointmentTime(result?.appointment_time ?? "");
     } catch {
-      setError("진료 일정을 불러오지 못했습니다.");
+      setError("다음 진료 일정을 불러오지 못했습니다.");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    void fetchAll();
+    void fetchNext();
   }, []);
 
   const submit = async () => {
+    if (!appointmentDate) {
+      setError("진료 날짜를 입력해주세요.");
+      return;
+    }
     try {
       setIsSubmitting(true);
       setError(null);
-      await createAppointment({
+      const payload = {
         hospital_name: hospitalName,
         appointment_date: appointmentDate,
-        appointment_time: appointmentTime,
-      });
-      await fetchAll();
+        appointment_time: appointmentTime || null,
+      };
+      if (currentAppointment?.appointment_id) {
+        await updateAppointment(currentAppointment.appointment_id, payload);
+      } else {
+        await createAppointment(payload);
+      }
+      navigate("/main");
     } catch {
       setError("진료 일정 저장에 실패했습니다.");
     } finally {
@@ -68,17 +70,18 @@ export function AppointmentPage() {
     }
   };
 
-  const searchByDate = async () => {
-    if (!searchDate) return;
+  const remove = async () => {
+    if (!currentAppointment?.appointment_id) return;
+    if (!window.confirm("정말 삭제할까요?")) return;
     try {
-      setIsLoading(true);
+      setIsDeleting(true);
       setError(null);
-      const result = await getAppointmentsByDate(searchDate);
-      setItems(normalize(result));
+      await deleteAppointment(currentAppointment.appointment_id);
+      navigate("/main");
     } catch {
-      setError("날짜별 조회에 실패했습니다.");
+      setError("진료 일정 삭제에 실패했습니다.");
     } finally {
-      setIsLoading(false);
+      setIsDeleting(false);
     }
   };
 
@@ -111,37 +114,15 @@ export function AppointmentPage() {
         <Button type="button" onClick={() => void submit()} loading={isSubmitting}>
           일정 저장
         </Button>
-      </section>
-
-      <section style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12, background: "#fff", display: "grid", gap: 8 }}>
-        <input type="date" value={searchDate} onChange={(event) => setSearchDate(event.target.value)} />
-        <Button type="button" variant="secondary" onClick={() => void searchByDate()}>
-          날짜별 조회
-        </Button>
-        <Button type="button" variant="secondary" onClick={() => void fetchAll()}>
-          전체 조회
-        </Button>
+        {currentAppointment?.appointment_id ? (
+          <Button type="button" variant="danger" onClick={() => void remove()} loading={isDeleting}>
+            일정 삭제
+          </Button>
+        ) : null}
       </section>
 
       {isLoading ? <Loading /> : null}
-      {error ? <ErrorMessage message={error} onRetry={() => void fetchAll()} /> : null}
-      {!isLoading && !error && items.length === 0 ? <EmptyState message="등록된 진료 일정이 없습니다." /> : null}
-
-      {!isLoading && !error && items.length > 0 ? (
-        <section style={{ display: "grid", gap: 8 }}>
-          {items.map((item, index) => (
-            <article
-              key={`${item.appointment_id ?? "appointment"}-${index}`}
-              style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12, background: "#fff" }}
-            >
-              <strong>{item.hospital_name || "병원명 없음"}</strong>
-              <p style={{ margin: "6px 0 0", color: COLORS.placeholder }}>
-                {item.appointment_date} {item.appointment_time ?? ""}
-              </p>
-            </article>
-          ))}
-        </section>
-      ) : null}
+      {error ? <ErrorMessage message={error} onRetry={() => void fetchNext()} /> : null}
     </main>
   );
 }
