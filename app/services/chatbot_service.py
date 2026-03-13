@@ -3,8 +3,8 @@ import re
 
 from openai import AsyncOpenAI
 
-from app.services.persona_service import get_persona_prompt
 from app.services.kfda_service import KFDAClient
+from app.services.persona_service import get_persona_prompt
 from app.services.pill_service import PillIdentifier
 from app.services.rag_service import RAGService
 
@@ -113,7 +113,6 @@ class MedicationChatbot:
         pill_keywords = ["모르겠어", "무슨 약", "뭔지", "어떤 약", "알약", "모양", "색깔", "흰색", "노란색", "분홍색"]
         pill_context = ""
         if any(kw in user_message for kw in pill_keywords):
-            import re
             color_map = {"흰색": "하양", "하얀": "하양", "노란색": "노랑", "분홍색": "분홍", "파란색": "파랑"}
             shape_map = {"타원형": "타원형", "원형": "원형", "동그란": "원형", "장방형": "장방형"}
             color = next((v for k, v in color_map.items() if k in user_message), None)
@@ -146,7 +145,7 @@ class MedicationChatbot:
                 temperature=0.7,
                 max_tokens=600,
             )
-            answer = response.choices[0].message.content or "응답을 생성하지 못했습니다." 
+            answer = response.choices[0].message.content or "응답을 생성하지 못했습니다."
             return {
                 "answer": answer,
                 "warning_level": "Caution" if meds else "Normal",

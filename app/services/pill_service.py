@@ -1,6 +1,7 @@
 """낱알식별 API 서비스."""
 import logging
 import os
+
 import httpx
 
 logger = logging.getLogger("dodaktalk.pill")

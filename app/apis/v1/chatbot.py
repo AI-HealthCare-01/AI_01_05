@@ -98,10 +98,10 @@ async def get_chat_log(log_id: int) -> dict:
         "target_id": log_id,
         "messages": [
             {
-                "id": l.id,
-                "message_content": l.message_content,
-                "response_content": l.response_content,
+                "id": log.id,
+                "message_content": log.message_content,
+                "response_content": log.response_content,
             }
-            for l in all_logs
+            for log in all_logs
         ]
     }
