@@ -543,11 +543,17 @@ export default function MainPage() {
           <div
             ref={moodSwipeRef}
             className="swipeContainer"
-            style={swipeContainerStyle}
+            style={{
+              ...swipeContainerStyle,
+              overflowX: "auto",
+              overflowY: "visible",
+              paddingTop: 12,
+              paddingBottom: 12,
+            }}
             onScroll={updateMoodIndicator}
           >
             {TIME_SLOTS.map((slot) => (
-              <div key={slot.key} style={swipePageStyle}>
+              <div key={slot.key} style={{ ...swipePageStyle, overflowY: "visible" }}>
                 <h3 style={{ margin: "0 0 8px", fontSize: 14, lineHeight: 1.3, paddingTop: 2 }}>오늘의 {slot.label} 기분</h3>
 
                 <div style={{ display: "flex", gap: "6px", flexWrap: "nowrap", justifyContent: "center", width: "max-content", margin: "0 auto" }}>
