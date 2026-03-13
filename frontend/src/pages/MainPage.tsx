@@ -31,6 +31,13 @@ type MedicationUiItem = {
   itemImage: string | null;
 };
 
+type NextAppointmentUi = {
+  dDay: string;
+  hospitalName: string | null;
+  dateLabel: string;
+  timeLabel: string | null;
+};
+
 const TIME_SLOTS: Array<{ key: UiSlot; label: string }> = [
   { key: "morning", label: "아침" },
   { key: "lunch", label: "점심" },
@@ -157,6 +164,34 @@ function getCurrentUiSlot(): UiSlot {
   return "night";
 }
 
+function toDateLabel(appointmentDate: string): string {
+  const [year, month, day] = appointmentDate.split("-").map(Number);
+  if (!year || !month || !day) return "진료 일정";
+  return `${month}월 ${day}일`;
+}
+
+function toTimeLabel(appointmentTime: string | null): string | null {
+  if (!appointmentTime) return null;
+  const [hourText, minuteText] = appointmentTime.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+  const period = hour < 12 ? "오전" : "오후";
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${period} ${displayHour}:${String(minute).padStart(2, "0")}`;
+}
+
+function toDdayLabel(appointmentDate: string): string {
+  const [year, month, day] = appointmentDate.split("-").map(Number);
+  if (!year || !month || !day) return "D-day";
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const target = new Date(year, month - 1, day);
+  const diffDays = Math.floor((target.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays <= 0) return "D-day";
+  return `D-${diffDays}`;
+}
+
 export default function MainPage() {
   const navigate = useNavigate();
   const selectedCharacter = useAuthStore((s) => s.selectedCharacter);
@@ -166,7 +201,7 @@ export default function MainPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [nextAppointmentLabel, setNextAppointmentLabel] = useState("진료 없음");
+  const [nextAppointment, setNextAppointment] = useState<NextAppointmentUi | null>(null);
 
   const [todayMoods, setTodayMoods] = useState<MoodBySlot>({
     morning: null,
@@ -242,22 +277,21 @@ export default function MainPage() {
     try {
       const appointment = await getNextAppointment();
       if (appointment && appointment.appointment_date) {
-        const [year, month, day] = appointment.appointment_date.split("-").map(Number);
-        const hospital = appointment.hospital_name ?? "병원 미정";
-        if (year && month && day) {
-          setNextAppointmentLabel(`${month}월 ${day}일 · ${hospital}`);
-        } else {
-          setNextAppointmentLabel(`진료 일정 · ${hospital}`);
-        }
+        setNextAppointment({
+          dDay: toDdayLabel(appointment.appointment_date),
+          hospitalName: appointment.hospital_name ?? null,
+          dateLabel: toDateLabel(appointment.appointment_date),
+          timeLabel: toTimeLabel(appointment.appointment_time),
+        });
       } else {
-        setNextAppointmentLabel("진료 없음");
+        setNextAppointment(null);
       }
 
       await Promise.all([fetchTodayMoods(), fetchTodayMedications()]);
     } catch (fetchError) {
       const message = fetchError instanceof Error ? fetchError.message : "홈 데이터를 불러오지 못했습니다.";
       setError(message);
-      setNextAppointmentLabel("진료 없음");
+      setNextAppointment(null);
       setTodayMoods({ morning: null, lunch: null, dinner: null, night: null });
       setLatestMood(null);
       setTodayMedications([]);
@@ -459,9 +493,35 @@ export default function MainPage() {
           <button style={topButtonStyle} onClick={() => navigate("/diary")}>일기</button>
           <button
             style={{ ...topButtonStyle, fontSize: 16, background: "transparent", color: "#99A988", padding: 0 }}
-            onClick={() => navigate("/appointments")}
+            onClick={() => navigate("/appointments", { state: { mode: nextAppointment ? "edit" : "create" } })}
           >
-            {nextAppointmentLabel}
+            {nextAppointment ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <span
+                  style={{
+                    background: "#F0EDE3",
+                    color: "#7A7040",
+                    borderRadius: 999,
+                    padding: "2px 10px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {nextAppointment.dDay}
+                </span>
+                <span style={{ fontSize: 19, fontWeight: 500, lineHeight: 1.2, color: "#2C2C2C" }}>
+                  {nextAppointment.hospitalName ?? nextAppointment.dateLabel}
+                </span>
+                <span style={{ fontSize: 13, color: "#8A8A8A", lineHeight: 1.3 }}>
+                  {nextAppointment.hospitalName
+                    ? `${nextAppointment.dateLabel}${nextAppointment.timeLabel ? ` · ${nextAppointment.timeLabel}` : ""}`
+                    : nextAppointment.timeLabel ?? "시간 미정"}
+                </span>
+              </div>
+            ) : (
+              "진료 없음"
+            )}
           </button>
           <button style={topButtonStyle} onClick={() => navigate("/mypage")}>내 정보</button>
         </div>
