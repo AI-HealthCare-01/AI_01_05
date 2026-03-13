@@ -23,6 +23,12 @@ logger = setup_logger(__name__)
 
 
 class AuthService:
+    """인증/회원가입 유스케이스 오케스트레이션 레이어.
+
+    Router에서는 입출력(HTTP)만 처리하고,
+    실제 인증 절차(카카오 연동, 중복 검사, 토큰 발급)는 이 서비스에서 담당한다.
+    """
+
     def __init__(
         self,
         user_repo: Annotated[UserRepository, Depends(UserRepository)],
@@ -94,10 +100,12 @@ class AuthService:
                 ) from e
 
     async def process_kakao_login(self, code: str) -> KakaoLoginResponse:
+        # 1) 카카오 인가코드로 사용자 식별 정보 조회
         kakao_user_data = await self._fetch_kakao_user_data(code)
         kakao_id = str(kakao_user_data.get("id"))
         nickname = kakao_user_data.get("kakao_account", {}).get("profile", {}).get("nickname")
 
+        # 2) 기존 회원이면 즉시 로그인 토큰 발급
         user = await self.user_repo.get_user_by_kakao_id(kakao_id)
         if user:
             tokens = await self.login(user)
@@ -106,6 +114,7 @@ class AuthService:
                 access_token=str(tokens["access_token"]),
                 refresh_token=str(tokens["refresh_token"]),
             )
+        # 3) 신규 회원이면 임시 회원가입 토큰 발급
         temp_token = self.jwt_service.create_temp_token({"kakao_id": kakao_id})
         return KakaoLoginResponse(
             is_new_user=True,
@@ -114,6 +123,7 @@ class AuthService:
         )
 
     async def complete_kakao_signup(self, request: KakaoSignUpRequest, temp_token: str) -> LoginResponse:
+        # 1) 임시 토큰 검증 후 카카오 ID 복원
         verified_temp_token = self.jwt_service.verify_jwt(temp_token, "temp")
 
         try:
