@@ -1,15 +1,15 @@
 import asyncio
 import csv
-import logging
 from pathlib import Path
 
 from tortoise import Tortoise
 
+from app.core.logger import setup_logger
 from app.db.databases import TORTOISE_ORM
 from app.models.medicine import Medicine
 from app.services.medicine_service import MedicineService
 
-logger = logging.getLogger(__name__)
+logger = setup_logger("seed_medicines")
 
 _NULL_VALUES = {"-", ""}
 _CHUNK_SIZE = 1_000
@@ -121,7 +121,6 @@ async def _upsert_chunk(rows: list[dict]) -> None:
 
 
 async def seed() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
     await Tortoise.init(config=TORTOISE_ORM)
 
     loader = MedicineCsvLoader()
