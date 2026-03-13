@@ -7,6 +7,16 @@ import { ErrorMessage } from "../components/ErrorMessage";
 import { Loading } from "../components/Loading";
 import { COLORS } from "../constants/theme";
 
+function normalizeDateForInput(value: string | null | undefined): string {
+  if (!value) return "";
+  return value.slice(0, 10);
+}
+
+function normalizeTimeForInput(value: string | null | undefined): string {
+  if (!value) return "";
+  return value.slice(0, 5);
+}
+
 export function AppointmentPage() {
   const navigate = useNavigate();
   const params = useParams<{ appointmentId: string }>();
@@ -29,16 +39,16 @@ export function AppointmentPage() {
       if (stateAppointment && String(stateAppointment.appointment_id) === params.appointmentId) {
         setCurrentAppointment(stateAppointment);
         setHospitalName(stateAppointment.hospital_name ?? "");
-        setAppointmentDate(stateAppointment.appointment_date ?? "");
-        setAppointmentTime(stateAppointment.appointment_time ?? "");
+        setAppointmentDate(normalizeDateForInput(stateAppointment.appointment_date));
+        setAppointmentTime(normalizeTimeForInput(stateAppointment.appointment_time));
         return;
       }
       const list = await getAppointments();
       const result = (list?.appointments ?? []).find((item) => String(item.appointment_id) === params.appointmentId) ?? null;
       setCurrentAppointment(result);
       setHospitalName(result?.hospital_name ?? "");
-      setAppointmentDate(result?.appointment_date ?? "");
-      setAppointmentTime(result?.appointment_time ?? "");
+      setAppointmentDate(normalizeDateForInput(result?.appointment_date));
+      setAppointmentTime(normalizeTimeForInput(result?.appointment_time));
     } catch {
       setError("진료 일정을 불러오지 못했습니다.");
     } finally {
@@ -66,7 +76,7 @@ export function AppointmentPage() {
       setIsSubmitting(true);
       setError(null);
       const payload = {
-        hospital_name: hospitalName,
+        hospital_name: hospitalName.trim() || null,
         appointment_date: appointmentDate,
         appointment_time: appointmentTime || null,
       };
