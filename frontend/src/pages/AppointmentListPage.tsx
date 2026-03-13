@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { deleteAppointment, getAppointments, type AppointmentItem } from "../api/appointments";
+import { deleteAppointment, getAppointments, type AppointmentItem, updateAppointment } from "../api/appointments";
 import { Button } from "../components/Button";
 import { ErrorMessage } from "../components/ErrorMessage";
 import { Loading } from "../components/Loading";
@@ -24,6 +24,16 @@ function toTimeLabel(appointmentTime: string | null): string | null {
   return `${period} ${displayHour}:${String(minute).padStart(2, "0")}`;
 }
 
+function normalizeDateForInput(value: string | null | undefined): string {
+  if (!value) return "";
+  return value.slice(0, 10);
+}
+
+function normalizeTimeForInput(value: string | null | undefined): string {
+  if (!value) return "";
+  return value.slice(0, 5);
+}
+
 function toDdayLabel(appointmentDate: string): string {
   const [year, month, day] = appointmentDate.split("-").map(Number);
   if (!year || !month || !day) return "D-day";
@@ -40,6 +50,11 @@ export function AppointmentListPage() {
   const [items, setItems] = useState<AppointmentItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [savingId, setSavingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editHospitalName, setEditHospitalName] = useState("");
+  const [editAppointmentDate, setEditAppointmentDate] = useState("");
+  const [editAppointmentTime, setEditAppointmentTime] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const fetchAppointments = async () => {
@@ -78,6 +93,42 @@ export function AppointmentListPage() {
       setError("진료 일정 삭제에 실패했습니다.");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const startEdit = (item: AppointmentItem) => {
+    setEditingId(item.appointment_id);
+    setEditHospitalName(item.hospital_name ?? "");
+    setEditAppointmentDate(normalizeDateForInput(item.appointment_date));
+    setEditAppointmentTime(normalizeTimeForInput(item.appointment_time));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditHospitalName("");
+    setEditAppointmentDate("");
+    setEditAppointmentTime("");
+  };
+
+  const submitEdit = async (item: AppointmentItem) => {
+    if (!editAppointmentDate) {
+      setError("진료 날짜를 입력해주세요.");
+      return;
+    }
+    try {
+      setSavingId(item.appointment_id);
+      setError(null);
+      await updateAppointment(item.appointment_id, {
+        hospital_name: editHospitalName.trim() || null,
+        appointment_date: editAppointmentDate,
+        appointment_time: editAppointmentTime || null,
+      });
+      await fetchAppointments();
+      cancelEdit();
+    } catch {
+      setError("진료 일정 저장에 실패했습니다.");
+    } finally {
+      setSavingId(null);
     }
   };
 
@@ -125,7 +176,14 @@ export function AppointmentListPage() {
           return (
             <section
               key={item.appointment_id}
-              style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12, background: "#fff", display: "grid", gap: 6 }}
+              style={{
+                border: editingId === item.appointment_id ? "2px solid #99A988" : "1px solid #ddd",
+                borderRadius: 10,
+                padding: 12,
+                background: "#fff",
+                display: "grid",
+                gap: 6,
+              }}
             >
               <span
                 style={{
@@ -150,7 +208,7 @@ export function AppointmentListPage() {
               <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
                 <button
                   type="button"
-                  onClick={() => navigate(`/appointments/${item.appointment_id}/edit`, { state: { appointment: item } })}
+                  onClick={() => startEdit(item)}
                   style={{
                     background: "none",
                     border: "none",
@@ -166,7 +224,7 @@ export function AppointmentListPage() {
                 <button
                   type="button"
                   onClick={() => void remove(item)}
-                  disabled={deletingId === item.appointment_id}
+                  disabled={deletingId === item.appointment_id || savingId === item.appointment_id}
                   style={{
                     background: "none",
                     border: "none",
@@ -181,6 +239,33 @@ export function AppointmentListPage() {
                   {deletingId === item.appointment_id ? "삭제 중..." : "삭제"}
                 </button>
               </div>
+              {editingId === item.appointment_id ? (
+                <div style={{ marginTop: 8, paddingTop: 10, borderTop: "1px solid #E8E8E8", display: "grid", gap: 8 }}>
+                  <input
+                    value={editHospitalName}
+                    onChange={(event) => setEditHospitalName(event.target.value)}
+                    placeholder="병원명"
+                  />
+                  <input
+                    type="date"
+                    value={editAppointmentDate}
+                    onChange={(event) => setEditAppointmentDate(event.target.value)}
+                  />
+                  <input
+                    type="time"
+                    value={editAppointmentTime}
+                    onChange={(event) => setEditAppointmentTime(event.target.value)}
+                  />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Button type="button" variant="secondary" onClick={cancelEdit} disabled={savingId === item.appointment_id}>
+                      취소
+                    </Button>
+                    <Button type="button" onClick={() => void submitEdit(item)} loading={savingId === item.appointment_id}>
+                      확인
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </section>
           );
         })}
