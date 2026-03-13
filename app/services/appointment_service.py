@@ -12,7 +12,6 @@ class AppointmentService:
         user: User,
         appointment_date: date | None,
         hospital_name: str | None,
-        notes: str | None,
         appointment_time: time | None = None,
     ) -> Appointment:
         return await Appointment.create(
@@ -20,7 +19,6 @@ class AppointmentService:
             appointment_date=appointment_date,
             appointment_time=appointment_time,
             hospital_name=hospital_name,
-            notes=notes,
         )
 
     async def get_appointments(self, user: User) -> list[Appointment]:
@@ -39,7 +37,6 @@ class AppointmentService:
         appointment_id: int,
         appointment_date: date | None,
         hospital_name: str | None,
-        notes: str | None,
         appointment_time: time | None = None,
     ) -> Appointment:
         appt = await Appointment.get_or_none(appointment_id=appointment_id, user_id=user.user_id)
@@ -52,8 +49,6 @@ class AppointmentService:
             update["appointment_time"] = appointment_time
         if hospital_name is not None:
             update["hospital_name"] = hospital_name
-        if notes is not None:
-            update["notes"] = notes
         if update:
             await Appointment.filter(appointment_id=appointment_id).update(**update)
             await appt.refresh_from_db()

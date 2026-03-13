@@ -9,14 +9,12 @@ class AppointmentCreateRequest(BaseModel):
     appointment_date: date | None = None
     appointment_time: time | None = None
     hospital_name: str | None = None
-    notes: str | None = None
 
 
 class AppointmentUpdateRequest(BaseModel):
     appointment_date: date | None = None
     appointment_time: time | None = None
     hospital_name: str | None = None
-    notes: str | None = None
 
 
 class AppointmentResponse(BaseSerializerModel):
@@ -24,7 +22,6 @@ class AppointmentResponse(BaseSerializerModel):
     appointment_date: date | None
     appointment_time: time | None
     hospital_name: str | None
-    notes: str | None
     created_at: datetime
 
 
