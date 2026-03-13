@@ -24,7 +24,7 @@ async def create_appointment(
     user: Annotated[User, Depends(get_request_user)],
     service: Annotated[AppointmentService, Depends(AppointmentService)],
 ) -> Response:
-    appt = await service.create_appointment(user, body.appointment_date, body.hospital_name, body.notes)
+    appt = await service.create_appointment(user, body.appointment_date, body.hospital_name, body.appointment_time)
     return Response(AppointmentResponse.model_validate(appt).model_dump(), status_code=status.HTTP_201_CREATED)
 
 
@@ -62,7 +62,13 @@ async def update_appointment(
     user: Annotated[User, Depends(get_request_user)],
     service: Annotated[AppointmentService, Depends(AppointmentService)],
 ) -> Response:
-    appt = await service.update_appointment(user, appointment_id, body.appointment_date, body.hospital_name, body.notes)
+    appt = await service.update_appointment(
+        user,
+        appointment_id,
+        body.appointment_date,
+        body.hospital_name,
+        body.appointment_time,
+    )
     return Response(AppointmentResponse.model_validate(appt).model_dump())
 
 
