@@ -28,6 +28,7 @@ class HomeMedicationSaveRequest(BaseModel):
 
 class HomeMedicationCheckRequest(BaseModel):
     is_taken: bool = Field(alias="isTaken")
+    time_slot: str = Field(alias="timeSlot")
 
 
 def _normalize_time_slot(value: str) -> str:
@@ -161,12 +162,16 @@ async def patch_home_medication_check(
     today_str = date.today().isoformat()
     check_store = memory_db.home_medication_checks.setdefault(user.user_id, {})
 
-    for slot in med.time_slots:
-        check_key = f"{medication_id}:{slot}:{today_str}"
-        check_store[check_key] = {
-            "isTaken": request.is_taken,
-            "takenAt": datetime.now().isoformat() if request.is_taken else None,
-        }
+    try:
+        slot = _normalize_time_slot(request.time_slot)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="INVALID_TIME_SLOT") from None
+
+    check_key = f"{medication_id}:{slot}:{today_str}"
+    check_store[check_key] = {
+        "isTaken": request.is_taken,
+        "takenAt": datetime.now().isoformat() if request.is_taken else None,
+    }
 
     return {
         "medicationId": medication_id,
