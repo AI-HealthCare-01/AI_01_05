@@ -10,9 +10,9 @@ from app.services.medicine_service import MedicineService
 
 class TestMedicineCsvLoaderUnit:
     def test_normalize_null_values(self):
-        from scripts.seed_medicines import MedicineCsvLoader
+        from scripts.seed_medicines import MedicineDataLoader
 
-        clean = MedicineCsvLoader._clean
+        clean = MedicineDataLoader._clean
         assert clean("-") is None
         assert clean("") is None
         assert clean("  ") is None
@@ -20,7 +20,7 @@ class TestMedicineCsvLoaderUnit:
         assert clean("  타이레놀  ") == "타이레놀"
 
     def test_search_keyword_matches_service_normalize(self):
-        from scripts.seed_medicines import MedicineCsvLoader
+        from scripts.seed_medicines import MedicineDataLoader
 
         names = [
             "타이레놀정500밀리그램",
@@ -29,10 +29,10 @@ class TestMedicineCsvLoaderUnit:
             "세티리진염산염10mg정",
         ]
         for name in names:
-            assert MedicineCsvLoader._make_search_keyword(name) == MedicineService._normalize_keyword(name)
+            assert MedicineDataLoader._make_search_keyword(name) == MedicineService._normalize_keyword(name)
 
     def test_full_outer_join_preserves_easy_only_records(self):
-        from scripts.seed_medicines import MedicineCsvLoader
+        from scripts.seed_medicines import MedicineDataLoader
 
         pot = {
             "001": {"item_seq": "001", "item_name": "약A", "entp_name": "회사A"},
@@ -41,19 +41,19 @@ class TestMedicineCsvLoaderUnit:
             "001": {"efcy_qesitm": "효능A", "use_method_qesitm": "사용법A", "item_name": "약A", "entp_name": "회사A"},
             "002": {"efcy_qesitm": "효능B", "use_method_qesitm": "사용법B", "item_name": "약B", "entp_name": "회사B"},
         }
-        result = MedicineCsvLoader._merge(pot, easy)
+        result = MedicineDataLoader._merge(pot, easy)
         seqs = {r["item_seq"] for r in result}
         assert "001" in seqs
         assert "002" in seqs  # EasyExcel에만 있는 레코드 보존
 
     def test_merge_prefers_pot_image_over_easy(self):
-        from scripts.seed_medicines import MedicineCsvLoader
+        from scripts.seed_medicines import MedicineDataLoader
 
         pot = {"001": {"item_seq": "001", "item_name": "약A", "entp_name": "회사A", "item_image": "https://pot.img"}}
         easy = {
             "001": {"item_name": "약A", "entp_name": "회사A", "item_image": "https://easy.img", "efcy_qesitm": "효능"}
         }
-        result = MedicineCsvLoader._merge(pot, easy)
+        result = MedicineDataLoader._merge(pot, easy)
         assert result[0]["item_image"] == "https://pot.img"
 
 
