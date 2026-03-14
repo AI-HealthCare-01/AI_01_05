@@ -4,8 +4,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from app.core import memory_db
 from app.dependencies.security import get_request_user
-from app.models.medication import MedicationLog
 from app.models.medicine import Medicine
 from app.models.mood import Mood
 from app.models.user_medication import UserMedication
@@ -98,20 +98,15 @@ async def get_home_medications_today(user: Annotated[User, Depends(get_request_u
         med for med in active_meds if med.start_date <= today <= med.start_date + timedelta(days=med.total_days - 1)
     ]
 
-    logs = {
-        log.prescription_id: log
-        for log in await MedicationLog.filter(
-            user_id=user.user_id,
-            log_date=today,
-            prescription_id__in=[med.medication_id for med in today_meds],
-        )
-    }
+    check_store = memory_db.home_medication_checks.get(user.user_id, {})
+    today_str = today.isoformat()
 
     response_items = []
     for med in today_meds:
         medicine = med.medicine
         for slot in med.time_slots:
-            log = logs.get(med.medication_id)
+            check_key = f"{med.medication_id}:{slot}:{today_str}"
+            check_info = check_store.get(check_key, {})
             response_items.append(
                 {
                     "medicationId": med.medication_id,
@@ -119,14 +114,14 @@ async def get_home_medications_today(user: Annotated[User, Depends(get_request_u
                     "name": medicine.item_name,
                     "timeSlot": slot,
                     "dosePerIntake": float(med.dose_per_intake),
-                    "isTaken": log.is_taken if log else False,
-                    "takenAt": log.taken_at.isoformat() if log and log.taken_at else None,
+                    "isTaken": check_info.get("isTaken", False),
+                    "takenAt": check_info.get("takenAt"),
                     "itemImage": medicine.item_image,
                 }
             )
 
     remaining_count = len([item for item in response_items if not item["isTaken"]])
-    return {"date": today.isoformat(), "items": response_items, "remainingCount": remaining_count}
+    return {"date": today_str, "items": response_items, "remainingCount": remaining_count}
 
 
 @router.post("/medications/today")
@@ -163,19 +158,19 @@ async def patch_home_medication_check(
     if not med:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="MEDICATION_NOT_FOUND")
 
-    today = date.today()
-    log, _ = await MedicationLog.get_or_create(
-        prescription_id=medication_id,
-        user_id=user.user_id,
-        log_date=today,
-        defaults={"is_taken": False},
-    )
-    log.is_taken = request.is_taken
-    log.taken_at = datetime.now() if request.is_taken else None
-    await log.save(update_fields=["is_taken", "taken_at", "updated_at"])
+    today_str = date.today().isoformat()
+    check_store = memory_db.home_medication_checks.setdefault(user.user_id, {})
+
+    for slot in med.time_slots:
+        check_key = f"{medication_id}:{slot}:{today_str}"
+        check_store[check_key] = {
+            "isTaken": request.is_taken,
+            "takenAt": datetime.now().isoformat() if request.is_taken else None,
+        }
+
     return {
         "medicationId": medication_id,
-        "isTaken": log.is_taken,
-        "takenAt": log.taken_at.isoformat() if log.taken_at else None,
+        "isTaken": request.is_taken,
+        "takenAt": datetime.now().isoformat() if request.is_taken else None,
         "message": "복약 상태가 변경되었습니다.",
     }
