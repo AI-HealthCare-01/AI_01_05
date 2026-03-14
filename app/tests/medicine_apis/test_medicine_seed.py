@@ -41,10 +41,10 @@ class TestMedicineCsvLoaderUnit:
             "001": {"efcy_qesitm": "효능A", "use_method_qesitm": "사용법A", "item_name": "약A", "entp_name": "회사A"},
             "002": {"efcy_qesitm": "효능B", "use_method_qesitm": "사용법B", "item_name": "약B", "entp_name": "회사B"},
         }
-        result = MedicineDataLoader._merge(pot, easy)
+        result = MedicineDataLoader._merge(pot, easy, {})
         seqs = {r["item_seq"] for r in result}
         assert "001" in seqs
-        assert "002" in seqs  # EasyExcel에만 있는 레코드 보존
+        assert "002" in seqs
 
     def test_merge_prefers_pot_image_over_easy(self):
         from scripts.seed_medicines import MedicineDataLoader
@@ -53,8 +53,30 @@ class TestMedicineCsvLoaderUnit:
         easy = {
             "001": {"item_name": "약A", "entp_name": "회사A", "item_image": "https://easy.img", "efcy_qesitm": "효능"}
         }
-        result = MedicineDataLoader._merge(pot, easy)
+        result = MedicineDataLoader._merge(pot, easy, {})
         assert result[0]["item_image"] == "https://pot.img"
+
+    def test_merge_includes_permit_only_records(self):
+        from scripts.seed_medicines import MedicineDataLoader
+
+        pot = {"001": {"item_seq": "001", "item_name": "약A", "entp_name": "회사A"}}
+        easy = {}
+        permit = {"002": {"item_seq": "002", "item_name": "크림약B", "entp_name": "회사B"}}
+        result = MedicineDataLoader._merge(pot, easy, permit)
+        seqs = {r["item_seq"] for r in result}
+        assert "001" in seqs
+        assert "002" in seqs
+
+    def test_merge_pot_easy_takes_priority_over_permit(self):
+        from scripts.seed_medicines import MedicineDataLoader
+
+        pot = {"001": {"item_seq": "001", "item_name": "낱알약A", "entp_name": "회사A"}}
+        easy = {"001": {"item_name": "낱알약A", "entp_name": "회사A", "efcy_qesitm": "효능A"}}
+        permit = {"001": {"item_seq": "001", "item_name": "허가약A", "entp_name": "허가회사"}}
+        result = MedicineDataLoader._merge(pot, easy, permit)
+        record = result[0]
+        assert record["item_name"] == "낱알약A"
+        assert record["entp_name"] == "회사A"
 
 
 # ---------------------------------------------------------------------------
