@@ -35,7 +35,7 @@ _UPDATE_FIELDS = [
 ]
 
 
-class MedicineCsvLoader:
+class MedicineDataLoader:
     def __init__(self, pot_path: Path = _POT_PATH, easy_path: Path = _EASY_PATH) -> None:
         self._pot_path = pot_path
         self._easy_path = easy_path
@@ -99,7 +99,7 @@ class MedicineCsvLoader:
                 "efcy_qesitm": e.get("efcy_qesitm"),
                 "use_method_qesitm": e.get("use_method_qesitm"),
                 "item_image": p.get("item_image") or e.get("item_image"),
-                "search_keyword": MedicineCsvLoader._make_search_keyword(item_name),
+                "search_keyword": MedicineDataLoader._make_search_keyword(item_name),
             }
             result.append(record)
         return result
@@ -132,7 +132,7 @@ async def seed(db_host: str | None = None) -> None:
 
     await Tortoise.init(config=config)
 
-    loader = MedicineCsvLoader()
+    loader = MedicineDataLoader()
     rows = loader.load()
     total = len(rows)
     logger.info("총 %d건 적재 시작", total)
