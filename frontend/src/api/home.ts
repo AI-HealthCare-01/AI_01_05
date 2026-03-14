@@ -88,9 +88,9 @@ export function postHomeMedicationToday(payload: HomeCreateMedicationRequest) {
   });
 }
 
-export function patchHomeMedicationCheck(medicationId: number, isTaken: boolean) {
+export function patchHomeMedicationCheck(medicationId: number, isTaken: boolean, timeSlot: string) {
   return apiRequest<HomePatchMedicationResponse>(`/home/medications/today/${medicationId}/check`, {
     method: "PATCH",
-    body: JSON.stringify({ isTaken }),
+    body: JSON.stringify({ isTaken, timeSlot }),
   });
 }
