@@ -6,9 +6,9 @@ Design spec: chat-core.design.md §8.2
 
 import pytest
 
-from ai_worker.tasks.chatbot_engine import DISCLAIMER, SYSTEM_PERSONA
-from ai_worker.tasks.kfda_client import KFDAClient
-from ai_worker.tasks.rag_service import RAGService
+from app.services.chatbot_service import DISCLAIMER, SYSTEM_PERSONA
+from app.services.kfda_service import KFDAClient
+from app.services.rag_service import RAGService
 
 # ──────────────────────────────────────────────
 # SYSTEM_PERSONA 테스트 (FR-04)

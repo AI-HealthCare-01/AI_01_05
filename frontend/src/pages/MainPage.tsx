@@ -718,7 +718,8 @@ export default function MainPage() {
             <img
               src={characterImage}
               alt="선택 캐릭터"
-              style={{ width: 180, maxWidth: "70%", objectFit: "contain", margin: "0 auto", display: "block" }}
+              onClick={() => navigate("/chat")}
+              style={{ width: 180, maxWidth: "70%", objectFit: "contain", margin: "0 auto", display: "block", cursor: "pointer" }}
             />
           </div>
 

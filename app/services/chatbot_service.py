@@ -3,6 +3,11 @@ import re
 
 from openai import AsyncOpenAI
 
+from app.services.kfda_service import KFDAClient
+from app.services.persona_service import get_persona_prompt
+from app.services.pill_service import PillIdentifier
+from app.services.rag_service import RAGService
+
 CRISIS_KEYWORDS: dict[str, list[str]] = {
     "Direct": [
         "자살",
@@ -74,12 +79,17 @@ class MedicationChatbot:
             raise ValueError("OPENAI_API_KEY 환경 변수가 설정되지 않았습니다.")
         self.client = AsyncOpenAI(api_key=api_key)
         self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        self.kfda = KFDAClient()
+        self.pill = PillIdentifier()
+        self.rag = RAGService()
 
     async def get_response(
         self,
         user_message: str,
         meds: list[str],
+        med_dosages: list[str] | None = None,
         user_note: str | None = None,
+        character_id: int | None = None,
     ) -> dict:
         """사용자 메시지를 분석하여 응답을 생성합니다.
 
@@ -97,13 +107,30 @@ class MedicationChatbot:
             }
 
         # 2) 정상 흐름: OpenAI 호출
-        system_prompt = (
-            "당신은 전문 약사입니다. 사용자가 복용 중인 약물 리스트를 참고하여 "
-            "질문에 대해 의학적으로 정확하고 친절하게 답변하십시오. "
-            "위험한 조합이 있다면 반드시 경고하십시오."
-        )
+        system_prompt = get_persona_prompt(character_id)
+
+        # 낱알식별 키워드 감지
+        pill_keywords = ["모르겠어", "무슨 약", "뭔지", "어떤 약", "알약", "모양", "색깔", "흰색", "노란색", "분홍색"]
+        pill_context = ""
+        if any(kw in user_message for kw in pill_keywords):
+            color_map = {"흰색": "하양", "하얀": "하양", "노란색": "노랑", "분홍색": "분홍", "파란색": "파랑"}
+            shape_map = {"타원형": "타원형", "원형": "원형", "동그란": "원형", "장방형": "장방형"}
+            color = next((v for k, v in color_map.items() if k in user_message), None)
+            shape = next((v for k, v in shape_map.items() if k in user_message), None)
+            if color or shape:
+                pill_results = await self.pill.search(color=color, shape=shape)
+                if pill_results:
+                    pill_context = "\n[낱알식별 검색 결과]\n" + self.pill.format_results(pill_results)
+
+        # RAG 검색
+        rag_results = await self.rag.search(user_message)
+        rag_context = "\n".join(rag_results) if rag_results else ""
 
         user_content = f"복용 중인 약: {', '.join(meds) if meds else '없음'}"
+        if rag_context:
+            user_content += f"\n\n[의학 가이드라인]\n{rag_context}"
+        if pill_context:
+            user_content += pill_context
         if user_note:
             user_content += f"\n참고 사항: {user_note}"
         user_content += f"\n\n질문: {user_message}"
@@ -116,6 +143,7 @@ class MedicationChatbot:
                     {"role": "user", "content": user_content},
                 ],
                 temperature=0.7,
+                max_tokens=600,
             )
             answer = response.choices[0].message.content or "응답을 생성하지 못했습니다."
             return {
