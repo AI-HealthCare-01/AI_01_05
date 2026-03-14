@@ -31,7 +31,8 @@ export function ReportDetailPage() {
   }, [fetchReport]);
 
   return (
-    <main style={{ minHeight: "100vh", background: COLORS.background, padding: 16, display: "grid", gap: 12 }}>
+    <main style={{ minHeight: "100vh", background: COLORS.background, padding: 16, display: "flex", justifyContent: "center" }}>
+      <div style={{ width: "100%", maxWidth: 460, display: "grid", gap: 12, alignContent: "start" }}>
       <button
         onClick={() => navigate(-1)}
         style={{
@@ -41,7 +42,7 @@ export function ReportDetailPage() {
           fontSize: "15px",
           color: COLORS.subText,
           fontWeight: 600,
-          padding: "0 0 16px 0",
+          padding: "16px 0",
           display: "flex",
           alignItems: "center",
           gap: "4px",
@@ -68,6 +69,7 @@ export function ReportDetailPage() {
           <p style={{ margin: 0, fontSize: 12, color: COLORS.subText }}>리포트는 현재 생성/상세 조회만 지원합니다.</p>
         </section>
       ) : null}
+      </div>
     </main>
   );
 }
