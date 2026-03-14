@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import csv
+import re
 import sys
 import zipfile
 from pathlib import Path
@@ -38,6 +39,8 @@ _UPDATE_FIELDS = [
 ]
 
 _XLSX_NS = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+_EXPORT_NAME_RE = re.compile(r"[(（]?수출[명용][：:)）].*", flags=re.DOTALL)
+_MAX_ITEM_NAME_LEN = 255
 
 
 class MedicineDataLoader:
@@ -145,6 +148,7 @@ class MedicineDataLoader:
             e = easy.get(seq, {})
             pm = permit.get(seq, {})
             item_name = p.get("item_name") or e.get("item_name") or pm.get("item_name") or ""
+            item_name = MedicineDataLoader._trim_item_name(item_name)
             record: dict = {
                 "item_seq": seq,
                 "item_name": item_name,
@@ -165,6 +169,12 @@ class MedicineDataLoader:
     def _clean(value: str) -> str | None:
         v = value.strip()
         return None if v in _NULL_VALUES else v
+
+    @staticmethod
+    def _trim_item_name(value: str) -> str:
+        """수출명 제거 후 max_length 이내로 truncate."""
+        trimmed = _EXPORT_NAME_RE.sub("", value).strip()
+        return trimmed[:_MAX_ITEM_NAME_LEN]
 
     @staticmethod
     def _make_search_keyword(item_name: str) -> str | None:
