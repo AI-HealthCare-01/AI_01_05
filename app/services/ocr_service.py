@@ -128,17 +128,6 @@ class OcrService:
                         confidence="HIGH",
                     )
                 )
-            else:
-                items.append(
-                    OcrParsedItem(
-                        item_seq=None,
-                        item_name=cleaned,
-                        dose_per_intake=entry["dose_per_intake"],
-                        daily_frequency=entry["daily_frequency"],
-                        total_days=entry["total_days"],
-                        confidence="LOW",
-                    )
-                )
 
         return ParsedPrescriptionResponse(items=items, raw_text=raw_text)
 

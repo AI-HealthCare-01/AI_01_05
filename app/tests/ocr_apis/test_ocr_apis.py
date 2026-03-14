@@ -102,13 +102,37 @@ class TestOcrParseAPI(TestCase):
         assert result is not None
         assert result["item_seq"] == "OCR_MED001"
 
-    async def test_ocr_parse_prescription_no_match_returns_low_confidence(self):
-        """DB 매칭 실패 시 confidence LOW"""
+    async def test_verify_drug_returns_none_when_no_candidates(self):
+        """후보 없으면 None 반환"""
         from app.services.ocr_service import OcrService
 
         service = OcrService()
         result = service._verify_drug_with_mfds([], "존재하지않는약xyz")
         assert result is None
+
+    async def test_parse_prescription_excludes_unmatched_drugs(self):
+        """DB에 없는 약품명은 parse_prescription 결과에서 제외"""
+        from unittest.mock import AsyncMock, patch
+
+        from app.services.ocr_service import OcrService
+
+        await Medicine.create(
+            item_seq="FILTER_MED001",
+            item_name="아스피린정100밀리그램",
+            search_keyword="아스피린정",
+            is_active=True,
+        )
+        service = OcrService()
+        mock_text = "아스피린정 1.0 1 30\n약제비총액정 1.0 1 30"
+        with (
+            patch.object(service, "extract_text", new=AsyncMock(return_value=mock_text)),
+            patch.object(service, "_preprocess_image", return_value=b"fake"),
+            patch("app.services.ocr_service.config.OCR_PROVIDER", "http"),
+        ):
+            result = await service.parse_prescription(b"fake", "image/jpeg")
+        item_names = [item.item_name for item in result.items]
+        assert any("아스피린" in name for name in item_names)
+        assert not any("약제비총액" in name for name in item_names)
 
     async def test_ocr_parse_prescription_end_to_end_with_mock_ocr(self):
         """mock OCR 텍스트 → parse_prescription → items 반환 (DB 매칭 포함)"""
