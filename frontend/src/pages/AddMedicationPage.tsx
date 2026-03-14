@@ -7,6 +7,17 @@ import { COLORS } from "../constants/theme";
 import { useMedicationFlow } from "../store/MedicationFlowContext";
 import type { MedicineDraftItem } from "../types/medicine";
 
+const ocrLoadingKeyframes = `
+@keyframes ocrPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+@keyframes ocrProgress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+`;
+
 const cardStyle: CSSProperties = {
   background: COLORS.cardBg,
   borderRadius: 20,
@@ -401,6 +412,64 @@ export default function AddMedicationPage() {
             >
               취소
             </button>
+          </div>
+        </>
+      )}
+
+      {/* OCR 로딩 모달 오버레이 */}
+      {loading && (
+        <>
+          <style>{ocrLoadingKeyframes}</style>
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.5)",
+              zIndex: 300,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <div
+              style={{
+                background: COLORS.cardBg,
+                borderRadius: 24,
+                padding: "40px 32px",
+                width: "85%",
+                maxWidth: 320,
+                textAlign: "center",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+              }}
+            >
+              <div style={{ fontSize: 48, animation: "ocrPulse 1.5s ease-in-out infinite", marginBottom: 20 }}>💊</div>
+              <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.text, marginBottom: 16 }}>
+                약 정보를 인식하는 중입니다...
+              </div>
+              <div
+                style={{
+                  width: "100%",
+                  height: 4,
+                  background: COLORS.border,
+                  borderRadius: 2,
+                  overflow: "hidden",
+                  marginBottom: 16,
+                }}
+              >
+                <div
+                  style={{
+                    width: "40%",
+                    height: "100%",
+                    background: COLORS.button,
+                    borderRadius: 2,
+                    animation: "ocrProgress 1.2s ease-in-out infinite",
+                  }}
+                />
+              </div>
+              <div style={{ fontSize: 14, color: COLORS.subText, lineHeight: 1.5 }}>
+                처방전을 분석하고 있어요.<br />잠시만 기다려주세요.
+              </div>
+            </div>
           </div>
         </>
       )}
