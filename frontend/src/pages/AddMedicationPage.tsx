@@ -237,7 +237,7 @@ export default function AddMedicationPage() {
               {loading ? "약 정보를 인식하는 중입니다..." : "사진으로 간편하게 등록"}
             </div>
             <div style={{ fontSize: 13, color: COLORS.subText, marginTop: 2 }}>
-              {loading ? "잠시만 기다려주세요" : "약 봉투나 처방전을 촬영하세요"}
+              {loading ? "잠시만 기다려주세요" : "약 봉투를 촬영하여 등록하세요"}
             </div>
           </div>
         </div>
@@ -467,7 +467,7 @@ export default function AddMedicationPage() {
                 />
               </div>
               <div style={{ fontSize: 14, color: COLORS.subText, lineHeight: 1.5 }}>
-                처방전을 분석하고 있어요.<br />잠시만 기다려주세요.
+                약 봉투를 분석하고 있어요.<br />잠시만 기다려주세요.
               </div>
             </div>
           </div>
