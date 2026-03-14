@@ -6,6 +6,7 @@ class ChatRequest(BaseModel):
     message: str = Field(..., description="사용자 질문 메시지")
     medication_list: list[str] = Field(default_factory=list, description="복용 중인 약물 목록")
     user_note: str | None = Field(None, description="사용자 참고 사항")
+    character_id: int | None = Field(None, description="선택된 강아지 캐릭터 ID (1~4)")
 
 
 class ChatResponse(BaseModel):

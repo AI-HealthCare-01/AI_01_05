@@ -64,6 +64,8 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       };
     }
 
+    case "LOAD_HISTORY":
+      return { ...state, messages: action.payload, isLoading: false };
     case "SET_LOADING":
       return { ...state, isLoading: action.payload };
 

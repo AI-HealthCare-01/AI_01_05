@@ -45,6 +45,43 @@ class LlmService:
             return f"======= 리포트 요약 데이터 =======\n{summary}"
         return self._stub_report_summary(text=text, start_date=start_date, end_date=end_date)
 
+    async def summarize_chat_as_diary(self, conversation: str, entry_date: str) -> dict:
+        """챗봇 대화 내역을 일기 형식(title + content)으로 요약한다."""
+        provider = (config.LLM_PROVIDER or "stub").lower()
+        if provider == "stub":
+            return self._stub_diary_summary(conversation=conversation, entry_date=entry_date)
+        if provider == "openai":
+            prompt = (
+                "아래는 정신건강 관리 앱을 사용하는 사용자가 오늘 강아지 챗봇 약사와 나눈 대화야.\n"
+                "이 대화를 바탕으로 사용자의 오늘 하루를 일기 형식으로 따뜻하게 정리해줘.\n\n"
+                "반드시 아래 항목 중 대화에서 언급된 내용을 자연스럽게 포함해:\n"
+                "- 오늘의 기분 또는 감정 변화\n"
+                "- 복용 중인 약물이나 복약 관련 질문/걱정\n"
+                "- 부작용, 약물 상호작용 등 건강 관련 우려\n"
+                "- 사용자가 궁금해했거나 알게 된 점\n"
+                "- 전반적인 하루 컨디션이나 심리 상태\n\n"
+                "작성 규칙:\n"
+                "- 1인칭 일기체 (나는, 오늘은 등)\n"
+                "- 따뜻하고 공감적인 톤\n"
+                "- 3~5문장, 자연스럽고 읽기 편하게\n"
+                "- 제목은 오늘 하루를 대표하는 한 문장 (20자 이내)\n\n"
+                f"날짜: {entry_date}\n"
+                f"대화 내용:\n{conversation}\n\n"
+                '반드시 JSON 형식으로만 반환해줘 (마크다운 없이): {"title": "...", "content": "..."}'
+            )
+            raw = await self._openai_chat_completion(prompt)
+            import json
+
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                return {"title": "오늘의 기록", "content": raw}
+        return self._stub_diary_summary(conversation=conversation, entry_date=entry_date)
+
+    def _stub_diary_summary(self, conversation: str, entry_date: str) -> dict:
+        preview = conversation.replace("\n", " ")[:200]
+        return {"title": f"{entry_date} 대화 일기", "content": f"오늘 챗봇과 대화한 내용: {preview}"}
+
     async def generate_title(self, content: str) -> str:
         provider = (config.LLM_PROVIDER or "stub").lower()
         if provider == "stub":
