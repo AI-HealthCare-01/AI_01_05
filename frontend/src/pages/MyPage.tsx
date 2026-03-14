@@ -295,12 +295,13 @@ export function MyPage() {
   const fieldWrapStyle: React.CSSProperties = { display: "grid", gap: 4 };
 
   return (
-    <main style={{ background: COLORS.background, minHeight: "100vh", padding: 16, display: "grid", gap: 12, alignContent: "start" }}>
+    <main style={{ background: COLORS.background, minHeight: "100vh", padding: 16, display: "flex", justifyContent: "center" }}>
+      <div style={{ width: "100%", maxWidth: 460, display: "grid", gap: 12, alignContent: "start" }}>
       <button
         onClick={() => navigate(-1)}
         style={{
           background: "none", border: "none", cursor: "pointer", fontSize: 15,
-          color: COLORS.subText, fontWeight: 600, padding: "0 0 4px 0",
+          color: COLORS.subText, fontWeight: 600, padding: "16px 0",
           display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit",
         }}
       >
@@ -459,6 +460,7 @@ export function MyPage() {
         onConfirm={() => void handleDelete()}
         onClose={() => { if (!isDeleting) setShowDeleteModal(false); }}
       />
+      </div>
     </main>
   );
 }
