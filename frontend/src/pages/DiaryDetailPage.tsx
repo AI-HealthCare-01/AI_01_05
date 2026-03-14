@@ -96,7 +96,8 @@ export function DiaryDetailPage() {
   };
 
   return (
-    <main style={{ minHeight: "100vh", background: COLORS.background, padding: 16, display: "grid", gap: 12 }}>
+    <main style={{ minHeight: "100vh", background: COLORS.background, padding: 16, display: "flex", justifyContent: "center" }}>
+      <div style={{ width: "100%", maxWidth: 460, display: "grid", gap: 12, alignContent: "start" }}>
       <button
         onClick={() => navigate(-1)}
         style={{
@@ -106,7 +107,7 @@ export function DiaryDetailPage() {
           fontSize: "15px",
           color: COLORS.subText,
           fontWeight: 600,
-          padding: "0 0 16px 0",
+          padding: "16px 0",
           display: "flex",
           alignItems: "center",
           gap: "4px",
@@ -375,6 +376,7 @@ export function DiaryDetailPage() {
           </Button>
         </section>
       )}
+      </div>
     </main>
   );
 }

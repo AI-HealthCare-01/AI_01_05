@@ -91,11 +91,14 @@ export default function ChatPage() {
   };
 
   return (
+    <div style={{ display: "flex", justifyContent: "center", height: "100dvh", background: "#F5F5F5" }}>
     <div
       style={{
         display: "flex",
         flexDirection: "column",
         height: "100dvh",
+        width: "100%",
+        maxWidth: 460,
         background: "#F5F5F5",
       }}
     >
@@ -168,6 +171,7 @@ export default function ChatPage() {
         message={state.redAlertMessage}
         onClose={() => dispatch({ type: "HIDE_RED_ALERT" })}
       />
+    </div>
     </div>
   );
 }
