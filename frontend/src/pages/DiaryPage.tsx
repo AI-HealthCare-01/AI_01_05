@@ -151,18 +151,8 @@ export function DiaryPage() {
   const isFuture = selectedDate ? selectedDate > todayStr : false;
 
   return (
-    <main
-      style={{
-        background: COLORS.background,
-        minHeight: "100vh",
-        paddingTop: 8,
-        paddingLeft: 16,
-        paddingRight: 16,
-        paddingBottom: 16,
-        display: "grid",
-        gap: 12,
-      }}
-    >
+    <main style={{ background: COLORS.background, minHeight: "100vh", padding: 16, display: "flex", justifyContent: "center" }}>
+      <div style={{ width: "100%", maxWidth: 460, display: "grid", gap: 12, alignContent: "start" }}>
       <button
         onClick={() => navigate(-1)}
         style={{
@@ -172,7 +162,9 @@ export function DiaryPage() {
           fontSize: "15px",
           color: COLORS.subText,
           fontWeight: 600,
-          padding: "0 0 8px 0",
+          padding: "16px 0",
+          margin: "0",
+          lineHeight: 1,
           display: "flex",
           alignItems: "center",
           gap: "4px",
