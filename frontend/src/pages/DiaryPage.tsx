@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
+import { getAppointments, type AppointmentItem } from "../api/appointments";
 import { tokenStorage } from "../api/client";
 import { deleteDiaryEntry, getDiaryByDate, getDiaryCalendar, type DiaryCalendarResponse } from "../api/diary";
 import Button from "../components/Button";
@@ -21,6 +22,7 @@ export function DiaryPage() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [data, setData] = useState<DiaryCalendarResponse | null>(null);
+  const [appointmentDates, setAppointmentDates] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tokenInput, setTokenInput] = useState("");
@@ -43,6 +45,13 @@ export function DiaryPage() {
       setError(null);
       const result = await getDiaryCalendar(year, month);
       setData(result);
+      try {
+        const appointmentResult = await getAppointments();
+        const dates = (appointmentResult?.appointments ?? []).map((a: AppointmentItem) => a.appointment_date);
+        setAppointmentDates(dates);
+      } catch {
+        // 진료 데이터 실패해도 캘린더는 정상 동작
+      }
     } catch (err) {
       if (err instanceof Error && err.name === "SessionExpiredError") {
         setError("인증 토큰이 없거나 만료되었습니다. 아래에 access token을 입력해주세요.");
@@ -218,6 +227,7 @@ export function DiaryPage() {
             setSheetFull(false);
           }}
           onSelectDate={handleDateClick}
+          appointmentDates={appointmentDates}
           selectedDate={selectedDate ?? today.toISOString().slice(0, 10)}
         />
       ) : null}
