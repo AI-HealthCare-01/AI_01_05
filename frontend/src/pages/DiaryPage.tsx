@@ -294,14 +294,15 @@ export function DiaryPage() {
           <div
             style={{
               position: "fixed",
-              left: 0,
-              right: 0,
+              left: "50%",
+              transform: sheetOpen ? "translateX(-50%)" : "translateX(-50%) translateY(100%)",
               bottom: 0,
               zIndex: 40,
+              width: "100%",
+              maxWidth: 460,
               background: COLORS.cardBg,
               borderRadius: "20px 20px 0 0",
               boxShadow: "0 -4px 24px rgba(0,0,0,0.12)",
-              transform: sheetOpen ? "translateY(0)" : "translateY(100%)",
               transition: "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), max-height 0.3s ease",
               maxHeight: sheetFull ? "92vh" : "52vh",
               overflow: "hidden",
@@ -486,6 +487,7 @@ export function DiaryPage() {
           </div>
         </>
       ) : null}
+      </div>
     </main>
   );
 }

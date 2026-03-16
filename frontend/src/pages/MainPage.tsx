@@ -419,11 +419,11 @@ export default function MainPage() {
     }
   };
 
-  const handleMedicationToggle = async (medicationId: number, checked: boolean) => {
+  const handleMedicationToggle = async (medicationId: number, checked: boolean, timeSlot: UiSlot) => {
     try {
       setIsSavingMedication(true);
       setError("");
-      await patchHomeMedicationCheck(medicationId, !checked);
+      await patchHomeMedicationCheck(medicationId, !checked, uiToApiSlot(timeSlot));
       await fetchTodayMedications();
     } catch (patchError) {
       const message = patchError instanceof Error ? patchError.message : "복약 상태 변경에 실패했습니다.";
@@ -851,7 +851,7 @@ export default function MainPage() {
                     {medications.map((med) => (
                       <div key={med.id} style={{ marginBottom: "6px" }}>
                         <div
-                          onClick={() => handleMedicationToggle(med.medicationId, med.checked)}
+                          onClick={() => handleMedicationToggle(med.medicationId, med.checked, med.timeSlot)}
                           style={{
                             display: "flex",
                             alignItems: "center",
