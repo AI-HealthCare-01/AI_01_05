@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { postHomeMedicationToday, type MedicationTimeSlot } from "../api/home";
+import { addUserMedication } from "../api/medicines";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/CommonUI";
 import { COLORS } from "../constants/theme";
@@ -39,18 +39,6 @@ const DEFAULT_TIME_SLOTS: Record<number, string[]> = {
   3: ["MORNING", "LUNCH", "EVENING"],
 };
 
-const TIME_SLOT_TO_API: Record<string, MedicationTimeSlot> = {
-  MORNING: "MORNING",
-  LUNCH: "LUNCH",
-  EVENING: "EVENING",
-  BEDTIME: "BEDTIME",
-  아침: "MORNING",
-  점심: "LUNCH",
-  저녁: "EVENING",
-  자기전: "BEDTIME",
-  OTHER: "MORNING",
-  기타: "MORNING",
-};
 
 const cardStyle: CSSProperties = {
   background: COLORS.cardBg,
@@ -315,22 +303,11 @@ export default function MedicineConfirmPage() {
     for (let i = 0; i < medicinesDraft.length; i++) {
       try {
         const current = medicinesDraft[i];
-        const mappedSlots = current.time_slots
-          .map((slot) => TIME_SLOT_TO_API[slot])
-          .filter((slot): slot is MedicationTimeSlot => slot !== undefined);
-
-        if (mappedSlots.length === 0) {
+        if (current.time_slots.length === 0) {
           nextErrors[i] = `${current.item_name} 복용시간을 선택해주세요`;
           continue;
         }
-
-        for (const slot of mappedSlots) {
-          await postHomeMedicationToday({
-            name: current.item_name,
-            timeSlot: slot,
-            dosage: current.dose_per_intake,
-          });
-        }
+        await addUserMedication(current);
       } catch {
         nextErrors[i] = `${medicinesDraft[i].item_name} 저장 실패`;
       }

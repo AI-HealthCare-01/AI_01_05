@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,6 +8,7 @@ from app.core import memory_db
 from app.dependencies.security import get_request_user
 from app.models.medicine import Medicine
 from app.models.mood import Mood
+from app.models.user_medication import UserMedication
 from app.models.users import User
 
 router = APIRouter(prefix="/home", tags=["home"])
@@ -27,6 +28,7 @@ class HomeMedicationSaveRequest(BaseModel):
 
 class HomeMedicationCheckRequest(BaseModel):
     is_taken: bool = Field(alias="isTaken")
+    time_slot: str = Field(alias="timeSlot")
 
 
 def _normalize_time_slot(value: str) -> str:
@@ -91,28 +93,36 @@ async def post_home_mood_today(
 
 @router.get("/medications/today")
 async def get_home_medications_today(user: Annotated[User, Depends(get_request_user)]):
-    today = date.today().isoformat()
-    items = memory_db.fake_home_medications.get(user.user_id, [])
-    today_items = [item for item in items if item["date"] == today]
-    name_to_image = {
-        med.item_name: med.item_image
-        for med in await Medicine.filter(item_name__in=[item["name"] for item in today_items]).all()
-    }
-    response_items = [
-        {
-            "medicationId": item["medicationId"],
-            "itemSeq": item["itemSeq"],
-            "name": item["name"],
-            "timeSlot": item["timeSlot"],
-            "dosePerIntake": item["dosePerIntake"],
-            "isTaken": item["isTaken"],
-            "takenAt": item["takenAt"],
-            "itemImage": item.get("itemImage", name_to_image.get(item["name"])),
-        }
-        for item in today_items
+    today = date.today()
+    active_meds = await UserMedication.filter(user_id=user.user_id, status="ACTIVE").prefetch_related("medicine")
+    today_meds = [
+        med for med in active_meds if med.start_date <= today <= med.start_date + timedelta(days=med.total_days - 1)
     ]
-    remaining_count = len([item for item in today_items if not item["isTaken"]])
-    return {"date": today, "items": response_items, "remainingCount": remaining_count}
+
+    check_store = memory_db.home_medication_checks.get(user.user_id, {})
+    today_str = today.isoformat()
+
+    response_items = []
+    for med in today_meds:
+        medicine = med.medicine
+        for slot in med.time_slots:
+            check_key = f"{med.medication_id}:{slot}:{today_str}"
+            check_info = check_store.get(check_key, {})
+            response_items.append(
+                {
+                    "medicationId": med.medication_id,
+                    "itemSeq": medicine.item_seq,
+                    "name": medicine.item_name,
+                    "timeSlot": slot,
+                    "dosePerIntake": float(med.dose_per_intake),
+                    "isTaken": check_info.get("isTaken", False),
+                    "takenAt": check_info.get("takenAt"),
+                    "itemImage": medicine.item_image,
+                }
+            )
+
+    remaining_count = len([item for item in response_items if not item["isTaken"]])
+    return {"date": today_str, "items": response_items, "remainingCount": remaining_count}
 
 
 @router.post("/medications/today")
@@ -124,23 +134,19 @@ async def post_home_medication_today(
         slot = _normalize_time_slot(request.time_slot)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="INVALID_TIME_SLOT") from None
-    medication_id = memory_db.home_medication_sequence
-    memory_db.home_medication_sequence += 1
     medicine = await Medicine.get_or_none(item_name=request.name)
-    new_item = {
-        "date": date.today().isoformat(),
-        "medicationId": medication_id,
-        "itemSeq": str(medication_id),
-        "name": request.name,
-        "timeSlot": slot,
-        "dosePerIntake": request.dosage,
-        "isTaken": False,
-        "takenAt": None,
-        "itemImage": medicine.item_image if medicine else None,
-    }
-    user_items = memory_db.fake_home_medications.setdefault(user.user_id, [])
-    user_items.append(new_item)
-    return {"medicationId": medication_id, "message": "복약 항목이 추가되었습니다."}
+    if not medicine:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="MEDICINE_NOT_FOUND")
+    med = await UserMedication.create(
+        user_id=user.user_id,
+        medicine_id=medicine.item_seq,
+        dose_per_intake=request.dosage,
+        daily_frequency=1,
+        total_days=1,
+        start_date=date.today(),
+        time_slots=[slot],
+    )
+    return {"medicationId": med.medication_id, "message": "복약 항목이 추가되었습니다."}
 
 
 @router.patch("/medications/today/{medication_id}/check")
@@ -149,16 +155,27 @@ async def patch_home_medication_check(
     request: HomeMedicationCheckRequest,
     user: Annotated[User, Depends(get_request_user)],
 ):
-    items = memory_db.fake_home_medications.get(user.user_id, [])
-    target = next((item for item in items if item["medicationId"] == medication_id), None)
-    if target is None:
-        return {"medicationId": medication_id, "isTaken": False, "takenAt": None, "message": "복약 항목이 없습니다."}
+    med = await UserMedication.get_or_none(medication_id=medication_id, user_id=user.user_id)
+    if not med:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="MEDICATION_NOT_FOUND")
 
-    target["isTaken"] = request.is_taken
-    target["takenAt"] = datetime.now().isoformat() if request.is_taken else None
+    today_str = date.today().isoformat()
+    check_store = memory_db.home_medication_checks.setdefault(user.user_id, {})
+
+    try:
+        slot = _normalize_time_slot(request.time_slot)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="INVALID_TIME_SLOT") from None
+
+    check_key = f"{medication_id}:{slot}:{today_str}"
+    check_store[check_key] = {
+        "isTaken": request.is_taken,
+        "takenAt": datetime.now().isoformat() if request.is_taken else None,
+    }
+
     return {
-        "medicationId": target["medicationId"],
-        "isTaken": target["isTaken"],
-        "takenAt": target["takenAt"],
+        "medicationId": medication_id,
+        "isTaken": request.is_taken,
+        "takenAt": datetime.now().isoformat() if request.is_taken else None,
         "message": "복약 상태가 변경되었습니다.",
     }
