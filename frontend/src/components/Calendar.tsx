@@ -14,6 +14,7 @@ interface CalendarProps {
   onPrevMonth: () => void;
   onNextMonth: () => void;
   selectedDate?: string;
+  appointmentDates?: string[];
 }
 
 const MoodFlower = ({ moods }: { moods: { mood_level: number; time_slot: string }[] }) => {
@@ -110,6 +111,7 @@ export function Calendar({
   onPrevMonth,
   onNextMonth,
   selectedDate,
+  appointmentDates = [],
 }: CalendarProps) {
   const monthIndex = month - 1;
   const daysInMonth = getDaysInMonth(year, monthIndex);
@@ -154,10 +156,13 @@ export function Calendar({
           .fill(null)
           .map((_, i) => {
             const dayNum = i + 1;
+            const dayOfWeek = (firstDay + i) % 7;
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
             const dateKey = toDateKey(year, monthIndex, dayNum);
             const day = dataMap.get(dateKey);
             const isSelected = selectedDate === dateKey;
             const isToday = todayKey === dateKey;
+            const isAppointment = appointmentDates.includes(dateKey);
             const dayMoods: { mood_level: number; time_slot: string }[] =
               day?.moods && day.moods.length > 0
                 ? day.moods.map((mood, idx) => ({
@@ -176,24 +181,50 @@ export function Calendar({
                   borderRadius: 8,
                   border: isSelected ? `1px solid ${COLORS.buttonBg}` : "1px solid transparent",
                   background: isSelected ? COLORS.selectedCellBg : COLORS.cardBg,
-                  display: "grid",
-                  placeItems: "center",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "flex-start",
+                  paddingTop: 6,
                   position: "relative",
                 }}
               >
-                <span
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 999,
-                    display: "grid",
-                    placeItems: "center",
-                    background: isToday ? COLORS.buttonBg : "transparent",
-                    color: isToday ? COLORS.buttonText : COLORS.text,
-                  }}
-                >
-                  {dayNum}
-                </span>
+                <div style={{ position: "relative", display: "inline-block" }}>
+                  <span
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 999,
+                      display: "grid",
+                      placeItems: "center",
+                      background: isToday ? COLORS.buttonBg : "transparent",
+                      color: isToday ? COLORS.buttonText : isWeekend ? "#E05555" : COLORS.text,
+                    }}
+                  >
+                    {dayNum}
+                  </span>
+                  {isAppointment && !isToday && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: -3,
+                        right: -5,
+                        width: 12,
+                        height: 12,
+                        borderRadius: 999,
+                        background: "#DCEFFF",
+                        display: "grid",
+                        placeItems: "center",
+                        fontSize: 8,
+                        color: "#E05555",
+                        fontWeight: 900,
+                        lineHeight: 1,
+                      }}
+                    >
+                      ✚
+                    </span>
+                  )}
+                </div>
                 {dayMoods.length > 0 ? <MoodFlower moods={dayMoods} /> : null}
               </button>
             );
