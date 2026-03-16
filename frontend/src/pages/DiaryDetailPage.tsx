@@ -1,13 +1,13 @@
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-import { createDiaryText, getChatbotSummary, getDiaryByDate, updateDiaryEntry } from "../api/diary";
+import { createDiaryText, getDiaryByDate, updateDiaryEntry } from "../api/diary";
 import Button from "../components/Button";
 import { EmptyState, ErrorMessage, Loading } from "../components/CommonUI";
 import { COLORS } from "../constants/theme";
 import { formatDateLabel } from "../utils/date";
 
-type WriteMethod = "text" | "ocr" | "chatbot";
+type WriteMethod = "text";
 
 export function DiaryDetailPage() {
   const { entryDate = "" } = useParams<{ entryDate: string }>();
@@ -21,17 +21,10 @@ export function DiaryDetailPage() {
   const [moods, setMoods] = useState<Array<{ mood_level: number; time_slot?: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [writeMethod, setWriteMethod] = useState<WriteMethod>("text");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [chatbotLoaded, setChatbotLoaded] = useState(false);
-  const [chatbotSummaryLoading, setChatbotSummaryLoading] = useState(false);
-  const [chatbotEntryId, setChatbotEntryId] = useState<number | null>(null);
-  const [chatbotError, setChatbotError] = useState<string | null>(null);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const firstEntry = useMemo(() => entries[0] ?? null, [entries]);
 
@@ -64,13 +57,6 @@ export function DiaryDetailPage() {
   useEffect(() => {
     void fetchDiary();
   }, [fetchDiary]);
-
-  const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-  };
 
   const handleSave = async () => {
     if (!title.trim() || !content.trim()) {
@@ -165,197 +151,6 @@ export function DiaryDetailPage() {
         <section style={{ background: COLORS.cardBg, borderRadius: 16, border: `1px solid ${COLORS.border}`, padding: 20, display: "grid", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 16 }}>{isEditMode ? "일기 수정" : "일기 작성"}</h2>
 
-          {!isEditMode ? (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {[
-                { key: "text", label: "직접 입력하기" },
-                { key: "ocr", label: "손글씨 인식하기" },
-                { key: "chatbot", label: "챗봇 대화 요약하기" },
-              ].map((method) => (
-                <button
-                  key={method.key}
-                  type="button"
-                  onClick={() => {
-                    setWriteMethod(method.key as WriteMethod);
-                    setPreviewUrl(null);
-                    setChatbotLoaded(false);
-                    setChatbotError(null);
-                    setChatbotEntryId(null);
-                  }}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: 20,
-                    border: "none",
-                    cursor: "pointer",
-                    background: writeMethod === method.key ? COLORS.buttonBg : COLORS.background,
-                    color: writeMethod === method.key ? COLORS.buttonText : COLORS.subText,
-                  }}
-                >
-                  {method.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          {writeMethod === "ocr" ? (
-            <>
-              <div style={{ background: "#fff8e1", border: "1px solid #ffe082", borderRadius: 8, padding: 12, fontSize: 13 }}>
-                OCR 기능은 현재 stub 상태입니다. 추후 엔진 연동 예정입니다.
-              </div>
-              <input
-                type="file"
-                accept="image/*"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                style={{ display: "none" }}
-              />
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  border: `2px dashed ${COLORS.border}`,
-                  borderRadius: "12px",
-                  padding: "24px",
-                  textAlign: "center",
-                  cursor: "pointer",
-                  marginBottom: "14px",
-                  background: COLORS.background,
-                }}
-              >
-                {previewUrl ? (
-                  <img
-                    src={previewUrl}
-                    alt="미리보기"
-                    style={{ maxWidth: "100%", borderRadius: "8px", maxHeight: "200px", objectFit: "contain" }}
-                  />
-                ) : (
-                  <>
-                    <p style={{ fontSize: "32px", margin: "0 0 8px" }}>📷</p>
-                    <p style={{ color: COLORS.subText, fontSize: "13px", margin: 0 }}>사진을 찍거나 갤러리에서 선택하세요</p>
-                  </>
-                )}
-              </div>
-            </>
-          ) : null}
-          {writeMethod === "chatbot" ? (
-            <>
-              {chatbotSummaryLoading ? (
-                <div
-                  style={{
-                    background: "#e8f5e9",
-                    border: "1px solid #a5d6a7",
-                    borderRadius: "10px",
-                    padding: "16px 14px",
-                    marginBottom: "14px",
-                    textAlign: "center",
-                  }}
-                >
-                  <span style={{ fontSize: "13px", color: "#2e7d32" }}>대화 내용을 요약하고 있어요...</span>
-                </div>
-              ) : chatbotError ? (
-                <div
-                  style={{
-                    background: "#e8f5e9",
-                    border: "1px solid #a5d6a7",
-                    borderRadius: "10px",
-                    padding: "12px 14px",
-                    marginBottom: "14px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <span style={{ fontSize: "13px", color: "#2e7d32" }}>{chatbotError}</span>
-                  <button
-                    onClick={() => navigate("/chat")}
-                    style={{
-                      background: COLORS.buttonBg,
-                      color: COLORS.buttonText,
-                      border: "none",
-                      borderRadius: "8px",
-                      padding: "5px 12px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      marginLeft: "10px",
-                    }}
-                  >
-                    챗봇 열기 →
-                  </button>
-                </div>
-              ) : !chatbotLoaded ? (
-                <div
-                  style={{
-                    background: "#e8f5e9",
-                    border: "1px solid #a5d6a7",
-                    borderRadius: "10px",
-                    padding: "12px 14px",
-                    marginBottom: "14px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <span style={{ fontSize: "13px", color: "#2e7d32" }}>오늘 대화 내용을 일기로 요약해볼까요?</span>
-                  <button
-                    onClick={async () => {
-                      if (!entryDate) return;
-                      setChatbotSummaryLoading(true);
-                      setChatbotError(null);
-                      try {
-                        const result = await getChatbotSummary(entryDate);
-                        if (!result || !result.hasChatHistory) {
-                          setChatbotError("오늘 대화 내역이 없어요.");
-                          return;
-                        }
-                        const hasExisting = title.trim() || content.trim();
-                        if (hasExisting && !window.confirm("현재 입력된 내용을 덮어쓸까요?")) {
-                          return;
-                        }
-                        setTitle(result.title || "");
-                        setContent(result.summary || "");
-                        setChatbotEntryId(result.entryId);
-                        setChatbotLoaded(true);
-                      } catch {
-                        setChatbotError("요약을 불러오는 데 실패했어요.");
-                      } finally {
-                        setChatbotSummaryLoading(false);
-                      }
-                    }}
-                    style={{
-                      background: COLORS.buttonBg,
-                      color: COLORS.buttonText,
-                      border: "none",
-                      borderRadius: "8px",
-                      padding: "5px 12px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      marginLeft: "10px",
-                    }}
-                  >
-                    요약하기
-                  </button>
-                </div>
-              ) : (
-                <div
-                  style={{
-                    background: "#e8f5e9",
-                    border: "1px solid #a5d6a7",
-                    borderRadius: "10px",
-                    padding: "12px 14px",
-                    marginBottom: "14px",
-                    fontSize: "13px",
-                    color: "#2e7d32",
-                  }}
-                >
-                  대화 요약이 적용되었어요. 수정 후 저장하세요.
-                </div>
-              )}
-            </>
-          ) : null}
-
           <input
             value={title}
             onChange={(event) => setTitle(event.target.value)}
@@ -365,7 +160,7 @@ export function DiaryDetailPage() {
           <textarea
             value={content}
             onChange={(event) => setContent(event.target.value)}
-            placeholder={chatbotLoaded ? "" : "내용을 입력하세요"}
+            placeholder="내용을 입력하세요"
             rows={10}
             style={{ width: "100%", padding: "12px 14px", border: `1px solid ${COLORS.border}`, borderRadius: 10, boxSizing: "border-box", resize: "vertical" }}
           />
