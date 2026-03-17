@@ -150,8 +150,6 @@ export function DiaryDetailPage() {
         </section>
       ) : null}
 
-      {!loading && !error && !firstEntry && !isEditMode ? <EmptyState message="이 날짜에는 작성된 일기가 없습니다." /> : null}
-
       {(!firstEntry || isEditMode) && (
         <section style={{ background: COLORS.cardBg, borderRadius: 16, border: `1px solid ${COLORS.border}`, padding: 20, display: "grid", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 16 }}>{isEditMode ? "일기 수정" : "일기 작성"}</h2>
