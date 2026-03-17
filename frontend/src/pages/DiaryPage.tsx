@@ -72,6 +72,21 @@ export function DiaryPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const delModalRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const [calendarBottom, setCalendarBottom] = useState<number>(0);
+
+  useEffect(() => {
+    if (!calendarRef.current) return;
+    const update = () => {
+      const rect = calendarRef.current?.getBoundingClientRect();
+      if (rect) setCalendarBottom(rect.bottom);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(calendarRef.current);
+    window.addEventListener("scroll", update, true);
+    return () => { ro.disconnect(); window.removeEventListener("scroll", update, true); };
+  }, [data, year, month]);
 
   const fetchCalendar = useCallback(async () => {
     try {
@@ -319,6 +334,7 @@ export function DiaryPage() {
           </section>
         ) : null}
         {!isLoading && !error && data ? (
+          <div ref={calendarRef}>
           <Calendar
             year={year}
             month={month}
@@ -352,6 +368,7 @@ export function DiaryPage() {
             appointmentDates={appointmentDates}
             selectedDate={selectedDate ?? today.toISOString().slice(0, 10)}
           />
+          </div>
         ) : null}
         {!isLoading && !error && data && data.days.length === 0 ? (
           <EmptyState message="기록된 일기가 없습니다." />
@@ -381,6 +398,7 @@ export function DiaryPage() {
                 transform: sheetOpen
                   ? "translateX(-50%)"
                   : "translateX(-50%) translateY(100%)",
+                top: sheetFull ? "8vh" : `${calendarBottom + 10}px`,
                 bottom: 0,
                 zIndex: 40,
                 width: "100%",
@@ -389,8 +407,7 @@ export function DiaryPage() {
                 borderRadius: "20px 20px 0 0",
                 boxShadow: "0 -4px 24px rgba(0,0,0,0.12)",
                 transition:
-                  "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), max-height 0.3s ease",
-                maxHeight: sheetFull ? "92vh" : "52vh",
+                  "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), top 0.3s ease",
                 overflow: "hidden",
                 display: "flex",
                 flexDirection: "column",
