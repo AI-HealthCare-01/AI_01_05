@@ -105,18 +105,62 @@ const GREETING_MESSAGES_2L = [
 ];
 
 /**
- * Task 3: 약품명 괄호 기준 줄바꿈 파싱
- * "타이레놀정500밀리그람(아세트아미노펜) 1정"
- *   → line1: "타이레놀정500밀리그람"
- *   → line2: "(아세트아미노펜) 1정"
- * 괄호가 없으면 line2: null
+ * Task 3: 약 이름 키워드 기반 복용 단위 자동 추론
+ * 매칭 순서가 중요 — 구체적인 키워드를 먼저 검사
  */
-function parseMedicineName(name: string): { line1: string; line2: string | null } {
-  const idx = name.indexOf("(");
-  if (idx <= 0) return { line1: name, line2: null };
+function detectDosageUnit(name: string): string {
+  const n = name;
+  if (/캡슐/.test(n)) return "캡슐";
+  if (/현탁액|시럽|액제|점안액|점이액/.test(n)) return "ml";
+  if (/연고|크림|겔|로션/.test(n)) return "g";
+  if (/주사|주射|앰플/.test(n)) return "ml";
+  if (/스프레이|흡입/.test(n)) return "회";
+  if (/패치|파스/.test(n)) return "매";
+  return "정"; // fallback
+}
+
+/**
+ * Task 2: 약품명 파싱
+ * 입력: "타이레놀정500밀리그람(아세트아미노펜)"
+ * 출력:
+ *   drugName  : "타이레놀정500밀리그람"  (괄호 이전)
+ *   ingredient: "아세트아미노펜"         (괄호 내부, 괄호 제거)
+ */
+function parseMedicationDisplay(rawName: string): {
+  drugName: string;
+  ingredient: string | null;
+} {
+  const openIdx = rawName.indexOf("(");
+  const closeIdx = rawName.lastIndexOf(")");
+
+  if (openIdx <= 0) {
+    return { drugName: rawName.trim(), ingredient: null };
+  }
+
+  const drugName = rawName.slice(0, openIdx).trim();
+  const ingredient =
+    closeIdx > openIdx
+      ? rawName.slice(openIdx + 1, closeIdx).trim() || null
+      : null;
+
+  return { drugName, ingredient };
+}
+
+/**
+ * Task 1 + 2 + 3 통합: 화면 표시용 데이터 생성
+ * 반환:
+ *   line1: "타이레놀정500밀리그람 1정"  (약이름 + 복용량)
+ *   line2: "아세트아미노펜"             (성분, 없으면 null)
+ */
+function formatMedicationDisplay(
+  rawName: string,
+  dosage: number,
+): { line1: string; line2: string | null } {
+  const { drugName, ingredient } = parseMedicationDisplay(rawName);
+  const unit = detectDosageUnit(drugName);
   return {
-    line1: name.slice(0, idx).trim(),
-    line2: name.slice(idx).trim(),
+    line1: `${drugName} ${dosage}${unit}`,
+    line2: ingredient,
   };
 }
 
@@ -1041,10 +1085,10 @@ export default function MainPage() {
                     </div>
                   )}
 
-                {/* Task 2: height auto, 내부 스크롤 제거 — flex column으로 약 개수만큼 자동 확장 */}
+                {/* 복약 아이템 목록 — height auto, flex column */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {medications.map((med) => {
-                      const { line1, line2 } = parseMedicineName(med.name);
+                      const { line1, line2 } = formatMedicationDisplay(med.name, med.dosage);
                       return (
                       <div key={med.id}>
                         <div
@@ -1065,6 +1109,7 @@ export default function MainPage() {
                           }}
                         >
                           <span style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+                            {/* 체크박스 */}
                             <div
                               style={{
                                 width: 22,
@@ -1091,20 +1136,35 @@ export default function MainPage() {
                                 </svg>
                               )}
                             </div>
-                            {/* Task 3: 괄호 기준 2줄 렌더 */}
-                            <span style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              lineHeight: 1.5,
-                              textDecoration: med.checked ? "line-through" : "none",
-                              minWidth: 0,
-                            }}>
-                              <span style={{ fontSize: 14, fontWeight: 600 }}>
-                                {line1}{line2 === null ? ` ${med.dosage}정` : ""}
+                            {/* Task 1: [약이름+복용량] / [성분] 2줄 레이아웃 */}
+                            <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                              <span
+                                style={{
+                                  fontSize: 15,
+                                  fontWeight: 500,
+                                  lineHeight: 1.4,
+                                  textDecoration: med.checked ? "line-through" : "none",
+                                  color: med.checked ? "#9aaa8a" : "#3a3228",
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
+                                {line1}
                               </span>
                               {line2 !== null && (
-                                <span style={{ fontSize: 12, color: med.checked ? "#9aaa8a" : "#7a7a7a", marginTop: 1 }}>
-                                  {line2} {med.dosage}정
+                                <span
+                                  style={{
+                                    fontSize: 13,
+                                    color: med.checked ? "#b0bba8" : "#888888",
+                                    marginTop: 3,
+                                    lineHeight: 1.3,
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  {line2}
                                 </span>
                               )}
                             </span>
