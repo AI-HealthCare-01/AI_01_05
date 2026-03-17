@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -225,8 +225,53 @@ function toDdayLabel(appointmentDate: string): string {
   return `D-${diffDays}`;
 }
 
+// ── 스켈레톤 컴포넌트 ──
+function SkeletonBlock({ width = "100%", height = 20, style }: { width?: string | number; height?: number; style?: CSSProperties }) {
+  return <div className="skeleton" style={{ width, height, ...style }} />;
+}
+
+function MainPageSkeleton() {
+  return (
+    <div style={{ width: "100%", maxWidth: 460 }}>
+      {/* 헤더 카드 */}
+      <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <SkeletonBlock width={72} height={38} style={{ borderRadius: 14 }} />
+        <SkeletonBlock width={100} height={48} style={{ borderRadius: 12 }} />
+        <SkeletonBlock width={72} height={38} style={{ borderRadius: 14 }} />
+      </div>
+      {/* 캐릭터 카드 */}
+      <div style={{ ...cardStyle, display: "flex", flexDirection: "column", alignItems: "center", gap: 16, paddingTop: 32, paddingBottom: 32 }}>
+        <SkeletonBlock width="80%" height={24} style={{ borderRadius: 12 }} />
+        <SkeletonBlock width={180} height={180} style={{ borderRadius: 16 }} />
+        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+          {Array.from({ length: 7 }).map((_, i) => (
+            <SkeletonBlock key={i} width={36} height={36} style={{ borderRadius: "50%" }} />
+          ))}
+        </div>
+      </div>
+      {/* 복약 카드 */}
+      <div style={{ ...cardStyle }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+          <SkeletonBlock width={100} height={20} />
+          <SkeletonBlock width={72} height={36} style={{ borderRadius: 14 }} />
+        </div>
+        <SkeletonBlock width="100%" height={8} style={{ borderRadius: 999, marginBottom: 12 }} />
+        {Array.from({ length: 3 }).map((_, i) => (
+          <SkeletonBlock key={i} width="100%" height={44} style={{ borderRadius: 8, marginBottom: 8 }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function MainPage() {
   const navigate = useNavigate();
+  const [pageLeaving, setPageLeaving] = useState(false);
+
+  const navigateWithFade = useCallback((to: string) => {
+    setPageLeaving(true);
+    setTimeout(() => navigate(to), 200);
+  }, [navigate]);
   const selectedCharacter = useAuthStore((s) => s.selectedCharacter);
   const setSelectedCharacter = useAuthStore((s) => s.setSelectedCharacter);
   const [characterImage, setCharacterImage] = useState(DEFAULT_CHARACTER_IMAGE);
@@ -554,8 +599,27 @@ export default function MainPage() {
     setMedSwipeIndex(index);
   };
 
+  // ── 토스트 상태 ──
+  const [toast, setToast] = useState("");
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 3000);
+  }, []);
+
+  // 에러를 토스트로 대체
+  useEffect(() => {
+    if (error) {
+      // 409 충돌은 조용히 무시
+      if (!error.includes("MOOD_ALREADY_RECORDED") && !error.includes("409")) {
+        showToast(error);
+      }
+      setError("");
+    }
+  }, [error, showToast]);
+
   return (
     <div
+      aria-busy={loading}
       style={{
         minHeight: "100vh",
         background: "#F5F5F5",
@@ -563,6 +627,8 @@ export default function MainPage() {
         padding: "16px",
         display: "flex",
         justifyContent: "center",
+        opacity: pageLeaving ? 0 : 1,
+        transition: "opacity 0.2s ease",
       }}
     >
       <style>{`
@@ -619,9 +685,22 @@ export default function MainPage() {
         }
       `}</style>
 
-      <div style={{ width: "100%", maxWidth: 460 }}>
-        <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <button style={topButtonStyle} onClick={() => navigate("/diary")}>일기</button>
+      {loading ? <MainPageSkeleton /> : <div style={{ width: "100%", maxWidth: 460 }}>
+        {/* ── 헤더 카드 ── */}
+        <div style={{
+          ...cardStyle,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          animation: "fadeSlideUp 0.4s ease-out both",
+          animationDelay: "0ms",
+        }}>
+          <button style={topButtonStyle} onClick={() => navigateWithFade("/diary")}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 16px rgba(153,169,136,0.45)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 12px rgba(153,169,136,0.35)"; }}
+            onMouseDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.96)"; }}
+            onMouseUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; }}
+          >일기</button>
           <button
             style={{
               background: "transparent",
@@ -630,8 +709,11 @@ export default function MainPage() {
               padding: 0,
               cursor: "pointer",
               fontSize: 16,
+              transition: "opacity 0.15s ease",
             }}
-            onClick={() => navigate("/appointments")}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "0.7"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "1"; }}
+            onClick={() => navigateWithFade("/appointments")}
           >
             {nextAppointment ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
@@ -661,10 +743,23 @@ export default function MainPage() {
               "진료 없음"
             )}
           </button>
-          <button style={topButtonStyle} onClick={() => navigate("/mypage")}>내 정보</button>
+          <button style={topButtonStyle} onClick={() => navigateWithFade("/mypage")}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 16px rgba(153,169,136,0.45)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 12px rgba(153,169,136,0.35)"; }}
+            onMouseDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.96)"; }}
+            onMouseUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; }}
+          >내 정보</button>
         </div>
 
-        <div style={{ ...cardStyle, overflow: "hidden", paddingTop: 32, paddingBottom: 32 }}>
+        {/* ── 캐릭터 + 기분 카드 ── */}
+        <div style={{
+          ...cardStyle,
+          overflow: "hidden",
+          paddingTop: 32,
+          paddingBottom: 32,
+          animation: "fadeSlideUp 0.4s ease-out both",
+          animationDelay: "80ms",
+        }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
             <div
               style={{
@@ -718,8 +813,18 @@ export default function MainPage() {
             <img
               src={characterImage}
               alt="선택 캐릭터"
-              onClick={() => navigate("/chat")}
-              style={{ width: 180, maxWidth: "70%", objectFit: "contain", margin: "0 auto", display: "block", cursor: "pointer" }}
+              onClick={() => navigateWithFade("/chat")}
+              style={{
+                width: 180,
+                maxWidth: "70%",
+                objectFit: "contain",
+                margin: "0 auto",
+                display: "block",
+                cursor: "pointer",
+                transition: "transform 0.2s ease",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLImageElement).style.transform = "scale(1.04) translateY(-4px)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLImageElement).style.transform = "scale(1) translateY(0)"; }}
             />
           </div>
 
@@ -790,7 +895,12 @@ export default function MainPage() {
           )}
         </div>
 
-        <div style={cardStyle}>
+        {/* ── 복약 카드 ── */}
+        <div style={{
+          ...cardStyle,
+          animation: "fadeSlideUp 0.4s ease-out both",
+          animationDelay: "160ms",
+        }}>
           <div
             ref={medSwipeRef}
             className="swipeContainer"
@@ -817,7 +927,12 @@ export default function MainPage() {
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                     <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#3a3228" }}>오늘의 {slot.label} 약</h3>
-                    <button style={topButtonStyle} onClick={() => navigate("/medications/add")}>약 추가</button>
+                    <button style={topButtonStyle} onClick={() => navigateWithFade("/medications/add")}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 16px rgba(153,169,136,0.45)"; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 12px rgba(153,169,136,0.35)"; }}
+                      onMouseDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.96)"; }}
+                      onMouseUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; }}
+                    >약 추가</button>
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -830,6 +945,7 @@ export default function MainPage() {
                           width: total === 0 ? "0%" : `${(completed / total) * 100}%`,
                           height: "100%",
                           background: "#99A988",
+                          transition: "width 0.4s ease",
                         }}
                       />
                     </div>
@@ -851,7 +967,7 @@ export default function MainPage() {
                     {medications.map((med) => (
                       <div key={med.id} style={{ marginBottom: "6px" }}>
                         <div
-                          onClick={() => handleMedicationToggle(med.medicationId, med.checked, med.timeSlot)}
+                          onClick={() => !isSavingMedication && handleMedicationToggle(med.medicationId, med.checked, med.timeSlot)}
                           style={{
                             display: "flex",
                             alignItems: "center",
@@ -863,7 +979,9 @@ export default function MainPage() {
                             background: med.checked ? "#F0F5EE" : "#FFFFFF",
                             textDecoration: med.checked ? "line-through" : "none",
                             color: med.checked ? "#9aaa8a" : "#3a3228",
-                            cursor: "pointer",
+                            cursor: isSavingMedication ? "not-allowed" : "pointer",
+                            opacity: isSavingMedication ? 0.6 : 1,
+                            transition: "background 0.2s ease, border-color 0.2s ease, opacity 0.15s ease",
                           }}
                         >
                           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1031,15 +1149,30 @@ export default function MainPage() {
 
         </div>
 
-        {loading && <div style={cardStyle}>데이터를 불러오는 중입니다...</div>}
+      </div>}
 
-        {error && (
-          <div style={{ ...cardStyle, border: "1px solid #FF0000", color: "#FF0000" }}>
-            {error}
-          </div>
-        )}
-      </div>
-
+      {/* ── 토스트 ── */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 32,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(44,44,44,0.88)",
+            color: "#fff",
+            padding: "10px 20px",
+            borderRadius: 20,
+            fontSize: 14,
+            zIndex: 200,
+            whiteSpace: "nowrap",
+            animation: "toastIn 0.25s ease-out both",
+            pointerEvents: "none",
+          }}
+        >
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
