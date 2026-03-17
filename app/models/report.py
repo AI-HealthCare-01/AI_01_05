@@ -11,5 +11,6 @@ class Report(models.Model):
     updated_at = fields.DatetimeField(auto_now=True)
     mood_summary = fields.TextField(null=True)
     clinician_note = fields.TextField(null=True)
+
     class Meta:
         table = "reports"

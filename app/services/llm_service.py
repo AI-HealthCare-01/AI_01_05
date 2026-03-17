@@ -32,8 +32,7 @@ class LlmService:
         if not text:
             return {
                 "summary": (
-                    f"{start_date} ~ {end_date} 기간 동안의 기록이 충분하지 않아 "
-                    "전체 요약을 생성하기 어렵습니다."
+                    f"{start_date} ~ {end_date} 기간 동안의 기록이 충분하지 않아 전체 요약을 생성하기 어렵습니다."
                 ),
                 "mood_summary": "기분 흐름을 파악할 수 있을 만큼의 기록이 아직 충분하지 않습니다.",
                 "clinician_note": "기록 부족으로 해석에 제한이 있습니다.",
@@ -54,12 +53,12 @@ class LlmService:
                 "- 반드시 JSON 형식으로만 반환\n\n"
                 f"기간: {start_date} ~ {end_date}\n"
                 f"원문:\n{text}\n\n"
-                '반환 형식:\n'
-                '{'
+                "반환 형식:\n"
+                "{"
                 '"summary": "기간 전체 기록 요약 3~4문장", '
                 '"mood_summary": "기분 흐름 요약 2~3문장", '
                 '"clinician_note": "의료진 참고용 짧은 요약 1~2문장"'
-                '}'
+                "}"
             )
             raw = await self._openai_chat_completion(prompt)
 
@@ -174,17 +173,11 @@ class LlmService:
     def _stub_report_summary(self, text: str, start_date: str, end_date: str) -> dict:
         preview = text.replace("\n", " ")[:220]
         return {
-            "summary": (
-                f"{start_date} ~ {end_date} 기간 동안의 기록 요약입니다. "
-                f"{preview}"
-            ),
+            "summary": (f"{start_date} ~ {end_date} 기간 동안의 기록 요약입니다. {preview}"),
             "mood_summary": (
-                "최근 기록에서는 감정의 오르내림이 나타났고, "
-                "몸 상태나 갈등 상황이 기분 변화와 함께 언급되었습니다."
+                "최근 기록에서는 감정의 오르내림이 나타났고, 몸 상태나 갈등 상황이 기분 변화와 함께 언급되었습니다."
             ),
-            "clinician_note": (
-                "감정 변동성과 복약/신체 상태 관련 부담이 함께 기록됨."
-            ),
+            "clinician_note": ("감정 변동성과 복약/신체 상태 관련 부담이 함께 기록됨."),
         }
 
     def _stub_title(self, content: str) -> str:
