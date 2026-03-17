@@ -1,7 +1,6 @@
 from tortoise import fields, models
 
 
-
 class Report(models.Model):
     report_id = fields.BigIntField(pk=True)
     user = fields.ForeignKeyField("models.User", related_name="reports")
