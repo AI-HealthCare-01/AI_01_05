@@ -24,3 +24,15 @@ class UserMedicationService:
 
     async def list_active(self, user: User) -> list[UserMedication]:
         return await UserMedication.filter(user_id=user.user_id, status="ACTIVE").order_by("-created_at")
+
+    async def list_all(self, user: User) -> list[UserMedication]:
+        """ACTIVE 먼저, 나머지는 생성일 역순 정렬"""
+        return await UserMedication.filter(user_id=user.user_id).order_by("-status", "-created_at")
+
+    async def delete(self, user: User, medication_id: int) -> bool:
+        """Returns False if not found or not owned by user."""
+        med = await UserMedication.get_or_none(medication_id=medication_id, user_id=user.user_id)
+        if not med:
+            return False
+        await med.delete()
+        return True
