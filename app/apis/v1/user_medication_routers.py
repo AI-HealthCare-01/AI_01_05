@@ -38,17 +38,19 @@ async def list_user_medications(
     items = []
     for m in meds:
         medicine = await m.medicine
-        items.append({
-            "medication_id": m.medication_id,
-            "item_seq": m.medicine_id,
-            "item_name": medicine.item_name,
-            "dose_per_intake": float(m.dose_per_intake),
-            "daily_frequency": m.daily_frequency,
-            "total_days": m.total_days,
-            "start_date": str(m.start_date),
-            "time_slots": m.time_slots,
-            "status": m.status,
-        })
+        items.append(
+            {
+                "medication_id": m.medication_id,
+                "item_seq": m.medicine_id,
+                "item_name": medicine.item_name,
+                "dose_per_intake": float(m.dose_per_intake),
+                "daily_frequency": m.daily_frequency,
+                "total_days": m.total_days,
+                "start_date": str(m.start_date),
+                "time_slots": m.time_slots,
+                "status": m.status,
+            }
+        )
     return Response({"items": items})
 
 
