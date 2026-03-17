@@ -77,7 +77,7 @@ class ChatbotSummaryResponse(BaseModel):
     has_chat_history: bool = Field(alias="hasChatHistory")
     entry_id: int | None = Field(alias="entryId")
     title: str | None = None
-    summary: str | None
+    summary: str | None = None
     redirect_to_chatbot: bool = Field(alias="redirectToChatbot")
 
 
@@ -111,13 +111,6 @@ class ReportListResponse(BaseModel):
     reports: list[ReportListItem]
 
 
-class ReportCreateRequest(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    start_date: date = Field(alias="startDate")
-    end_date: date = Field(alias="endDate")
-
-
 class ReportDetailResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -126,3 +119,12 @@ class ReportDetailResponse(BaseModel):
     end_date: date = Field(alias="endDate")
     created_at: date = Field(alias="createdAt")
     summary: str
+    mood_summary: str | None = Field(default=None, alias="moodSummary")
+    clinician_note: str | None = Field(default=None, alias="clinicianNote")
+
+
+class ReportCreateRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    start_date: date = Field(alias="startDate")
+    end_date: date = Field(alias="endDate")

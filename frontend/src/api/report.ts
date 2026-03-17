@@ -13,6 +13,8 @@ export interface ReportDetail {
   endDate: string;
   createdAt: string;
   summary: string;
+  moodSummary?: string | null;
+  clinicianNote?: string | null;
 }
 
 export function getReports() {
