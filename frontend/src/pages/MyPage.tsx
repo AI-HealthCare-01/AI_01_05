@@ -419,14 +419,24 @@ export function MyPage() {
     <main style={{ background: COLORS.background, minHeight: "100vh", padding: 16, display: "flex", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 460, display: "grid", gap: 12, alignContent: "start" }}>
       <button
-        onClick={() => navigate(-1)}
+        onClick={() => navigate("/main")}
         style={{
-          background: "none", border: "none", cursor: "pointer", fontSize: 15,
-          color: COLORS.subText, fontWeight: 600, padding: "16px 0",
-          display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: COLORS.text,
+          display: "flex",
+          alignItems: "center",
+          padding: "16px 0",
+          transition: "all 0.2s ease",
         }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; }}
       >
-        ‹ 뒤로
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
       </button>
       <h1 style={{ margin: 0, color: COLORS.text, fontSize: 20 }}>마이페이지</h1>
 
@@ -464,6 +474,33 @@ export function MyPage() {
               친구 변경
             </button>
           </div>
+
+          {/* 복용약 관리 버튼 */}
+          <button
+            type="button"
+            onClick={() => navigate("/medications")}
+            style={{
+              width: "100%",
+              background: "#fff",
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 16,
+              padding: "16px 20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 24 }}>💊</span>
+              <div style={{ textAlign: "left" }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: COLORS.text }}>복용약 관리</p>
+                <p style={{ margin: "2px 0 0", fontSize: 13, color: COLORS.subText }}>등록된 약 목록 확인 및 삭제</p>
+              </div>
+            </div>
+            <span style={{ fontSize: 18, color: COLORS.subText }}>›</span>
+          </button>
 
           {/* 프로필 폼 */}
           <section
