@@ -14,8 +14,6 @@ import { Calendar } from "../components/Calendar";
 import { EmptyState, ErrorMessage, Loading } from "../components/CommonUI";
 import {
   COLORS,
-  MOOD_COLORS,
-  TIME_SLOT_LABELS,
   WRITE_METHOD_LABELS,
 } from "../constants/theme";
 import { formatDateLabel } from "../utils/date";
@@ -146,16 +144,6 @@ export function DiaryPage() {
   );
 
   const tab = location.pathname.startsWith("/report") ? "report" : "diary";
-  const selectedMoods = useMemo(
-    () =>
-      (data?.days.find((day) => day.date === selectedDate)?.moods ?? []).map(
-        (mood) => ({
-          mood_level: mood.mood_level,
-          time_slot: mood.time_slot,
-        }),
-      ),
-    [data?.days, selectedDate],
-  );
   const appointmentDates = useMemo(
     () => appointments.map((a) => a.appointment_date),
     [appointments],
@@ -615,58 +603,7 @@ export function DiaryPage() {
                       {selectedEntry.content}
                     </p>
 
-                    {selectedMoods.length > 0 ? (
-                      <div
-                        style={{
-                          paddingTop: "14px",
-                          borderTop: `1px solid ${COLORS.border}`,
-                        }}
-                      >
-                        <p
-                          style={{
-                            margin: "0 0 10px",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            color: COLORS.subText,
-                          }}
-                        >
-                          오늘의 기분
-                        </p>
-                        <div style={{ display: "flex", gap: "12px" }}>
-                          {selectedMoods.map((mood, index) => (
-                            <div
-                              key={`${mood.time_slot}-${index}`}
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                gap: "4px",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: "28px",
-                                  height: "28px",
-                                  borderRadius: "50%",
-                                  background:
-                                    MOOD_COLORS[mood.mood_level] ??
-                                    COLORS.border,
-                                }}
-                              />
-                              <span
-                                style={{
-                                  fontSize: "10px",
-                                  color: COLORS.subText,
-                                }}
-                              >
-                                {TIME_SLOT_LABELS[mood.time_slot ?? ""] ??
-                                  mood.time_slot}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
+
                   </>
                 ) : null}
 

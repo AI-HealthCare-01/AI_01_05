@@ -4,7 +4,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { createDiaryText, getDiaryByDate, updateDiaryEntry } from "../api/diary";
 import Button from "../components/Button";
 import { EmptyState, ErrorMessage, Loading } from "../components/CommonUI";
-import { COLORS } from "../constants/theme";
+import { COLORS, MOOD_COLORS, TIME_SLOT_LABELS } from "../constants/theme";
 import { formatDateLabel } from "../utils/date";
 
 type WriteMethod = "text";
@@ -111,20 +111,24 @@ export function DiaryDetailPage() {
       {moods.length > 0 ? (
         <section style={{ background: COLORS.cardBg, borderRadius: 12, border: `1px solid ${COLORS.border}`, padding: "10px 12px" }}>
           <p style={{ margin: "0 0 8px", fontSize: 12, color: COLORS.subText, fontWeight: 700 }}>오늘의 기분</p>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "12px" }}>
             {moods.map((mood, index) => (
-              <span
+              <div
                 key={`${mood.time_slot ?? "SLOT"}-${index}`}
-                style={{
-                  padding: "4px 8px",
-                  borderRadius: 999,
-                  border: `1px solid ${COLORS.border}`,
-                  fontSize: 12,
-                  background: "#fff",
-                }}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}
               >
-                {(mood.time_slot ?? "").toUpperCase()} {mood.mood_level}
-              </span>
+                <div
+                  style={{
+                    width: "28px",
+                    height: "28px",
+                    borderRadius: "50%",
+                    background: MOOD_COLORS[mood.mood_level] ?? COLORS.border,
+                  }}
+                />
+                <span style={{ fontSize: "10px", color: COLORS.subText }}>
+                  {TIME_SLOT_LABELS[mood.time_slot ?? ""] ?? mood.time_slot}
+                </span>
+              </div>
             ))}
           </div>
         </section>
