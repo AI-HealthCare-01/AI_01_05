@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { getAppointments, type AppointmentItem } from "../api/appointments";
@@ -69,6 +69,9 @@ export function DiaryPage() {
   const [diaryError, setDiaryError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetFull, setSheetFull] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const delModalRef = useRef<HTMLDivElement>(null);
 
   const fetchCalendar = useCallback(async () => {
     try {
@@ -127,11 +130,45 @@ export function DiaryPage() {
 
   const removeSelectedEntry = async () => {
     if (!selectedDate || !selectedEntry) return;
-    if (!window.confirm("일기를 삭제할까요?")) return;
-    await deleteDiaryEntry(selectedDate, selectedEntry.entryId);
-    setSelectedEntry(null);
-    await fetchCalendar();
+    setIsDeleting(true);
+    try {
+      await deleteDiaryEntry(selectedDate, selectedEntry.entryId);
+      setSelectedEntry(null);
+      setDeleteConfirmOpen(false);
+      await fetchCalendar();
+    } finally {
+      setIsDeleting(false);
+    }
   };
+
+  useEffect(() => {
+    if (!deleteConfirmOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isDeleting) setDeleteConfirmOpen(false);
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [deleteConfirmOpen, isDeleting]);
+
+  useEffect(() => {
+    if (!deleteConfirmOpen || !delModalRef.current) return;
+    const focusable = delModalRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, [tabindex]:not([tabindex="-1"])',
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener("keydown", trap);
+    first?.focus();
+    return () => document.removeEventListener("keydown", trap);
+  }, [deleteConfirmOpen]);
 
   const handleDateClick = useCallback(
     (entryDate: string) => {
@@ -291,6 +328,7 @@ export function DiaryPage() {
                 mood_level: m.mood_level,
                 time_slot: m.time_slot,
               })),
+              has_diary: d.has_diary ?? d.hasDiary ?? false,
             }))}
             onPrevMonth={() => {
               const next = shiftMonth(year, month, -1);
@@ -427,7 +465,7 @@ export function DiaryPage() {
                         <button
                           onClick={(event) => {
                             event.stopPropagation();
-                            void removeSelectedEntry();
+                            setDeleteConfirmOpen(true);
                           }}
                           style={{
                             background: "transparent",
@@ -626,6 +664,88 @@ export function DiaryPage() {
           </>
         ) : null}
       </div>
+
+      {deleteConfirmOpen ? (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget && !isDeleting) setDeleteConfirmOpen(false); }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            ref={delModalRef}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="diary-del-modal-title"
+            aria-describedby="diary-del-modal-desc"
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 320,
+              width: "90%",
+              display: "grid",
+              gap: 16,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+            }}
+          >
+            <h2 id="diary-del-modal-title" style={{ margin: 0, fontSize: 18 }}>일기 삭제</h2>
+            <p
+              id="diary-del-modal-desc"
+              style={{ margin: 0, fontSize: 14, color: COLORS.text, lineHeight: 1.6 }}
+            >
+              <strong>{selectedDate ? formatDateLabel(selectedDate) : ""}</strong> <br />일기를 삭제할까요?<br />
+              삭제된 일기는 복구할 수 없습니다.
+            </p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => setDeleteConfirmOpen(false)}
+                disabled={isDeleting}
+                autoFocus
+                style={{
+                  flex: 1,
+                  padding: "12px 0",
+                  borderRadius: 10,
+                  border: `1px solid ${COLORS.border}`,
+                  background: "#fff",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: 15,
+                  fontFamily: "inherit",
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={() => void removeSelectedEntry()}
+                disabled={isDeleting}
+                aria-busy={isDeleting}
+                style={{
+                  flex: 1,
+                  padding: "12px 0",
+                  borderRadius: 10,
+                  border: "none",
+                  background: "#fee2e2",
+                  color: "#dc2626",
+                  cursor: isDeleting ? "not-allowed" : "pointer",
+                  fontWeight: 700,
+                  fontSize: 15,
+                  fontFamily: "inherit",
+                  opacity: isDeleting ? 0.65 : 1,
+                }}
+              >
+                {isDeleting ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
