@@ -79,19 +79,57 @@ const GREETING_MESSAGES = [
 ];
 
 function getCompletionMessage(slot: UiSlot, label: string): string {
-  if (slot === "night") return "오늘 하루 약을 모두 챙겼어요! 최고예요 🐾";
-  return `${label} 약을 다 드셨네요! 대단해요! 💊`;
+  if (slot === "night") return "오늘 하루 약을 모두 챙겼어요!\n최고예요 🐾";
+  return `${label} 약을 다 드셨네요!\n대단해요! 💊`;
 }
 
+// Task 1: 말풍선 메시지 — \n 기준 강제 2줄
 const MOOD_MESSAGES: Record<string, string> = {
-  1: "오늘 많이 힘드셨군요. 푹 쉬어요 🥺",
-  2: "마음이 무거운 하루였나요? 내일은 더 나아질 거예요.",
-  3: "조금 지쳤나요? 오늘 하루도 수고했어요.",
-  4: "오늘은 마음을 내려놓고 하루를 즐겨보아요 😊",
-  5: "기분이 괜찮은 하루네요! 좋은 하루 보내요.",
-  6: "오늘 기분이 좋군요! 그 기운 유지해요 😄",
-  7: "오늘 기분 최고네요! 신나는 하루 보내요 🎉",
+  1: "오늘 많이 힘드셨군요.\n푹 쉬어요 🥺",
+  2: "마음이 무거운 하루였나요?\n내일은 더 나아질 거예요.",
+  3: "조금 지쳤나요?\n오늘 하루도 수고했어요.",
+  4: "오늘은 마음을 내려놓고\n하루를 즐겨보아요 😊",
+  5: "기분이 괜찮은 하루네요!\n좋은 하루 보내요.",
+  6: "오늘 기분이 좋군요!\n그 기운 유지해요 😄",
+  7: "오늘 기분 최고네요!\n신나는 하루 보내요 🎉",
 };
+
+const GREETING_MESSAGES_2L = [
+  "오늘 기분은 어때요? 😊\n오늘도 함께해요!",
+  "밥은 먹었어요? 🍚\n든든하게 챙겨드세요.",
+  "오늘 산책 나가는 건 어때요? 🐾\n기분 전환이 될 거예요.",
+  "물 충분히 마셨어요? 💧\n건강을 위해 자주 마셔요.",
+  "잠은 잘 잤어요? 😴\n오늘도 활기차게 시작해요!",
+  "오늘도 함께해서 좋아요 🐶\n언제나 응원할게요!",
+  "오늘 하루도 잘 부탁해요! 🌿\n건강한 하루 보내요.",
+];
+
+/**
+ * Task 3: 약품명 괄호 기준 줄바꿈 파싱
+ * "타이레놀정500밀리그람(아세트아미노펜) 1정"
+ *   → line1: "타이레놀정500밀리그람"
+ *   → line2: "(아세트아미노펜) 1정"
+ * 괄호가 없으면 line2: null
+ */
+function parseMedicineName(name: string): { line1: string; line2: string | null } {
+  const idx = name.indexOf("(");
+  if (idx <= 0) return { line1: name, line2: null };
+  return {
+    line1: name.slice(0, idx).trim(),
+    line2: name.slice(idx).trim(),
+  };
+}
+
+/** Task 1: \n 기준 분리 → <br/> 강제 줄바꿈 렌더 */
+function renderMultiLine(text: string) {
+  const lines = text.split("\n");
+  return lines.map((line, i) => (
+    <span key={i}>
+      {line}
+      {i < lines.length - 1 && <br />}
+    </span>
+  ));
+}
 
 const cardStyle: CSSProperties = {
   background: "#FFFFFF",
@@ -318,8 +356,8 @@ export default function MainPage() {
   });
   const [latestMood, setLatestMood] = useState<number | null>(null);
   const [greetingMessage] = useState(() => {
-    const idx = Math.floor(Math.random() * GREETING_MESSAGES.length);
-    return GREETING_MESSAGES[idx];
+    const idx = Math.floor(Math.random() * GREETING_MESSAGES_2L.length);
+    return GREETING_MESSAGES_2L[idx];
   });
   const [isSavingMood, setIsSavingMood] = useState(false);
   const [animatedEmoji, setAnimatedEmoji] = useState<{ slot: UiSlot; level: number; nonce: number } | null>(null);
@@ -802,17 +840,18 @@ export default function MainPage() {
                 background: bubbleColor,
                 border: `1px solid ${bubbleBorderColor}`,
                 borderRadius: 16,
-                padding: "10px 14px",
+                padding: "10px 18px",
                 maxWidth: "88%",
                 textAlign: "center",
                 fontWeight: 600,
-                lineHeight: 1.6,
+                fontSize: 14,
+                lineHeight: 1.5,
                 color: bubbleTextColor,
                 boxShadow: "0 6px 16px rgba(137,175,207,0.18)",
                 zIndex: 1,
               }}
             >
-              {characterMessage}
+              {renderMultiLine(characterMessage)}
               <span
                 style={{
                   position: "absolute",
@@ -878,7 +917,7 @@ export default function MainPage() {
             {TIME_SLOTS.map((slot) => (
               <div key={slot.key} style={swipePageStyle}>
                 <h3 style={{ margin: "0 0 8px", fontSize: 14, lineHeight: 1.3, paddingTop: 2 }}>
-                  오늘의 <span style={{ color: slot.key === currentSlot ? "#99A988" : "inherit", fontWeight: slot.key === currentSlot ? 800 : 600 }}>{slot.label}</span> 기분
+                  오늘의 <span>{slot.label}</span> 기분
                 </h3>
 
                 <div style={{ display: "flex", gap: "6px", flexWrap: "nowrap", justifyContent: "center", width: "max-content", margin: "0 auto" }}>
@@ -928,7 +967,7 @@ export default function MainPage() {
           </div>
 
           {TIME_SLOTS.every((slot) => todayMoods[slot.key] === null) && (
-            <div style={{ marginTop: 10, fontSize: 14, color: "#757575" }}>아직 기록된 기분이 없어요.</div>
+            <div style={{ marginTop: 10, fontSize: 14, color: "#757575" }}>오늘의 기분을 등록해주세요</div>
           )}
         </div>
 
@@ -964,7 +1003,7 @@ export default function MainPage() {
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                     <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#3a3228" }}>
-                      오늘의 <span style={{ color: slot.key === currentSlot ? "#99A988" : "inherit" }}>{slot.label}</span> 약
+                      오늘의 <span>{slot.label}</span> 약
                     </h3>
                     <button style={topButtonStyle} onClick={() => navigateWithFade("/medications/add")}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 16px rgba(153,169,136,0.45)"; }}
@@ -1002,9 +1041,12 @@ export default function MainPage() {
                     </div>
                   )}
 
-                <div className="med-list" style={{ maxHeight: 200, overflowY: "auto", paddingRight: 2 }}>
-                    {medications.map((med) => (
-                      <div key={med.id} style={{ marginBottom: "6px" }}>
+                {/* Task 2: height auto, 내부 스크롤 제거 — flex column으로 약 개수만큼 자동 확장 */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {medications.map((med) => {
+                      const { line1, line2 } = parseMedicineName(med.name);
+                      return (
+                      <div key={med.id}>
                         <div
                           onClick={() => !isSavingMedication && handleMedicationToggle(med.medicationId, med.checked, med.timeSlot)}
                           style={{
@@ -1012,18 +1054,17 @@ export default function MainPage() {
                             alignItems: "center",
                             justifyContent: "space-between",
                             gap: 10,
-                            padding: "8px",
+                            padding: "10px 8px",
                             borderRadius: "8px",
                             border: med.checked ? "1px solid #C5D4B8" : "1px solid #E8E8E8",
                             background: med.checked ? "#F0F5EE" : "#FFFFFF",
-                            textDecoration: med.checked ? "line-through" : "none",
                             color: med.checked ? "#9aaa8a" : "#3a3228",
                             cursor: isSavingMedication ? "not-allowed" : "pointer",
                             opacity: isSavingMedication ? 0.6 : 1,
                             transition: "background 0.2s ease, border-color 0.2s ease, opacity 0.15s ease",
                           }}
                         >
-                          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
                             <div
                               style={{
                                 width: 22,
@@ -1050,7 +1091,23 @@ export default function MainPage() {
                                 </svg>
                               )}
                             </div>
-                            {med.name} {med.dosage}정
+                            {/* Task 3: 괄호 기준 2줄 렌더 */}
+                            <span style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              lineHeight: 1.5,
+                              textDecoration: med.checked ? "line-through" : "none",
+                              minWidth: 0,
+                            }}>
+                              <span style={{ fontSize: 14, fontWeight: 600 }}>
+                                {line1}{line2 === null ? ` ${med.dosage}정` : ""}
+                              </span>
+                              {line2 !== null && (
+                                <span style={{ fontSize: 12, color: med.checked ? "#9aaa8a" : "#7a7a7a", marginTop: 1 }}>
+                                  {line2} {med.dosage}정
+                                </span>
+                              )}
+                            </span>
                           </span>
                           <button
                             onClick={(e) => {
@@ -1142,7 +1199,8 @@ export default function MainPage() {
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
 
                   {medications.length === 0 && (
                     <div style={{ fontSize: 14, color: "#757575" }}>등록된 약이 없습니다.</div>
