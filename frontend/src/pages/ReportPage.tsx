@@ -1,11 +1,136 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import Button from "../components/Button";
 import { ReportCard } from "../components/Cards";
 import { EmptyState, ErrorMessage, Loading } from "../components/CommonUI";
 import { COLORS } from "../constants/theme";
-import { createReport, getReports, type ReportListItem } from "../api/report";
+import { createReport, deleteReport, getReports, type ReportListItem } from "../api/report";
+
+interface DeleteModalProps {
+  isOpen: boolean;
+  isDeleting: boolean;
+  targetLabel: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}
+
+function DeleteConfirmModal({ isOpen, isDeleting, targetLabel, onConfirm, onClose }: DeleteModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isDeleting) onClose();
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isOpen, isDeleting, onClose]);
+
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+    const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, [tabindex]:not([tabindex="-1"])',
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener("keydown", trap);
+    first?.focus();
+    return () => document.removeEventListener("keydown", trap);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget && !isDeleting) onClose(); }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+      }}
+    >
+      <div
+        ref={modalRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="del-modal-title"
+        aria-describedby="del-modal-desc"
+        style={{
+          background: "#fff",
+          borderRadius: 16,
+          padding: 24,
+          maxWidth: 320,
+          width: "90%",
+          display: "grid",
+          gap: 16,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+        }}
+      >
+        <h2 id="del-modal-title" style={{ margin: 0, fontSize: 18 }}>리포트 삭제</h2>
+        <p
+          id="del-modal-desc"
+          style={{ margin: 0, fontSize: 14, color: COLORS.text, lineHeight: 1.6 }}
+        >
+          <strong>{targetLabel}</strong> <br />리포트를 삭제할까요?<br />
+          삭제된 리포트는 복구할 수 없습니다.
+        </p>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={onClose}
+            disabled={isDeleting}
+            autoFocus
+            style={{
+              flex: 1,
+              padding: "12px 0",
+              borderRadius: 10,
+              border: `1px solid ${COLORS.border}`,
+              background: "#fff",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: 15,
+              fontFamily: "inherit",
+            }}
+          >
+            취소
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isDeleting}
+            aria-busy={isDeleting}
+            style={{
+              flex: 1,
+              padding: "12px 0",
+              borderRadius: 10,
+              border: "none",
+              background: "#fee2e2",
+              color: "#dc2626",
+              cursor: isDeleting ? "not-allowed" : "pointer",
+              fontWeight: 700,
+              fontSize: 15,
+              fontFamily: "inherit",
+              opacity: isDeleting ? 0.65 : 1,
+            }}
+          >
+            {isDeleting ? "삭제 중..." : "삭제"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function ReportPage() {
   const navigate = useNavigate();
@@ -17,6 +142,8 @@ export function ReportPage() {
   const [endDate, setEndDate] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ReportListItem | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const fetchReports = useCallback(async () => {
     try {
@@ -143,11 +270,46 @@ export function ReportPage() {
       {!loading && !error && reports.length > 0 ? (
         <section style={{ display: "grid", gap: 10 }}>
           {reports.map((report) => (
-            <ReportCard key={report.reportId} report={report} onClick={() => navigate(`/report/${report.reportId}`)} />
+            <div key={report.reportId} style={{ position: "relative" }}>
+              <ReportCard report={report} onClick={() => navigate(`/report/${report.reportId}`)} />
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setDeleteTarget(report); }}
+                style={{
+                  position: "absolute",
+                  top: 52,
+                  right: 17,
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: "#C0392B",
+                  textDecoration: "underline",
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                삭제
+              </button>
+            </div>
           ))}
         </section>
       ) : null}
       </div>
+
+      <DeleteConfirmModal
+        isOpen={deleteTarget !== null}
+        isDeleting={deletingId === deleteTarget?.reportId}
+        targetLabel={deleteTarget ? `${deleteTarget.startDate} ~ ${deleteTarget.endDate}` : ""}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          setDeletingId(deleteTarget.reportId);
+          void deleteReport(deleteTarget.reportId)
+            .then(() => fetchReports())
+            .catch(() => setError("리포트 삭제에 실패했습니다."))
+            .finally(() => { setDeletingId(null); setDeleteTarget(null); });
+        }}
+        onClose={() => { if (!deletingId) setDeleteTarget(null); }}
+      />
     </main>
   );
 }

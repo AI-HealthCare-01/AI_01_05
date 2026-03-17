@@ -287,6 +287,13 @@ class DiaryReportService:
             "clinicianNote": report.clinician_note,
         }
 
+    async def delete_report(self, user_id: int, report_id: int) -> dict:
+        report = await Report.get_or_none(user_id=user_id, report_id=report_id)
+        if not report:
+            raise LookupError("REPORT_NOT_FOUND")
+        await report.delete()
+        return {"message": "리포트가 삭제되었습니다."}
+
     async def update_report(self, user_id: int, report_id: int, summary: str) -> dict:
         report = await Report.get_or_none(user_id=user_id, report_id=report_id)
         if not report:

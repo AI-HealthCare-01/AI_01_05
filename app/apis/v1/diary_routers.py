@@ -10,6 +10,7 @@ from app.dtos.diary_report_dto import (
     ChatbotSummaryResponse,
     ChatbotSummarySaveRequest,
     DeleteDiaryResponse,
+    DeleteReportResponse,
     DiaryByDateResponse,
     DiaryCalendarResponse,
     DiarySaveResponse,
@@ -173,6 +174,17 @@ async def create_report(
         )
     except ValueError as e:
         return ORJSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"error": str(e)})
+
+
+@router.delete("/report/{report_id}", response_model=DeleteReportResponse, status_code=status.HTTP_200_OK)
+async def delete_report(
+    report_id: int,
+    user: Annotated[User, Depends(get_request_user)],
+):
+    try:
+        return await service.delete_report(user_id=user.user_id, report_id=report_id)
+    except LookupError as e:
+        return ORJSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"error": str(e)})
 
 
 @router.get("/report/{report_id}", response_model=ReportDetailResponse)
