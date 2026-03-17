@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  getCurrentSlot,
+  getCurrentLabel,
+  loadTimeRanges,
+  slotToLabel,
+  type UiSlot as TimeRangeUiSlot,
+} from "../utils/timeRange";
 
 import {
   getHomeMedicationsToday,
@@ -15,7 +22,7 @@ import { CHARACTER_IMAGE_BY_ID, DEFAULT_CHARACTER_IMAGE } from "../constants/cha
 import { COLORS } from "../constants/theme";
 import { useAuthStore } from "../store/authStore";
 
-type UiSlot = "morning" | "lunch" | "dinner" | "night";
+type UiSlot = TimeRangeUiSlot;
 type ApiSlot = "MORNING" | "LUNCH" | "EVENING" | "BEDTIME";
 
 type MoodBySlot = Record<UiSlot, number | null>;
@@ -38,12 +45,8 @@ type NextAppointmentUi = {
   timeLabel: string | null;
 };
 
-const TIME_SLOTS: Array<{ key: UiSlot; label: string }> = [
-  { key: "morning", label: "아침" },
-  { key: "lunch", label: "점심" },
-  { key: "dinner", label: "저녁" },
-  { key: "night", label: "취침 전" },
-];
+// 슬롯 키 목록 (순서 고정 — 레이블은 timeRange 유틸에서 동적으로 가져옴)
+const SLOT_KEYS: UiSlot[] = ["morning", "lunch", "dinner", "night"];
 
 const MOOD_EMOJI: Record<number, string> = {
   1: "😡",
@@ -75,12 +78,10 @@ const GREETING_MESSAGES = [
   "오늘 하루도 잘 부탁해요! 🌿",
 ];
 
-const COMPLETION_MESSAGES: Record<UiSlot, string> = {
-  morning: "아침 약을 다 드셨네요! 대단해요! 💊",
-  lunch: "점심 약을 다 드셨네요! 대단해요! 💊",
-  dinner: "저녁 약을 다 드셨네요! 잘하고 있어요! 💊",
-  night: "오늘 하루 약을 모두 챙겼어요! 최고예요 🐾",
-};
+function getCompletionMessage(slot: UiSlot, label: string): string {
+  if (slot === "night") return "오늘 하루 약을 모두 챙겼어요! 최고예요 🐾";
+  return `${label} 약을 다 드셨네요! 대단해요! 💊`;
+}
 
 const MOOD_MESSAGES: Record<string, string> = {
   1: "오늘 많이 힘드셨군요. 푹 쉬어요 🥺",
@@ -189,13 +190,6 @@ function getEmojiButtonStyle(level: number, selected: boolean): CSSProperties {
   };
 }
 
-function getCurrentUiSlot(): UiSlot {
-  const hour = new Date().getHours();
-  if (hour < 11) return "morning";
-  if (hour < 15) return "lunch";
-  if (hour < 21) return "dinner";
-  return "night";
-}
 
 function toDateLabel(appointmentDate: string): string {
   const [year, month, day] = appointmentDate.split("-").map(Number);
@@ -223,6 +217,14 @@ function toDdayLabel(appointmentDate: string): string {
   const diffDays = Math.floor((target.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24));
   if (diffDays <= 0) return "D-day";
   return `D-${diffDays}`;
+}
+
+// ── TIME_SLOTS 호환 헬퍼 (레이블을 동적으로 주입) ──
+function makeTimeSlots(ranges = loadTimeRanges()) {
+  return SLOT_KEYS.map((key) => ({
+    key,
+    label: slotToLabel(key, ranges),
+  }));
 }
 
 // ── 스켈레톤 컴포넌트 ──
@@ -272,6 +274,33 @@ export default function MainPage() {
     setPageLeaving(true);
     setTimeout(() => navigate(to), 200);
   }, [navigate]);
+
+  // ── 동적 시간대 레이블 상태 ──────────────────────────────────────────────
+  // 버그 수정 포인트:
+  //   기존: getCurrentUiSlot()을 모듈 최상위 상수로 계산 → 렌더 이후 갱신 불가
+  //   수정: useState lazy initializer + setInterval(1분)으로 반응형 상태 관리
+  const [timeRanges, setTimeRanges] = useState(() => loadTimeRanges());
+  const [currentSlot, setCurrentSlot] = useState<UiSlot>(() => getCurrentSlot());
+  const [currentLabel, setCurrentLabel] = useState(() => getCurrentLabel());
+
+  // 1분마다 현재 슬롯 재계산 + localStorage 변경 감지
+  useEffect(() => {
+    const tick = () => {
+      const freshRanges = loadTimeRanges();
+      setTimeRanges(freshRanges);
+      setCurrentSlot(getCurrentSlot(freshRanges));
+      setCurrentLabel(getCurrentLabel(freshRanges));
+    };
+    const id = setInterval(tick, 60_000);
+    // 마운트 직후 즉시 1회 실행 (애니메이션 완료 후 정확한 값 보장)
+    tick();
+    return () => clearInterval(id);
+  }, []);
+
+  // TIME_SLOTS: 레이블이 timeRanges에 따라 동적으로 결정됨
+  const TIME_SLOTS = useMemo(() => makeTimeSlots(timeRanges), [timeRanges]);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const selectedCharacter = useAuthStore((s) => s.selectedCharacter);
   const setSelectedCharacter = useAuthStore((s) => s.setSelectedCharacter);
   const [characterImage, setCharacterImage] = useState(DEFAULT_CHARACTER_IMAGE);
@@ -308,10 +337,15 @@ export default function MainPage() {
   const [loadingDetailByMedicationId, setLoadingDetailByMedicationId] = useState<Record<number, boolean>>({});
   const [detailErrorByMedicationId, setDetailErrorByMedicationId] = useState<Record<number, string>>({});
 
-  const initialSlot = getCurrentUiSlot();
-  const initialIndex = TIME_SLOTS.findIndex((slot) => slot.key === initialSlot);
-  const [moodSwipeIndex, setMoodSwipeIndex] = useState(initialIndex < 0 ? 0 : initialIndex);
-  const [medSwipeIndex, setMedSwipeIndex] = useState(initialIndex < 0 ? 0 : initialIndex);
+  // 초기 스와이프 인덱스: lazy initializer로 계산 → 애니메이션 전환 후에도 정확한 값 유지
+  const [moodSwipeIndex, setMoodSwipeIndex] = useState(() => {
+    const idx = SLOT_KEYS.indexOf(getCurrentSlot());
+    return idx < 0 ? 0 : idx;
+  });
+  const [medSwipeIndex, setMedSwipeIndex] = useState(() => {
+    const idx = SLOT_KEYS.indexOf(getCurrentSlot());
+    return idx < 0 ? 0 : idx;
+  });
 
   const moodSwipeRef = useRef<HTMLDivElement | null>(null);
   const medSwipeRef = useRef<HTMLDivElement | null>(null);
@@ -414,11 +448,15 @@ export default function MainPage() {
       });
   }, [setSelectedCharacter]);
 
+  // 로딩 완료 후 현재 슬롯으로 스와이프 위치 동기화
   useEffect(() => {
-    const index = initialIndex < 0 ? 0 : initialIndex;
-    scrollMoodToIndex(index);
-    scrollMedToIndex(index);
-  }, []);
+    if (loading) return;
+    const index = SLOT_KEYS.indexOf(currentSlot);
+    const target = index < 0 ? 0 : index;
+    scrollMoodToIndex(target);
+    scrollMedToIndex(target);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   const handleMoodClick = async (slot: UiSlot, level: number) => {
     setAnimatedEmoji({ slot, level, nonce: Date.now() });
@@ -548,12 +586,9 @@ export default function MainPage() {
     setPrevAllDoneBySlot(allDoneBySlot);
   }, [allDoneBySlot, prevAllDoneBySlot]);
 
-  const currentSlot = getCurrentUiSlot();
-  void currentSlot;
-
   const characterMessage = (() => {
     if (lastActiveSlot && allDoneBySlot[lastActiveSlot]) {
-      return COMPLETION_MESSAGES[lastActiveSlot];
+      return getCompletionMessage(lastActiveSlot, slotToLabel(lastActiveSlot, timeRanges));
     }
     if (latestMood) {
       return MOOD_MESSAGES[String(latestMood)];
@@ -842,7 +877,9 @@ export default function MainPage() {
           >
             {TIME_SLOTS.map((slot) => (
               <div key={slot.key} style={swipePageStyle}>
-                <h3 style={{ margin: "0 0 8px", fontSize: 14, lineHeight: 1.3, paddingTop: 2 }}>오늘의 {slot.label} 기분</h3>
+                <h3 style={{ margin: "0 0 8px", fontSize: 14, lineHeight: 1.3, paddingTop: 2 }}>
+                  오늘의 <span style={{ color: slot.key === currentSlot ? "#99A988" : "inherit", fontWeight: slot.key === currentSlot ? 800 : 600 }}>{slot.label}</span> 기분
+                </h3>
 
                 <div style={{ display: "flex", gap: "6px", flexWrap: "nowrap", justifyContent: "center", width: "max-content", margin: "0 auto" }}>
                   {Object.entries(MOOD_EMOJI).map(([level, emoji]) => {
@@ -926,7 +963,9 @@ export default function MainPage() {
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#3a3228" }}>오늘의 {slot.label} 약</h3>
+                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#3a3228" }}>
+                      오늘의 <span style={{ color: slot.key === currentSlot ? "#99A988" : "inherit" }}>{slot.label}</span> 약
+                    </h3>
                     <button style={topButtonStyle} onClick={() => navigateWithFade("/medications/add")}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 16px rgba(153,169,136,0.45)"; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 12px rgba(153,169,136,0.35)"; }}
@@ -936,7 +975,7 @@ export default function MainPage() {
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                    <div style={{ minWidth: 74, fontSize: 13, color: "#a09070" }}>
+                    <div style={{ minWidth: 30, fontSize: 13, color: "#a09070" }}>
                       {completeCount} / {totalCount}
                     </div>
                     <div style={{ flex: 1, height: 8, borderRadius: 999, background: "#E8E8E8", overflow: "hidden" }}>
