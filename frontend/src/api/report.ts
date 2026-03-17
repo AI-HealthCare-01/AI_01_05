@@ -31,3 +31,7 @@ export function createReport(body: { startDate: string; endDate: string }) {
 export function getReportDetail(reportId: number) {
   return apiRequest<ReportDetail | null>(`/diary/report/${reportId}`, { method: "GET" });
 }
+
+export function deleteReport(reportId: number) {
+  return apiRequest<{ message: string }>(`/diary/report/${reportId}`, { method: "DELETE" });
+}
