@@ -183,7 +183,10 @@ async def get_report_detail(
     try:
         return await service.get_report_detail(user_id=user.user_id, report_id=report_id)
     except LookupError as e:
-        return ORJSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"error": str(e)})
+        return ORJSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"error": str(e)},
+        )
 
 
 @router.get("/{entry_date}", response_model=DiaryByDateResponse)

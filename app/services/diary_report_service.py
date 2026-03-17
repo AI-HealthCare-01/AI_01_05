@@ -214,6 +214,21 @@ class DiaryReportService:
         await Diary.filter(diary_id=entry_id).update(deleted_at=datetime.now(tz=KST))
         return {"message": "일기가 삭제되었습니다."}
 
+    async def get_report_detail(self, user_id: int, report_id: int) -> dict:
+        report = await Report.get_or_none(user_id=user_id, report_id=report_id)
+        if not report:
+            raise LookupError("REPORT_NOT_FOUND")
+
+        return {
+            "reportId": report.report_id,
+            "startDate": report.start_date,
+            "endDate": report.end_date,
+            "createdAt": report.created_at.date(),
+            "summary": report.summary or "",
+            "moodSummary": report.mood_summary,
+            "clinicianNote": report.clinician_note,
+        }
+
     async def get_reports(self, user_id: int) -> dict:
         reports = await Report.filter(user_id=user_id).order_by("-created_at")
         return {
@@ -241,38 +256,35 @@ class DiaryReportService:
         diary_texts = [diary.content for diary in diaries]
 
         try:
-            summary = await self.llm_service.summarize_report(
+            report_result = await self.llm_service.summarize_report(
                 diary_texts=diary_texts,
                 start_date=start_date.isoformat(),
                 end_date=end_date.isoformat(),
             )
         except Exception:
-            summary = f"======= 리포트 요약 데이터 =======\n{start_date}부터 {end_date}까지의 요약입니다."
+            report_result = {
+                "summary": f"{start_date}부터 {end_date}까지의 요약입니다.",
+                "mood_summary": "기분 흐름을 파악할 수 있을 만큼의 기록이 아직 충분하지 않습니다.",
+                "clinician_note": "기록 부족으로 해석에 제한이 있습니다.",
+            }
 
         report = await Report.create(
             user_id=user_id,
             start_date=start_date,
             end_date=end_date,
-            summary=summary,
+            summary=report_result.get("summary", ""),
+            mood_summary=report_result.get("mood_summary"),
+            clinician_note=report_result.get("clinician_note"),
         )
-        return {
-            "reportId": report.report_id,
-            "startDate": report.start_date,
-            "endDate": report.end_date,
-            "createdAt": report.created_at.date(),
-            "summary": report.summary,
-        }
 
-    async def get_report_detail(self, user_id: int, report_id: int) -> dict:
-        report = await Report.get_or_none(user_id=user_id, report_id=report_id)
-        if not report:
-            raise LookupError("REPORT_NOT_FOUND")
         return {
             "reportId": report.report_id,
             "startDate": report.start_date,
             "endDate": report.end_date,
             "createdAt": report.created_at.date(),
             "summary": report.summary or "",
+            "moodSummary": report.mood_summary,
+            "clinicianNote": report.clinician_note,
         }
 
     async def update_report(self, user_id: int, report_id: int, summary: str) -> dict:
