@@ -1,4 +1,3 @@
-# Python
 __pycache__/
 *.py[oc]
 build/
@@ -41,3 +40,4 @@ data/dur/
 *.index
 *.pkl
 adverse_lookup.pkl
+docs/

@@ -30,6 +30,7 @@ async def lifespan(app):
     await redis_client.aclose()
 
 
+
 # FastAPI 앱 단일 인스턴스.
 # docs/redoc/openapi 경로를 API prefix 하위로 통일해 배포 시 라우팅 충돌을 줄인다.
 app = FastAPI(

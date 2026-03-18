@@ -26,6 +26,7 @@ export function deleteUserMedication(medicationId: number): Promise<void> {
   return apiRequest<void>(`/user-medications/${medicationId}`, { method: "DELETE" });
 }
 
+
 export interface TimeSlotsUpdateRequest {
   morning?: string;  // "HH:MM" 형식
   lunch?: string;

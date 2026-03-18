@@ -93,6 +93,8 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+
+
   # 4. Nginx (웹 서버 - 요청 리버스 프록시로 전달)
   nginx:
     container_name: nginx
