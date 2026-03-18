@@ -222,14 +222,16 @@ async def get_active_medication_users(redis_client: Redis) -> list[dict]:
                 continue
 
             hour = int(time_slot.split(":")[0])
-            result.append({
-                "user_id": user_id,
-                "phone_number": user.phone_number,
-                "nickname": user.nickname,
-                "medicine_names": medicines,
-                "time_slot": time_slot,
-                "time_label": _get_time_label_for_sms(hour),
-            })
+            result.append(
+                {
+                    "user_id": user_id,
+                    "phone_number": user.phone_number,
+                    "nickname": user.nickname,
+                    "medicine_names": medicines,
+                    "time_slot": time_slot,
+                    "time_label": _get_time_label_for_sms(hour),
+                }
+            )
 
     return result
 

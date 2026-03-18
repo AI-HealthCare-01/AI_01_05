@@ -19,15 +19,43 @@ EMBEDDING_MODEL = "jhgan/ko-sroberta-multitask"
 
 # 병용금기 필터링용 정신과 관련 키워드
 PSYCH_KEYWORDS = [
-    "리스페리돈", "올란자핀", "쿠에티아핀", "아리피프라졸", "할로페리돌",
-    "클로자핀", "팔리페리돈", "졸피뎀", "에스조피클론", "트리아졸람",
-    "플루옥세틴", "설트랄린", "파록세틴", "에스시탈로프람", "벤라팍신",
-    "미르타자핀", "둘록세틴", "아미트리프틸린", "이미프라민",
-    "알프라졸람", "로라제팜", "디아제팜", "클로나제팜",
-    "리튬", "발프로산", "카르바마제핀", "라모트리진",
-    "메틸페니데이트", "아토목세틴", "부프로피온",
-    "트라마돌", "모르핀", "옥시코돈",
-    "와파린", "아스피린", "이부프로펜", "나프록센",
+    "리스페리돈",
+    "올란자핀",
+    "쿠에티아핀",
+    "아리피프라졸",
+    "할로페리돌",
+    "클로자핀",
+    "팔리페리돈",
+    "졸피뎀",
+    "에스조피클론",
+    "트리아졸람",
+    "플루옥세틴",
+    "설트랄린",
+    "파록세틴",
+    "에스시탈로프람",
+    "벤라팍신",
+    "미르타자핀",
+    "둘록세틴",
+    "아미트리프틸린",
+    "이미프라민",
+    "알프라졸람",
+    "로라제팜",
+    "디아제팜",
+    "클로나제팜",
+    "리튬",
+    "발프로산",
+    "카르바마제핀",
+    "라모트리진",
+    "메틸페니데이트",
+    "아토목세틴",
+    "부프로피온",
+    "트라마돌",
+    "모르핀",
+    "옥시코돈",
+    "와파린",
+    "아스피린",
+    "이부프로펜",
+    "나프록센",
 ]
 
 
@@ -98,15 +126,17 @@ def process_pregnancy_xlsx() -> list[dict]:
         grade = _parse_pregnancy_grade(grade_raw)
         text = _build_pregnancy_text(ingredient, grade, grade_raw, detail, note)
 
-        results.append({
-            "text": text,
-            "metadata": {
-                "source": "식약처_임부금기",
-                "type": "임부금기",
-                "성분명": ingredient,
-                "등급": grade or grade_raw,
-            },
-        })
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "식약처_임부금기",
+                    "type": "임부금기",
+                    "성분명": ingredient,
+                    "등급": grade or grade_raw,
+                },
+            }
+        )
 
     return results
 
@@ -145,15 +175,17 @@ def process_pregnancy_csv() -> list[dict]:
         if detail:
             text += f" {detail}"
 
-        results.append({
-            "text": text,
-            "metadata": {
-                "source": "심평원_임부금기",
-                "type": "임부금기",
-                "성분명": ingredient,
-                "등급": grade,
-            },
-        })
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "심평원_임부금기",
+                    "type": "임부금기",
+                    "성분명": ingredient,
+                    "등급": grade,
+                },
+            }
+        )
 
     return results
 
@@ -187,14 +219,16 @@ def process_elderly_csv() -> list[dict]:
         if detail:
             text += f" {detail}"
 
-        results.append({
-            "text": text,
-            "metadata": {
-                "source": "심평원_노인주의",
-                "type": "노인주의",
-                "성분명": ingredient,
-            },
-        })
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "심평원_노인주의",
+                    "type": "노인주의",
+                    "성분명": ingredient,
+                },
+            }
+        )
 
     return results
 
@@ -228,14 +262,16 @@ def process_elderly_nsaid_csv() -> list[dict]:
         if detail:
             text += f" {detail}"
 
-        results.append({
-            "text": text,
-            "metadata": {
-                "source": "심평원_노인주의",
-                "type": "노인주의",
-                "성분명": ingredient,
-            },
-        })
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "심평원_노인주의",
+                    "type": "노인주의",
+                    "성분명": ingredient,
+                },
+            }
+        )
 
     return results
 
@@ -277,14 +313,16 @@ def process_age_csv() -> list[dict]:
         if detail:
             text += f" {detail}"
 
-        results.append({
-            "text": text,
-            "metadata": {
-                "source": "심평원_연령금기",
-                "type": "연령금기",
-                "성분명": ingredient,
-            },
-        })
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "심평원_연령금기",
+                    "type": "연령금기",
+                    "성분명": ingredient,
+                },
+            }
+        )
 
     return results
 
@@ -328,14 +366,16 @@ def process_combination_csv() -> list[dict]:
         if detail:
             text += f" {detail}"
 
-        results.append({
-            "text": text,
-            "metadata": {
-                "source": "심평원_병용금기",
-                "type": "병용금기",
-                "성분명": f"{ingredient_a}, {ingredient_b}",
-            },
-        })
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "심평원_병용금기",
+                    "type": "병용금기",
+                    "성분명": f"{ingredient_a}, {ingredient_b}",
+                },
+            }
+        )
 
     return results
 
@@ -365,7 +405,7 @@ def embed_to_chromadb(documents: list[dict], batch_label: str) -> int:
         batch_ids = ids[i : i + batch_size]
         batch_meta = metadatas[i : i + batch_size]
 
-        print(f"  [{batch_label}] 임베딩 중... ({i+1}~{min(i+batch_size, len(texts))}/{len(texts)})")
+        print(f"  [{batch_label}] 임베딩 중... ({i + 1}~{min(i + batch_size, len(texts))}/{len(texts)})")
         embeddings = embedder.encode(batch_texts, show_progress_bar=True).tolist()
 
         collection.upsert(
