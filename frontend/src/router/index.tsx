@@ -17,6 +17,7 @@ import CharacterSelectPage from "../pages/CharacterSelectPage.tsx";
 import AddMedicationPage from "../pages/AddMedicationPage.tsx";
 import MedicineSearchPage from "../pages/MedicineSearchPage.tsx";
 import MedicineConfirmPage from "../pages/MedicineConfirmPage.tsx";
+import MedicationManagePage from "../pages/MedicationManagePage.tsx";
 import { MedicationFlowProvider } from "../store/MedicationFlowContext.tsx";
 import { ChatProvider } from "../context/ChatContext.tsx";
 import ChatPage from "../pages/ChatPage.tsx";
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
   { path: "/appointments/new", element: <AppointmentPage /> },
   { path: "/appointments/:appointmentId/edit", element: <AppointmentPage /> },
   { path: "/mypage", element: <AuthRequired><MyPage /></AuthRequired>},
+  { path: "/medications", element: <AuthRequired><MedicationManagePage /></AuthRequired>},
   { path: "/auth/kakao/callback", element: <KakaoCallbackPage /> },
   { path: "/signup", element : <SignupRequired><SignupPage /></SignupRequired>},
   { path: "/main", element: <AuthRequired><MainPage /></AuthRequired>},

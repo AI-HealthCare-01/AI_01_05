@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { getAppointments, type AppointmentItem } from "../api/appointments";
@@ -14,8 +14,6 @@ import { Calendar } from "../components/Calendar";
 import { EmptyState, ErrorMessage, Loading } from "../components/CommonUI";
 import {
   COLORS,
-  MOOD_COLORS,
-  TIME_SLOT_LABELS,
   WRITE_METHOD_LABELS,
 } from "../constants/theme";
 import { formatDateLabel } from "../utils/date";
@@ -71,6 +69,24 @@ export function DiaryPage() {
   const [diaryError, setDiaryError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetFull, setSheetFull] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const delModalRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const [calendarBottom, setCalendarBottom] = useState<number>(0);
+
+  useEffect(() => {
+    if (!calendarRef.current) return;
+    const update = () => {
+      const rect = calendarRef.current?.getBoundingClientRect();
+      if (rect) setCalendarBottom(rect.bottom);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(calendarRef.current);
+    window.addEventListener("scroll", update, true);
+    return () => { ro.disconnect(); window.removeEventListener("scroll", update, true); };
+  }, [data, year, month]);
 
   const fetchCalendar = useCallback(async () => {
     try {
@@ -129,11 +145,45 @@ export function DiaryPage() {
 
   const removeSelectedEntry = async () => {
     if (!selectedDate || !selectedEntry) return;
-    if (!window.confirm("일기를 삭제할까요?")) return;
-    await deleteDiaryEntry(selectedDate, selectedEntry.entryId);
-    setSelectedEntry(null);
-    await fetchCalendar();
+    setIsDeleting(true);
+    try {
+      await deleteDiaryEntry(selectedDate, selectedEntry.entryId);
+      setSelectedEntry(null);
+      setDeleteConfirmOpen(false);
+      await fetchCalendar();
+    } finally {
+      setIsDeleting(false);
+    }
   };
+
+  useEffect(() => {
+    if (!deleteConfirmOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isDeleting) setDeleteConfirmOpen(false);
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [deleteConfirmOpen, isDeleting]);
+
+  useEffect(() => {
+    if (!deleteConfirmOpen || !delModalRef.current) return;
+    const focusable = delModalRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, [tabindex]:not([tabindex="-1"])',
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener("keydown", trap);
+    first?.focus();
+    return () => document.removeEventListener("keydown", trap);
+  }, [deleteConfirmOpen]);
 
   const handleDateClick = useCallback(
     (entryDate: string) => {
@@ -146,16 +196,6 @@ export function DiaryPage() {
   );
 
   const tab = location.pathname.startsWith("/report") ? "report" : "diary";
-  const selectedMoods = useMemo(
-    () =>
-      (data?.days.find((day) => day.date === selectedDate)?.moods ?? []).map(
-        (mood) => ({
-          mood_level: mood.mood_level,
-          time_slot: mood.time_slot,
-        }),
-      ),
-    [data?.days, selectedDate],
-  );
   const appointmentDates = useMemo(
     () => appointments.map((a) => a.appointment_date),
     [appointments],
@@ -193,22 +233,25 @@ export function DiaryPage() {
         }}
       >
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/main")}
           style={{
             background: "none",
             border: "none",
             cursor: "pointer",
-            fontSize: "15px",
-            color: COLORS.subText,
-            fontWeight: 600,
-            padding: "16px 0",
+            color: COLORS.text,
             display: "flex",
             alignItems: "center",
-            gap: "4px",
-            fontFamily: "inherit",
+            padding: 4,
+            transition: "all 0.2s ease",
           }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; }}
+          aria-label="홈으로"
         >
-          ‹ 뒤로
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
         </button>
         <div
           style={{
@@ -291,6 +334,7 @@ export function DiaryPage() {
           </section>
         ) : null}
         {!isLoading && !error && data ? (
+          <div ref={calendarRef}>
           <Calendar
             year={year}
             month={month}
@@ -300,6 +344,7 @@ export function DiaryPage() {
                 mood_level: m.mood_level,
                 time_slot: m.time_slot,
               })),
+              has_diary: d.has_diary ?? d.hasDiary ?? false,
             }))}
             onPrevMonth={() => {
               const next = shiftMonth(year, month, -1);
@@ -323,6 +368,7 @@ export function DiaryPage() {
             appointmentDates={appointmentDates}
             selectedDate={selectedDate ?? today.toISOString().slice(0, 10)}
           />
+          </div>
         ) : null}
         {!isLoading && !error && data && data.days.length === 0 ? (
           <EmptyState message="기록된 일기가 없습니다." />
@@ -352,6 +398,7 @@ export function DiaryPage() {
                 transform: sheetOpen
                   ? "translateX(-50%)"
                   : "translateX(-50%) translateY(100%)",
+                top: sheetFull ? "8vh" : `${calendarBottom + 10}px`,
                 bottom: 0,
                 zIndex: 40,
                 width: "100%",
@@ -360,8 +407,7 @@ export function DiaryPage() {
                 borderRadius: "20px 20px 0 0",
                 boxShadow: "0 -4px 24px rgba(0,0,0,0.12)",
                 transition:
-                  "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), max-height 0.3s ease",
-                maxHeight: sheetFull ? "92vh" : "52vh",
+                  "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), top 0.3s ease",
                 overflow: "hidden",
                 display: "flex",
                 flexDirection: "column",
@@ -436,7 +482,7 @@ export function DiaryPage() {
                         <button
                           onClick={(event) => {
                             event.stopPropagation();
-                            void removeSelectedEntry();
+                            setDeleteConfirmOpen(true);
                           }}
                           style={{
                             background: "transparent",
@@ -612,58 +658,7 @@ export function DiaryPage() {
                       {selectedEntry.content}
                     </p>
 
-                    {selectedMoods.length > 0 ? (
-                      <div
-                        style={{
-                          paddingTop: "14px",
-                          borderTop: `1px solid ${COLORS.border}`,
-                        }}
-                      >
-                        <p
-                          style={{
-                            margin: "0 0 10px",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            color: COLORS.subText,
-                          }}
-                        >
-                          오늘의 기분
-                        </p>
-                        <div style={{ display: "flex", gap: "12px" }}>
-                          {selectedMoods.map((mood, index) => (
-                            <div
-                              key={`${mood.time_slot}-${index}`}
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                gap: "4px",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: "28px",
-                                  height: "28px",
-                                  borderRadius: "50%",
-                                  background:
-                                    MOOD_COLORS[mood.mood_level] ??
-                                    COLORS.border,
-                                }}
-                              />
-                              <span
-                                style={{
-                                  fontSize: "10px",
-                                  color: COLORS.subText,
-                                }}
-                              >
-                                {TIME_SLOT_LABELS[mood.time_slot ?? ""] ??
-                                  mood.time_slot}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
+
                   </>
                 ) : null}
 
@@ -686,6 +681,88 @@ export function DiaryPage() {
           </>
         ) : null}
       </div>
+
+      {deleteConfirmOpen ? (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget && !isDeleting) setDeleteConfirmOpen(false); }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            ref={delModalRef}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="diary-del-modal-title"
+            aria-describedby="diary-del-modal-desc"
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 320,
+              width: "90%",
+              display: "grid",
+              gap: 16,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+            }}
+          >
+            <h2 id="diary-del-modal-title" style={{ margin: 0, fontSize: 18 }}>일기 삭제</h2>
+            <p
+              id="diary-del-modal-desc"
+              style={{ margin: 0, fontSize: 14, color: COLORS.text, lineHeight: 1.6 }}
+            >
+              <strong>{selectedDate ? formatDateLabel(selectedDate) : ""}</strong> <br />일기를 삭제할까요?<br />
+              삭제된 일기는 복구할 수 없습니다.
+            </p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => setDeleteConfirmOpen(false)}
+                disabled={isDeleting}
+                autoFocus
+                style={{
+                  flex: 1,
+                  padding: "12px 0",
+                  borderRadius: 10,
+                  border: `1px solid ${COLORS.border}`,
+                  background: "#fff",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: 15,
+                  fontFamily: "inherit",
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={() => void removeSelectedEntry()}
+                disabled={isDeleting}
+                aria-busy={isDeleting}
+                style={{
+                  flex: 1,
+                  padding: "12px 0",
+                  borderRadius: 10,
+                  border: "none",
+                  background: "#fee2e2",
+                  color: "#dc2626",
+                  cursor: isDeleting ? "not-allowed" : "pointer",
+                  fontWeight: 700,
+                  fontSize: 15,
+                  fontFamily: "inherit",
+                  opacity: isDeleting ? 0.65 : 1,
+                }}
+              >
+                {isDeleting ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

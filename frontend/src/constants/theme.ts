@@ -27,6 +27,16 @@ export const MOOD_COLORS: Record<number, string> = {
   7: "#2e67b1",
 };
 
+export const MOOD_EMOJI_MAP: Record<number, string> = {
+  1: "😡",
+  2: "😢",
+  3: "😟",
+  4: "😐",
+  5: "🙂",
+  6: "😊",
+  7: "😄",
+};
+
 export const MOOD_LABELS: Record<number, string> = {
   1: "매우 나쁨",
   2: "나쁨",

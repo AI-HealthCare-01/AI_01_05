@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { deleteAppointment, getAppointments, type AppointmentItem, updateAppointment } from "../api/appointments";
@@ -45,6 +45,135 @@ function toDdayLabel(appointmentDate: string): string {
   return `D-${diffDays}`;
 }
 
+// ── 삭제 확인 모달 ──────────────────────────────────────────────────────────
+
+interface DeleteModalProps {
+  isOpen: boolean;
+  isDeleting: boolean;
+  targetLabel: string;   // 삭제 대상 표시용 (병원명 또는 날짜)
+  onConfirm: () => void;
+  onClose: () => void;
+}
+
+function DeleteConfirmModal({ isOpen, isDeleting, targetLabel, onConfirm, onClose }: DeleteModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // ESC 키로 닫기
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isDeleting) onClose();
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isOpen, isDeleting, onClose]);
+
+  // 포커스 트랩
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+    const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, [tabindex]:not([tabindex="-1"])',
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener("keydown", trap);
+    first?.focus();
+    return () => document.removeEventListener("keydown", trap);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget && !isDeleting) onClose(); }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+      }}
+    >
+      <div
+        ref={modalRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="del-modal-title"
+        aria-describedby="del-modal-desc"
+        style={{
+          background: "#fff",
+          borderRadius: 16,
+          padding: 24,
+          maxWidth: 320,
+          width: "90%",
+          display: "grid",
+          gap: 16,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+        }}
+      >
+        <h2 id="del-modal-title" style={{ margin: 0, fontSize: 18 }}>진료 일정 삭제</h2>
+        <p
+          id="del-modal-desc"
+          style={{ margin: 0, fontSize: 14, color: COLORS.text, lineHeight: 1.6 }}
+        >
+          <strong>{targetLabel}</strong> 일정을 삭제할까요?<br />
+          삭제된 일정은 복구할 수 없습니다.
+        </p>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={onClose}
+            disabled={isDeleting}
+            autoFocus
+            style={{
+              flex: 1,
+              padding: "12px 0",
+              borderRadius: 10,
+              border: `1px solid ${COLORS.border}`,
+              background: "#fff",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: 15,
+              fontFamily: "inherit",
+            }}
+          >
+            취소
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isDeleting}
+            aria-busy={isDeleting}
+            style={{
+              flex: 1,
+              padding: "12px 0",
+              borderRadius: 10,
+              border: "none",
+              background: "#fee2e2",
+              color: "#dc2626",
+              cursor: isDeleting ? "not-allowed" : "pointer",
+              fontWeight: 700,
+              fontSize: 15,
+              fontFamily: "inherit",
+              opacity: isDeleting ? 0.65 : 1,
+            }}
+          >
+            {isDeleting ? "삭제 중..." : "삭제"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AppointmentListPage() {
   const navigate = useNavigate();
   const [items, setItems] = useState<AppointmentItem[]>([]);
@@ -56,6 +185,7 @@ export function AppointmentListPage() {
   const [editAppointmentDate, setEditAppointmentDate] = useState("");
   const [editAppointmentTime, setEditAppointmentTime] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [deleteTargetItem, setDeleteTargetItem] = useState<AppointmentItem | null>(null);
 
   const fetchAppointments = async () => {
     try {
@@ -83,7 +213,6 @@ export function AppointmentListPage() {
   }, [items]);
 
   const remove = async (item: AppointmentItem) => {
-    if (!window.confirm("진료 일정을 삭제할까요?")) return;
     try {
       setDeletingId(item.appointment_id);
       setError(null);
@@ -93,6 +222,7 @@ export function AppointmentListPage() {
       setError("진료 일정 삭제에 실패했습니다.");
     } finally {
       setDeletingId(null);
+      setDeleteTargetItem(null);
     }
   };
 
@@ -136,22 +266,24 @@ export function AppointmentListPage() {
     <main style={{ background: COLORS.background, minHeight: "100vh", padding: 16, display: "flex", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 460, display: "grid", gap: 12, alignContent: "start" }}>
       <button
-        onClick={() => navigate(-1)}
+        onClick={() => navigate("/main")}
         style={{
           background: "none",
           border: "none",
           cursor: "pointer",
-          fontSize: "15px",
-          color: COLORS.subText,
-          fontWeight: 600,
-          padding: "16px 0",
+          color: COLORS.text,
           display: "flex",
           alignItems: "center",
-          gap: "4px",
-          fontFamily: "inherit",
+          padding: "16px 0",
+          transition: "all 0.2s ease",
         }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; }}
       >
-        ‹ 뒤로
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
       </button>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -224,7 +356,7 @@ export function AppointmentListPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => void remove(item)}
+                  onClick={() => setDeleteTargetItem(item)}
                   disabled={deletingId === item.appointment_id || savingId === item.appointment_id}
                   style={{
                     background: "none",
@@ -272,6 +404,18 @@ export function AppointmentListPage() {
         })}
       </div>
       </div>
+
+      <DeleteConfirmModal
+        isOpen={deleteTargetItem !== null}
+        isDeleting={deletingId === deleteTargetItem?.appointment_id}
+        targetLabel={
+          deleteTargetItem
+            ? (deleteTargetItem.hospital_name ?? toDateLabel(deleteTargetItem.appointment_date))
+            : ""
+        }
+        onConfirm={() => { if (deleteTargetItem) void remove(deleteTargetItem); }}
+        onClose={() => { if (!deletingId) setDeleteTargetItem(null); }}
+      />
     </main>
   );
 }

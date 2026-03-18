@@ -7,6 +7,127 @@ import { CHARACTER_IMAGE_BY_ID, DEFAULT_CHARACTER_IMAGE } from "../constants/cha
 import { COLORS } from "../constants/theme";
 import { useAuthStore } from "../store/authStore";
 import type { UserMe } from "../types";
+import {
+  DEFAULT_TIME_RANGES,
+  isValidTimeString,
+  loadTimeRanges,
+  saveTimeRanges,
+  type TimeRange,
+} from "../utils/timeRange";
+
+// ─── 시간대 설정 섹션 ────────────────────────────────────────────────────────
+
+function TimeRangeSettings() {
+  const [ranges, setRanges] = useState<TimeRange[]>(() => loadTimeRanges());
+  const [errors, setErrors] = useState<Record<number, string>>({});
+  const [saved, setSaved] = useState(false);
+
+  const validate = (next: TimeRange[]): Record<number, string> => {
+    const errs: Record<number, string> = {};
+    next.forEach((r, i) => {
+      if (!isValidTimeString(r.start)) errs[i] = `시작 시간 형식이 올바르지 않습니다 (HH:MM)`;
+      else if (!isValidTimeString(r.end)) errs[i] = `종료 시간 형식이 올바르지 않습니다 (HH:MM)`;
+    });
+    return errs;
+  };
+
+  const handleChange = (index: number, field: "start" | "end", value: string) => {
+    setRanges((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+    setErrors((prev) => { const next = { ...prev }; delete next[index]; return next; });
+    setSaved(false);
+  };
+
+  const handleSave = () => {
+    const errs = validate(ranges);
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    saveTimeRanges(ranges);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+
+  const handleReset = () => {
+    setRanges(DEFAULT_TIME_RANGES);
+    setErrors({});
+    setSaved(false);
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: 120, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.border}`,
+    fontSize: 14, textAlign: "center", fontFamily: "inherit",
+  };
+
+  return (
+    <section
+      style={{
+        background: "#fff", borderRadius: 16, padding: 20,
+        border: `1px solid ${COLORS.border}`, display: "grid", gap: 14,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: COLORS.subText }}>복약 시간대 설정</p>
+        <button
+          type="button"
+          onClick={handleReset}
+          style={{
+            background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 8,
+            padding: "4px 10px", fontSize: 12, color: COLORS.subText, cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          기본값 복원
+        </button>
+      </div>
+
+      <p style={{ margin: 0, fontSize: 12, color: COLORS.subText, lineHeight: 1.6 }}>
+        메인 화면의 &quot;오늘의 ○○ 기분&quot;, &quot;오늘의 ○○ 약&quot; 설정에 따라 자동 변경 됩니다.
+      </p>
+
+      {ranges.map((range, i) => (
+        <div key={range.slot}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ width: 52, fontSize: 14, fontWeight: 600, color: COLORS.text, flexShrink: 0 }}>
+              {range.label}
+            </span>
+            <input
+              type="time"
+              value={range.start}
+              onChange={(e) => handleChange(i, "start", e.target.value)}
+              style={{ ...inputStyle, borderColor: errors[i] ? COLORS.error : COLORS.border }}
+              aria-label={`${range.label} 시작 시간`}
+            />
+            <span style={{ fontSize: 13, color: COLORS.subText }}>~</span>
+            <input
+              type="time"
+              value={range.end}
+              onChange={(e) => handleChange(i, "end", e.target.value)}
+              style={{ ...inputStyle, borderColor: errors[i] ? COLORS.error : COLORS.border }}
+              aria-label={`${range.label} 종료 시간`}
+            />
+          </div>
+          {errors[i] && (
+            <p style={{ margin: "4px 0 0 62px", fontSize: 12, color: COLORS.error }}>{errors[i]}</p>
+          )}
+        </div>
+      ))}
+
+      {saved && (
+        <p style={{ margin: 0, fontSize: 13, color: "#16a34a" }}>✓ 시간대 설정이 저장되었습니다.</p>
+      )}
+
+      <button
+        type="button"
+        onClick={handleSave}
+        style={{
+          padding: "12px 0", borderRadius: 12, border: "none",
+          background: COLORS.buttonBg, color: "#fff",
+          fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit",
+        }}
+      >
+        시간대 저장
+      </button>
+    </section>
+  );
+}
 
 // ─── 유효성 검사 ────────────────────────────────────────────────────────────
 
@@ -298,14 +419,24 @@ export function MyPage() {
     <main style={{ background: COLORS.background, minHeight: "100vh", padding: 16, display: "flex", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 460, display: "grid", gap: 12, alignContent: "start" }}>
       <button
-        onClick={() => navigate(-1)}
+        onClick={() => navigate("/main")}
         style={{
-          background: "none", border: "none", cursor: "pointer", fontSize: 15,
-          color: COLORS.subText, fontWeight: 600, padding: "16px 0",
-          display: "flex", alignItems: "center", gap: 4, fontFamily: "inherit",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: COLORS.text,
+          display: "flex",
+          alignItems: "center",
+          padding: "16px 0",
+          transition: "all 0.2s ease",
         }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; }}
       >
-        ‹ 뒤로
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
       </button>
       <h1 style={{ margin: 0, color: COLORS.text, fontSize: 20 }}>마이페이지</h1>
 
@@ -343,6 +474,33 @@ export function MyPage() {
               친구 변경
             </button>
           </div>
+
+          {/* 복용약 관리 버튼 */}
+          <button
+            type="button"
+            onClick={() => navigate("/medications")}
+            style={{
+              width: "100%",
+              background: "#fff",
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 16,
+              padding: "16px 20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 24 }}>💊</span>
+              <div style={{ textAlign: "left" }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: COLORS.text }}>복용약 관리</p>
+                <p style={{ margin: "2px 0 0", fontSize: 13, color: COLORS.subText }}>등록된 약 목록 확인 및 삭제</p>
+              </div>
+            </div>
+            <span style={{ fontSize: 18, color: COLORS.subText }}>›</span>
+          </button>
 
           {/* 프로필 폼 */}
           <section
@@ -435,6 +593,9 @@ export function MyPage() {
               {isSubmitting ? "저장 중..." : "변경 저장"}
             </button>
           </section>
+
+          {/* 시간대 설정 */}
+          <TimeRangeSettings />
 
           {/* 탈퇴 섹션 */}
           <div style={{ textAlign: "center", paddingTop: 8 }}>
