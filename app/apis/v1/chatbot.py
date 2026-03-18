@@ -1,10 +1,13 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import StreamingResponse
 
 from app.dtos.chat import ChatRequest, ChatResponse
 from app.models.chat import ChatLog
+from app.models.medicine import Medicine
 from app.models.user_medication import UserMedication
+from app.models.users import User
 from app.services.chatbot_service import MedicationChatbot
 
 logger = logging.getLogger("dodaktalk.chatbot")
@@ -28,8 +31,12 @@ async def ask_question(request: ChatRequest) -> ChatResponse:
     try:
         chatbot = _get_chatbot()
 
+        # 사용자 닉네임 조회
+        user = await User.get_or_none(user_id=request.user_id)
+        nickname = user.nickname if user else None
+
         # DB에서 사용자 활성 복약 정보 자동 조회
-        db_meds = await UserMedication.filter(user_id=request.user_id, status="ACTIVE").prefetch_related("medicine")
+        db_meds = await UserMedication.filter(user_id=request.user_id, status="ACTIVE")
 
         # 약물명(API 검색용)과 복용량 정보 분리
         import re
@@ -37,10 +44,13 @@ async def ask_question(request: ChatRequest) -> ChatResponse:
         med_names = []  # API 검색용 (정제된 이름)
         med_dosages = []  # 복용량 포함 전체 정보
         for um in db_meds:
-            if um.medicine:
-                clean_name = re.sub(r"\s*\(.*", "", um.medicine.item_name).strip()
-                med_names.append(clean_name)
-                med_dosages.append(f"{um.medicine.item_name} {um.dose_per_intake}정, 하루 {um.daily_frequency}회")
+            # 직접 Medicine 조회 (prefetch_related 대신)
+            medicine = await Medicine.get_or_none(item_seq=um.medicine_id)
+            if not medicine:
+                continue
+            clean_name = re.sub(r"\s*\(.*", "", medicine.item_name).strip()
+            med_names.append(clean_name)
+            med_dosages.append(f"{medicine.item_name} {um.dose_per_intake}정, 하루 {um.daily_frequency}회")
         meds = med_names if med_names else request.medication_list
 
         result = await chatbot.get_response(
@@ -49,6 +59,11 @@ async def ask_question(request: ChatRequest) -> ChatResponse:
             med_dosages=med_dosages,
             user_note=request.user_note,
             character_id=request.character_id,
+            nickname=nickname,
+            chat_history=request.chat_history,
+            message_count=request.message_count,
+            last_message_time=request.last_message_time,
+            user_id=request.user_id,
         )
     except ValueError as e:
         logger.error("Chatbot 초기화 실패: %s", e)
@@ -61,10 +76,94 @@ async def ask_question(request: ChatRequest) -> ChatResponse:
         user_id=request.user_id,
         message_content=request.message,
         response_content=result["answer"],
-        is_flagged=result["red_alert"],
+        is_flagged=result.get("is_flagged", False),
+        red_alert=result.get("red_alert", False),
+        reasoning=result.get("reasoning", ""),
     )
 
     return ChatResponse(**result)
+
+
+def _parse_stream_chunk(chunk: str, state: dict) -> None:
+    """스트림 청크에서 메타데이터를 추출하여 state 업데이트."""
+    import json as _json
+
+    if not chunk.startswith("data: ") or "[DONE]" in chunk:
+        return
+    try:
+        data = _json.loads(chunk[6:].strip())
+        if "token" in data:
+            state["full_answer"] += data["token"]
+        elif "answer" in data:
+            state["full_answer"] = data["answer"]
+        if "is_flagged" in data:
+            state["is_flagged"] = data["is_flagged"]
+        if "red_alert" in data:
+            state["red_alert"] = data["red_alert"]
+        if "reasoning" in data:
+            state["reasoning"] = data["reasoning"]
+    except Exception:
+        pass
+
+
+@chatbot_router.post("/ask/stream", status_code=status.HTTP_200_OK)
+async def ask_question_stream(request: ChatRequest):
+    """SSE 스트리밍으로 AI 답변을 실시간 전송합니다."""
+    import re
+
+    chatbot = _get_chatbot()
+
+    user = await User.get_or_none(user_id=request.user_id)
+    nickname = user.nickname if user else None
+
+    db_meds = await UserMedication.filter(user_id=request.user_id, status="ACTIVE")
+
+    med_names = []
+    med_dosages = []
+    for um in db_meds:
+        medicine = await Medicine.get_or_none(item_seq=um.medicine_id)
+        if not medicine:
+            continue
+        clean_name = re.sub(r"\s*\(.*", "", medicine.item_name).strip()
+        med_names.append(clean_name)
+        med_dosages.append(f"{medicine.item_name} {um.dose_per_intake}정, 하루 {um.daily_frequency}회")
+    meds = med_names if med_names else request.medication_list
+
+    async def event_generator():
+        state = {"full_answer": "", "is_flagged": False, "red_alert": False, "reasoning": ""}
+
+        async for chunk in chatbot.get_response_stream(
+            user_message=request.message,
+            meds=meds,
+            med_dosages=med_dosages,
+            user_note=request.user_note,
+            character_id=request.character_id,
+            nickname=nickname,
+            chat_history=request.chat_history,
+            message_count=request.message_count,
+            last_message_time=request.last_message_time,
+            user_id=request.user_id,
+        ):
+            _parse_stream_chunk(chunk, state)
+            yield chunk
+
+        if state["full_answer"]:
+            from app.models.chat import ChatLog as _ChatLog
+
+            await _ChatLog.create(
+                user_id=request.user_id,
+                message_content=request.message,
+                response_content=state["full_answer"],
+                is_flagged=state["is_flagged"],
+                red_alert=state["red_alert"],
+                reasoning=state["reasoning"],
+            )
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @chatbot_router.get("/history", status_code=status.HTTP_200_OK)

@@ -10,9 +10,43 @@ interface HamburgerMenuProps {
   onSelectSession?: (id: number, title: string) => void;
 }
 
+type HistoryItem = { id: number; title: string; created_at: string };
+
+function groupByDate(items: HistoryItem[]): { label: string; items: HistoryItem[] }[] {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+  const weekAgo = new Date(today.getTime() - 6 * 86400000);
+
+  const groups: Record<string, HistoryItem[]> = {};
+  const order: string[] = [];
+
+  for (const item of items) {
+    const d = new Date(item.created_at);
+    const itemDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    let label: string;
+    if (itemDate.getTime() === today.getTime()) {
+      label = "오늘";
+    } else if (itemDate.getTime() === yesterday.getTime()) {
+      label = "어제";
+    } else if (itemDate >= weekAgo) {
+      label = "이번 주";
+    } else {
+      label = `${d.getMonth() + 1}월 ${d.getDate()}일`;
+    }
+    if (!groups[label]) {
+      groups[label] = [];
+      order.push(label);
+    }
+    groups[label].push(item);
+  }
+
+  return order.map((label) => ({ label, items: groups[label] }));
+}
+
 export default function HamburgerMenu({ isOpen, onClose, onNewChat, onSelectSession }: HamburgerMenuProps) {
   const userId = useAuthStore((s) => s.userId);
-  const [history, setHistory] = useState<{ id: number; title: string; created_at: string }[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
   useEffect(() => {
     if (isOpen && userId) {
@@ -121,30 +155,42 @@ export default function HamburgerMenu({ isOpen, onClose, onNewChat, onSelectSess
         <div style={{ padding: "14px 16px 8px", fontSize: 14, fontWeight: 700, color: "#757575" }}>
           = 지난 채팅 내역
         </div>
-        <ul style={{ listStyle: "none", margin: 0, padding: 0, flex: 1 }}>
-          {history.map((item) => (
-            <li key={item.id}>
-              <button
-                onClick={() => { onSelectSession?.(item.id, item.title); onClose(); }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  width: "100%",
-                  padding: "12px 16px 12px 24px",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: 14,
-                  color: "#2C2C2C",
-                  textAlign: "left",
-                }}
-              >
-                <span style={{ color: "#99A988" }}>•</span>
-                {item.title}
-              </button>
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, flex: 1, overflowY: "auto" }}>
+          {history.length === 0 ? (
+            <li style={{ padding: "24px 16px", textAlign: "center", fontSize: 13, color: "#BDBDBD" }}>
+              아직 채팅 내역이 없어요
             </li>
-          ))}
+          ) : (
+            groupByDate(history).map((group) => (
+              <li key={group.label}>
+                <div style={{ fontSize: 11, color: "#BDBDBD", padding: "8px 16px 4px 16px" }}>
+                  {group.label}
+                </div>
+                {group.items.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => { onSelectSession?.(item.id, item.title); onClose(); }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      width: "100%",
+                      padding: "12px 16px 12px 24px",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 14,
+                      color: "#2C2C2C",
+                      textAlign: "left",
+                    }}
+                  >
+                    <span style={{ color: "#99A988" }}>•</span>
+                    {item.title}
+                  </button>
+                ))}
+              </li>
+            ))
+          )}
         </ul>
 
         {/* Footer */}

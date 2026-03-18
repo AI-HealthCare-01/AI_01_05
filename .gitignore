@@ -1,4 +1,3 @@
-# Python
 __pycache__/
 *.py[oc]
 build/
@@ -36,4 +35,9 @@ frontend/.env.local
 frontend/.env.production
 .bkit/
 .bkit-memory.json
+docs/data/faiss/
+data/dur/
+*.index
+*.pkl
+adverse_lookup.pkl
 docs/

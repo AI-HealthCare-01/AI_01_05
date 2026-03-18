@@ -1,15 +1,43 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
+from redis.asyncio import Redis
 
 from app.apis.v1 import v1_routers
 from app.core import config
 from app.db.databases import initialize_tortoise
+from app.services.graph_service import get_graph_service
+from app.services.scheduler_service import start_scheduler, stop_scheduler
+
+
+@asynccontextmanager
+async def lifespan(app):
+    # Redis 클라이언트 (스케줄러용)
+    redis_client = Redis(host="redis", port=6379, db=0)
+
+    # 앱 시작 시 Neo4j 미리 초기화
+    await get_graph_service()
+
+    # APScheduler 시작 (복약 알림 등)
+    await start_scheduler(redis_client)
+
+    yield
+
+    # 앱 종료 시 정리
+    await stop_scheduler()
+    await redis_client.aclose()
+
 
 # FastAPI 앱 단일 인스턴스.
 # docs/redoc/openapi 경로를 API prefix 하위로 통일해 배포 시 라우팅 충돌을 줄인다.
 app = FastAPI(
-    default_response_class=ORJSONResponse, docs_url="/api/docs", redoc_url="/api/redoc", openapi_url="/api/openapi.json"
+    lifespan=lifespan,
+    default_response_class=ORJSONResponse,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
 )
 
 # 프론트엔드(브라우저)에서 API 호출이 가능하도록 CORS를 구성한다.
