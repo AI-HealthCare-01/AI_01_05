@@ -186,14 +186,17 @@ export function DiaryPage() {
   }, [deleteConfirmOpen]);
 
   const handleDateClick = useCallback(
-    (entryDate: string) => {
-      setSelectedDate(entryDate);
-      setSheetOpen(true);
-      setSheetFull(false);
-      void fetchSelectedDateDiary(entryDate);
-    },
-    [fetchSelectedDateDiary],
-  );
+  (entryDate: string) => {
+    setSheetOpen(false);      // 먼저 닫고
+    setSheetFull(false);      // full 상태 초기화
+    setSelectedDate(entryDate);
+    void fetchSelectedDateDiary(entryDate);
+    requestAnimationFrame(() => {
+      setSheetOpen(true);     // 다음 프레임에 열기
+    });
+  },
+  [fetchSelectedDateDiary],
+);
 
   const tab = location.pathname.startsWith("/report") ? "report" : "diary";
   const appointmentDates = useMemo(
