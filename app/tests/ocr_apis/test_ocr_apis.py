@@ -134,6 +134,141 @@ class TestOcrParseAPI(TestCase):
         assert any("아스피린" in name for name in item_names)
         assert not any("약제비총액" in name for name in item_names)
 
+    # ── 회귀 테스트: 4.jpg 레이블 패턴 다중 약품 ────────────────────────────────
+    async def test_parse_label_pattern_multi_drug_4jpg(self):
+        """4.jpg: 레이블 패턴 3개 약품 모두 파싱"""
+        from app.services.ocr_service import OcrService
+
+        service = OcrService()
+        lines = [
+            "시클러캡슐250밀리그램(세파",
+            "1회투약량 1.00",
+            "1일투여횟수3 총투약일수3",
+            "잘레톤정(잘토프로팬)_(80",
+            "1회투약량1.00",
+            "1일투여횟수3",
+            "총투약일수3",
+            "에소졸정20밀리그림(에스오메",
+            "1회투약량1.00 4,200",
+            "1일투여횟수1 총투약일수3",
+        ]
+        parsed = service._parse_prescription_text(lines)
+        names = [p["drug_name"] for p in parsed]
+        assert any("시클러캡슐" in n for n in names), f"시클러캡슐 미검출: {names}"
+        assert any("잘레톤정" in n for n in names), f"잘레톤정 미검출: {names}"
+        assert any("에소졸정" in n for n in names), f"에소졸정 미검출: {names}"
+        for p in parsed:
+            if "시클러캡슐" in p["drug_name"]:
+                assert p["dose_per_intake"] == 1.0
+                assert p["daily_frequency"] == 3
+                assert p["total_days"] == 3
+            if "잘레톤정" in p["drug_name"]:
+                assert p["dose_per_intake"] == 1.0
+                assert p["daily_frequency"] == 3
+                assert p["total_days"] == 3
+            if "에소졸정" in p["drug_name"]:
+                assert p["dose_per_intake"] == 1.0
+                assert p["daily_frequency"] == 1
+                assert p["total_days"] == 3
+
+    # ── 회귀 테스트: 6.jpg 컬럼 레이아웃 금액 노이즈 필터 ────────────────────────
+    async def test_parse_column_layout_filters_price_noise_6jpg(self):
+        """6.jpg: 금액 숫자가 섞여도 투약량/횟수/일수 정확히 파싱"""
+        from app.services.ocr_service import OcrService
+
+        service = OcrService()
+        lines = [
+            "도모호론액",
+            "삼아리도맥스크림",
+            "아드반탄연고",
+            "투약량",
+            "0.5 0.5 0.5",
+            "횟수",
+            "22 2",
+            "일수",
+            "1",
+        ]
+        parsed = service._parse_prescription_text(lines)
+        for p in parsed:
+            assert p["daily_frequency"] == 2, f"{p['drug_name']} 횟수 오류: {p['daily_frequency']}"
+            assert p["total_days"] == 1, f"{p['drug_name']} 일수 오류: {p['total_days']}"
+
+    # ── 회귀 테스트: 7.jpg 하단 숫자 테이블 파싱 ─────────────────────────────────
+    async def test_parse_7jpg_bottom_table(self):
+        """7.jpg: 하단 '약품명(성분) 일수 투약량 횟수' 테이블 파싱"""
+        from app.services.ocr_service import OcrService
+
+        service = OcrService()
+        lines = [
+            "사이옵신정(시프로플록",
+            "3",
+            "1.00",
+            "3",
+            "타이레놀8시간이알서방",
+            "1.00",
+            "3",
+            "3",
+            "케이캡정50밀리그램(테",
+            "1.00",
+            "1",
+            "5",
+            "베이제정",
+            "1.00",
+            "3",
+            "5",
+            "밀양디세텔정(피나베륨",
+            "1.00",
+            "3",
+            "5",
+            "포리부틴정150mg(트리",
+            "1.00",
+            "3",
+            "5",
+        ]
+        parsed = service._parse_prescription_text(lines)
+        names = [p["drug_name"] for p in parsed]
+        assert any("사이" in n and "정" in n for n in names), f"사이옵신정 미검출: {names}"
+        assert any("타이레놀" in n for n in names), f"타이레놀 미검출: {names}"
+        assert any("케이캡정" in n for n in names), f"케이캡정 미검출: {names}"
+        assert any("베" in n and "정" in n for n in names), f"베아제정 미검출: {names}"
+        assert any("디세텔정" in n for n in names), f"디세텔정 미검출: {names}"
+        assert any("포리부틴정" in n for n in names), f"포리부틴정 미검출: {names}"
+
+    # ── 회귀 테스트: 8.jpeg 접두 노이즈 제거 ────────────────────────────────────
+    async def test_parse_8jpeg_prefix_noise_removal(self):
+        """8.jpeg: '비)' 접두사 및 괄호 이후 절단 후 약품명 파싱"""
+        from app.services.ocr_service import OcrService
+
+        service = OcrService()
+        lines = [
+            "약품명",
+            "비)복합파자임이중정 정제",
+            "비보존모사프리드정5mg(모사",
+            "유파론정(애엽95%에탄올연조",
+            "투약량",
+            "1",
+            "1",
+            "1",
+            "횟수",
+            "3",
+            "3",
+            "3",
+            "일수",
+            "3",
+            "3",
+            "3",
+        ]
+        parsed = service._parse_prescription_text(lines)
+        names = [p["drug_name"] for p in parsed]
+        assert any("복합파자임이중정" in n for n in names), f"복합파자임이중정 미검출: {names}"
+        assert any("모사프리드정" in n for n in names), f"모사프리드정 미검출: {names}"
+        assert any("유파론정" in n for n in names), f"유파론정 미검출: {names}"
+        for p in parsed:
+            assert p["dose_per_intake"] == 1.0
+            assert p["daily_frequency"] == 3
+            assert p["total_days"] == 3
+
+    # ── 기존 테스트 ───────────────────────────────────────────────────────────
     async def test_ocr_parse_prescription_end_to_end_with_mock_ocr(self):
         """mock OCR 텍스트 → parse_prescription → items 반환 (DB 매칭 포함)"""
         await self._make_token("ocr_007", "01033330007")
