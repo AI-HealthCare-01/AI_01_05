@@ -452,6 +452,39 @@ def parse_llm_response(content: str) -> LLMChatResponse:
         return LLMChatResponse.safe_default(answer=content if content else "응답 생성 실패")
 
 
+def _build_agent_context(
+    user_message: str,
+    user_drugs: list[str],
+    nickname: str | None,
+    intimacy: str,
+    user_id: int | None,
+) -> str:
+    """Agent용 컨텍스트 문자열 생성."""
+    context_parts = [f"[친밀도: {intimacy}]"]
+    if user_id:
+        context_parts.append(f"[사용자 ID: {user_id}]")
+    if nickname and intimacy == "formal":
+        context_parts.append(f"사용자 닉네임: {nickname}")
+    if user_drugs:
+        context_parts.append(f"복용 중인 약: {', '.join(user_drugs)}")
+    context_parts.append(f"\n질문: {user_message}")
+    return "\n".join(context_parts)
+
+
+def _convert_chat_history(chat_history: list[dict] | None) -> list:
+    """대화 히스토리를 LangChain 메시지로 변환."""
+    messages = []
+    if chat_history:
+        for entry in chat_history[-10:]:
+            role = entry.get("role", "user")
+            content = entry.get("content", "")
+            if role == "user":
+                messages.append(HumanMessage(content=content))
+            elif role == "assistant":
+                messages.append(AIMessage(content=content))
+    return messages
+
+
 async def run_agent(
     user_message: str,
     user_drugs: list[str],
@@ -462,45 +495,11 @@ async def run_agent(
     intimacy: str = "formal",
     user_id: int | None = None,
 ) -> LLMChatResponse:
-    """Agent 실행 및 LLMChatResponse 반환.
-
-    Args:
-        user_message: 사용자 질문
-        user_drugs: 사용자 복용약 목록
-        character_id: 페르소나 캐릭터 ID
-        nickname: 사용자 닉네임
-        chat_history: 대화 히스토리
-        message_count: 메시지 수 (친밀도 계산용)
-        intimacy: 친밀도 레벨 (formal/normal/friendly)
-        user_id: 사용자 ID (복용 스케줄 조회용)
-
-    Returns:
-        LLMChatResponse: 구조화된 LLM 응답
-    """
+    """Agent 실행 및 LLMChatResponse 반환."""
     agent = create_agent(character_id)
 
-    # 컨텍스트 구성
-    context_parts = [f"[친밀도: {intimacy}]"]
-    if user_id:
-        context_parts.append(f"[사용자 ID: {user_id}]")
-    if nickname and intimacy == "formal":
-        context_parts.append(f"사용자 닉네임: {nickname}")
-    if user_drugs:
-        context_parts.append(f"복용 중인 약: {', '.join(user_drugs)}")
-    context_parts.append(f"\n질문: {user_message}")
-
-    user_content = "\n".join(context_parts)
-
-    # 대화 히스토리를 LangChain 메시지로 변환
-    messages = []
-    if chat_history:
-        for entry in chat_history[-10:]:
-            role = entry.get("role", "user")
-            content = entry.get("content", "")
-            if role == "user":
-                messages.append(HumanMessage(content=content))
-            elif role == "assistant":
-                messages.append(AIMessage(content=content))
+    user_content = _build_agent_context(user_message, user_drugs, nickname, intimacy, user_id)
+    messages = _convert_chat_history(chat_history)
     messages.append(HumanMessage(content=user_content))
 
     initial_state: AgentState = {
@@ -515,7 +514,6 @@ async def run_agent(
             timeout=TIMEOUT_SECONDS,
         )
 
-        # 마지막 AI 메시지 추출
         final_messages = result.get("messages", [])
         for msg in reversed(final_messages):
             if isinstance(msg, AIMessage) and msg.content:

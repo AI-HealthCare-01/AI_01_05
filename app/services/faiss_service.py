@@ -1,4 +1,5 @@
 """FAISS 기반 의약품/질병/DUR 검색 서비스."""
+
 import logging
 import os
 import pickle
@@ -94,7 +95,7 @@ class FAISSService:
         scores, indices = self._indexes[index_name].search(query_vector, n_results)
 
         results = []
-        for score, idx in zip(scores[0], indices[0]):
+        for score, idx in zip(scores[0], indices[0], strict=False):
             if idx == -1:
                 continue
             results.append(

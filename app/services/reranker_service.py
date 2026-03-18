@@ -71,8 +71,7 @@ class RerankerService:
 
             # 점수와 텍스트를 묶어서 정렬
             scored_results = [
-                {"text": candidate, "score": float(score)}
-                for candidate, score in zip(candidates, scores, strict=True)
+                {"text": candidate, "score": float(score)} for candidate, score in zip(candidates, scores, strict=True)
             ]
             scored_results.sort(key=lambda x: x["score"], reverse=True)
 

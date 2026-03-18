@@ -84,6 +84,28 @@ async def ask_question(request: ChatRequest) -> ChatResponse:
     return ChatResponse(**result)
 
 
+def _parse_stream_chunk(chunk: str, state: dict) -> None:
+    """스트림 청크에서 메타데이터를 추출하여 state 업데이트."""
+    import json as _json
+
+    if not chunk.startswith("data: ") or "[DONE]" in chunk:
+        return
+    try:
+        data = _json.loads(chunk[6:].strip())
+        if "token" in data:
+            state["full_answer"] += data["token"]
+        elif "answer" in data:
+            state["full_answer"] = data["answer"]
+        if "is_flagged" in data:
+            state["is_flagged"] = data["is_flagged"]
+        if "red_alert" in data:
+            state["red_alert"] = data["red_alert"]
+        if "reasoning" in data:
+            state["reasoning"] = data["reasoning"]
+    except Exception:
+        pass
+
+
 @chatbot_router.post("/ask/stream", status_code=status.HTTP_200_OK)
 async def ask_question_stream(request: ChatRequest):
     """SSE 스트리밍으로 AI 답변을 실시간 전송합니다."""
@@ -99,7 +121,6 @@ async def ask_question_stream(request: ChatRequest):
     med_names = []
     med_dosages = []
     for um in db_meds:
-        # 직접 Medicine 조회 (prefetch_related 대신)
         medicine = await Medicine.get_or_none(item_seq=um.medicine_id)
         if not medicine:
             continue
@@ -109,12 +130,7 @@ async def ask_question_stream(request: ChatRequest):
     meds = med_names if med_names else request.medication_list
 
     async def event_generator():
-        import json as _json
-
-        full_answer = ""
-        is_flagged = False
-        red_alert = False
-        reasoning = ""
+        state = {"full_answer": "", "is_flagged": False, "red_alert": False, "reasoning": ""}
 
         async for chunk in chatbot.get_response_stream(
             user_message=request.message,
@@ -128,36 +144,19 @@ async def ask_question_stream(request: ChatRequest):
             last_message_time=request.last_message_time,
             user_id=request.user_id,
         ):
-            # 토큰 및 메타데이터 수집 (DB 저장용)
-            if chunk.startswith("data: ") and "[DONE]" not in chunk:
-                try:
-                    data = _json.loads(chunk[6:].strip())
-                    if "token" in data:
-                        full_answer += data["token"]
-                    elif "answer" in data:
-                        full_answer = data["answer"]
-                    # 메타데이터 수집
-                    if "is_flagged" in data:
-                        is_flagged = data["is_flagged"]
-                    if "red_alert" in data:
-                        red_alert = data["red_alert"]
-                    if "reasoning" in data:
-                        reasoning = data["reasoning"]
-                except (_json.JSONDecodeError, KeyError):
-                    pass
+            _parse_stream_chunk(chunk, state)
             yield chunk
 
-        # 스트림 완료 후 DB 저장
-        if full_answer:
+        if state["full_answer"]:
             from app.models.chat import ChatLog as _ChatLog
 
             await _ChatLog.create(
                 user_id=request.user_id,
                 message_content=request.message,
-                response_content=full_answer,
-                is_flagged=is_flagged,
-                red_alert=red_alert,
-                reasoning=reasoning,
+                response_content=state["full_answer"],
+                is_flagged=state["is_flagged"],
+                red_alert=state["red_alert"],
+                reasoning=state["reasoning"],
             )
 
     return StreamingResponse(

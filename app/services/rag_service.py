@@ -128,28 +128,46 @@ class RAGService:
             return self._collection
         return self._client.get_or_create_collection(collection)
 
+    async def _apply_hyde(self, query: str) -> str:
+        """HyDE 가설 생성 적용."""
+        if not HYDE_ENABLED:
+            return query
+        try:
+            from app.services.hyde_service import get_hyde_service
+
+            hyde = get_hyde_service()
+            if hyde.available:
+                hypothesis = await hyde.generate_hypothesis(query)
+                if hypothesis and hypothesis != query:
+                    logger.debug("HyDE 적용: %s... → %s...", query[:30], hypothesis[:30])
+                    return hypothesis
+        except Exception as e:
+            logger.warning("HyDE 실패, 원본 질문 사용: %s", e)
+        return query
+
+    async def _apply_reranking(self, query: str, candidates: list[str], n_results: int) -> list[str]:
+        """Cross-Encoder Re-ranking 적용."""
+        if not RERANK_ENABLED or len(candidates) <= n_results:
+            return candidates[:n_results]
+        try:
+            from app.services.reranker_service import get_reranker_service
+
+            reranker = get_reranker_service()
+            if reranker.available:
+                reranked = await reranker.rerank(query, candidates, top_k=n_results)
+                logger.debug("Re-ranking 적용: %d → %d", len(candidates), len(reranked))
+                return reranked
+        except Exception as e:
+            logger.warning("Re-ranking 실패, 벡터 검색 결과 반환: %s", e)
+        return candidates[:n_results]
+
     async def search(
         self,
         query: str,
         n_results: int = 5,
         collection: str = "guidelines",
     ) -> list[str]:
-        """HyDE + Re-ranking 파이프라인으로 벡터 검색.
-
-        Pipeline:
-        1. HyDE: 사용자 질문 → GPT 가설 답변 생성
-        2. Vector Search: 가설 답변으로 Top-20 검색
-        3. Re-ranking: 원본 질문 기준 Cross-Encoder 재정렬
-        4. 상위 n_results개 반환
-
-        Args:
-            query: 검색 쿼리 (사용자 질문)
-            n_results: 반환할 결과 수
-            collection: 검색할 컬렉션 이름 ("guidelines" 또는 "dur_safety")
-
-        Returns:
-            관련 텍스트 청크 리스트. 비활성 또는 실패 시 빈 리스트.
-        """
+        """HyDE + Re-ranking 파이프라인으로 벡터 검색."""
         if not self._available:
             return []
 
@@ -158,22 +176,8 @@ class RAGService:
             if coll.count() == 0:
                 return []
 
-            # ── 1단계: HyDE 가설 생성 ──
-            search_query = query
-            if HYDE_ENABLED:
-                try:
-                    from app.services.hyde_service import get_hyde_service
+            search_query = await self._apply_hyde(query)
 
-                    hyde = get_hyde_service()
-                    if hyde.available:
-                        hypothesis = await hyde.generate_hypothesis(query)
-                        if hypothesis and hypothesis != query:
-                            search_query = hypothesis
-                            logger.debug("HyDE 적용: %s... → %s...", query[:30], hypothesis[:30])
-                except Exception as e:
-                    logger.warning("HyDE 실패, 원본 질문 사용: %s", e)
-
-            # ── 2단계: 벡터 검색 (Top-20) ──
             vector_top_k = VECTOR_SEARCH_TOP_K if RERANK_ENABLED else n_results
             query_embedding = self._embedder.encode(search_query).tolist()
             results = coll.query(
@@ -185,22 +189,7 @@ class RAGService:
             if not candidates:
                 return []
 
-            # ── 3단계: Cross-Encoder Re-ranking ──
-            if RERANK_ENABLED and len(candidates) > n_results:
-                try:
-                    from app.services.reranker_service import get_reranker_service
-
-                    reranker = get_reranker_service()
-                    if reranker.available:
-                        # 원본 질문으로 재정렬 (가설이 아닌 원본!)
-                        reranked = await reranker.rerank(query, candidates, top_k=n_results)
-                        logger.debug("Re-ranking 적용: %d → %d", len(candidates), len(reranked))
-                        return reranked
-                except Exception as e:
-                    logger.warning("Re-ranking 실패, 벡터 검색 결과 반환: %s", e)
-
-            # Fallback: 벡터 검색 상위 결과
-            return candidates[:n_results]
+            return await self._apply_reranking(query, candidates, n_results)
 
         except Exception as e:
             logger.warning("RAG 검색 실패 (collection=%s): %s", collection, e)

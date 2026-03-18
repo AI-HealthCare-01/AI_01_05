@@ -38,7 +38,7 @@ try:
         logger.info("음식-약물 인덱스 로드 완료: %d건", len(_metadata))
 
         if os.path.exists(alias_path):
-            with open(alias_path, "r", encoding="utf-8") as f:
+            with open(alias_path, encoding="utf-8") as f:
                 _aliases = json.load(f)
             logger.info("음식 별칭 로드 완료: %d개 카테고리", len(_aliases))
 
@@ -89,13 +89,15 @@ def search_internal_rules(
         for user_drug in drug_names_lower:
             user_clean = re.sub(r"\s*\(.*", "", user_drug).strip().lower()
             if user_clean in meta_drug or meta_drug in user_clean:
-                results.append({
-                    "food": meta["food_name"],
-                    "drug": meta["drug_name"],
-                    "severity": meta.get("severity", "unknown"),
-                    "recommendation": meta.get("recommendation", ""),
-                    "source": "internal",
-                })
+                results.append(
+                    {
+                        "food": meta["food_name"],
+                        "drug": meta["drug_name"],
+                        "severity": meta.get("severity", "unknown"),
+                        "recommendation": meta.get("recommendation", ""),
+                        "source": "internal",
+                    }
+                )
                 break
 
     return results
@@ -118,19 +120,21 @@ async def search_literature(
         scores, ids = _index.search(q_vec, top_k * 2)
 
         results = []
-        for score, idx in zip(scores[0], ids[0]):
+        for score, idx in zip(scores[0], ids[0], strict=False):
             if idx == -1 or idx >= len(_metadata):
                 continue
             meta = _metadata[idx]
             if meta.get("source") != "pubmed":
                 continue
-            results.append({
-                "food": meta.get("food_name", ""),
-                "drug": meta.get("drug_name", ""),
-                "evidence": (meta.get("evidence_text") or meta.get("recommendation", ""))[:200],
-                "score": round(float(score), 4),
-                "source": "pubmed",
-            })
+            results.append(
+                {
+                    "food": meta.get("food_name", ""),
+                    "drug": meta.get("drug_name", ""),
+                    "evidence": (meta.get("evidence_text") or meta.get("recommendation", ""))[:200],
+                    "score": round(float(score), 4),
+                    "source": "pubmed",
+                }
+            )
             if len(results) >= top_k:
                 break
 

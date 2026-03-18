@@ -184,7 +184,9 @@ async def format_schedule_text(user_id: int) -> str:
     # 복용 시간 지남 (30분 이내)
     if summary.overdue_medications:
         for slot in summary.overdue_medications:
-            lines.append(f"- {slot.medicine_name} ({slot.dose}): {slot.scheduled_time} 복용 시간 지남 ({-slot.minutes_diff}분 전)")
+            lines.append(
+                f"- {slot.medicine_name} ({slot.dose}): {slot.scheduled_time} 복용 시간 지남 ({-slot.minutes_diff}분 전)"
+            )
 
     # 다음 복용
     if summary.next_medication:
@@ -195,11 +197,33 @@ async def format_schedule_text(user_id: int) -> str:
     return "\n".join(lines)
 
 
-async def get_full_schedule_text(user_id: int) -> str:
-    """전체 복용 스케줄을 텍스트로 반환 (Tool용).
+def _group_slots_by_time(all_slots: list[MedicationSlot]) -> dict[str, list[MedicationSlot]]:
+    """복용 슬롯을 시간대별로 그룹화."""
+    time_groups: dict[str, list[MedicationSlot]] = {}
+    for slot in all_slots:
+        label = _get_time_label(slot.scheduled_time)
+        if label not in time_groups:
+            time_groups[label] = []
+        time_groups[label].append(slot)
+    return time_groups
 
-    사용자가 "오늘 약 언제 먹어?" 등 질문 시 사용.
-    """
+
+def _format_time_groups(time_groups: dict[str, list[MedicationSlot]]) -> list[str]:
+    """시간대별 그룹을 텍스트 라인으로 포맷팅."""
+    lines = []
+    for label in ["아침", "점심", "오후", "저녁", "밤"]:
+        if label not in time_groups:
+            continue
+        lines.append(f"[{label}]")
+        for slot in time_groups[label]:
+            emoji = "⏰" if slot.status == "due" else ("⚠️" if slot.status == "overdue" else "📋")
+            lines.append(f"  {emoji} {slot.scheduled_time} - {slot.medicine_name} ({slot.dose})")
+        lines.append("")
+    return lines
+
+
+async def get_full_schedule_text(user_id: int) -> str:
+    """전체 복용 스케줄을 텍스트로 반환 (Tool용)."""
     summary = await get_user_schedule(user_id)
 
     if not summary.all_slots:
@@ -207,35 +231,15 @@ async def get_full_schedule_text(user_id: int) -> str:
 
     lines = [f"[오늘 복용 스케줄]\n현재 시간: {summary.current_time}\n"]
 
-    # 시간대별 그룹화
-    time_groups: dict[str, list[MedicationSlot]] = {}
-    for slot in summary.all_slots:
-        label = _get_time_label(slot.scheduled_time)
-        if label not in time_groups:
-            time_groups[label] = []
-        time_groups[label].append(slot)
+    time_groups = _group_slots_by_time(summary.all_slots)
+    lines.extend(_format_time_groups(time_groups))
 
-    # 시간대 순서
-    order = ["아침", "점심", "오후", "저녁", "밤"]
-    for label in order:
-        if label not in time_groups:
-            continue
-        slots = time_groups[label]
-        lines.append(f"[{label}]")
-        for slot in slots:
-            status_emoji = "⏰" if slot.status == "due" else ("⚠️" if slot.status == "overdue" else "📋")
-            lines.append(f"  {status_emoji} {slot.scheduled_time} - {slot.medicine_name} ({slot.dose})")
-        lines.append("")
-
-    # 현재 상태 요약
     if summary.due_medications:
         lines.append("⏰ 지금 복용할 약:")
-        for slot in summary.due_medications:
-            lines.append(f"  - {slot.medicine_name}")
+        lines.extend(f"  - {slot.medicine_name}" for slot in summary.due_medications)
 
     if summary.overdue_medications:
         lines.append("⚠️ 복용 시간이 지난 약:")
-        for slot in summary.overdue_medications:
-            lines.append(f"  - {slot.medicine_name} ({-slot.minutes_diff}분 전)")
+        lines.extend(f"  - {slot.medicine_name} ({-slot.minutes_diff}분 전)" for slot in summary.overdue_medications)
 
     return "\n".join(lines)

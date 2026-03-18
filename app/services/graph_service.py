@@ -1,6 +1,7 @@
 """Neo4j 지식그래프 서비스.
 약물-성분-상호작용-부작용 관계를 그래프로 저장하고 조회한다.
 """
+
 from __future__ import annotations
 
 import logging
@@ -85,7 +86,8 @@ class GraphService:
         if not drug_names:
             return ""
         async with self._driver.session() as session:
-            result = await session.run("""
+            result = await session.run(
+                """
                 MATCH (d:Drug)-[:HAS_COMPONENT]->(c:Component)
                 WHERE d.name IN $drug_names OR any(name IN $drug_names WHERE d.name CONTAINS name)
                 WITH collect(c.name) AS components
@@ -94,7 +96,9 @@ class GraphService:
                 RETURN a.name AS drug_a, b.name AS drug_b,
                        r.severity AS severity, r.description AS description,
                        r.recommendation AS recommendation
-            """, drug_names=drug_names)
+            """,
+                drug_names=drug_names,
+            )
             records = await result.data()
             if not records:
                 return ""
@@ -109,13 +113,16 @@ class GraphService:
     async def search_drug_by_name(self, name: str) -> dict | None:
         """약물명으로 약물 정보 조회."""
         async with self._driver.session() as session:
-            result = await session.run("""
+            result = await session.run(
+                """
                 MATCH (d:Drug)-[:HAS_COMPONENT]->(c:Component)
                 WHERE d.name CONTAINS $name
                 RETURN d.name AS name, d.category AS category,
                        collect(c.name) AS components
                 LIMIT 1
-            """, name=name)
+            """,
+                name=name,
+            )
             record = await result.single()
             if not record:
                 return None
@@ -174,13 +181,15 @@ class GraphService:
                 elif severity == "CAUTION":
                     has_caution = True
 
-                interactions.append({
-                    "drug_a": r["drug_a"],
-                    "drug_b": r["drug_b"],
-                    "severity": severity,
-                    "description": r["description"],
-                    "recommendation": r["recommendation"],
-                })
+                interactions.append(
+                    {
+                        "drug_a": r["drug_a"],
+                        "drug_b": r["drug_b"],
+                        "severity": severity,
+                        "description": r["description"],
+                        "recommendation": r["recommendation"],
+                    }
+                )
 
             return {
                 "has_danger": has_danger,
@@ -267,13 +276,15 @@ class GraphService:
                 elif severity == "CAUTION":
                     has_caution = True
 
-                interactions.append({
-                    "drug_a": r["drug_a"],
-                    "drug_b": r["drug_b"],
-                    "severity": severity,
-                    "description": r["description"],
-                    "recommendation": r["recommendation"],
-                })
+                interactions.append(
+                    {
+                        "drug_a": r["drug_a"],
+                        "drug_b": r["drug_b"],
+                        "severity": severity,
+                        "description": r["description"],
+                        "recommendation": r["recommendation"],
+                    }
+                )
 
             return {
                 "has_danger": has_danger,

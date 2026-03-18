@@ -149,87 +149,64 @@ class SMSNotificationService:
             return False
 
 
-async def get_active_medication_users(redis_client: Redis) -> list[dict]:
-    """현재 시간 기준 복용 예정 사용자 조회.
+def _is_within_time_range(slot_time: str, current_hour: int, current_minute: int) -> bool:
+    """현재 시간 ±5분 범위 내인지 확인."""
+    try:
+        parts = slot_time.strip().split(":")
+        slot_total = int(parts[0]) * 60 + int(parts[1])
+        current_total = current_hour * 60 + current_minute
+        return abs(slot_total - current_total) <= 5
+    except (ValueError, IndexError):
+        return False
 
-    time_slots에서 현재 시간 ±5분 이내 복용 예정인 사용자 반환.
 
-    Returns:
-        [
-            {
-                "user_id": int,
-                "phone_number": str,
-                "nickname": str,
-                "medicine_names": list[str],
-                "time_slot": str,  # "08:00"
-                "time_label": str,  # "아침"
-            },
-            ...
-        ]
-    """
+def _get_time_label_for_sms(hour: int) -> str:
+    """시간대 라벨 반환."""
+    if 5 <= hour < 10:
+        return "아침"
+    if 10 <= hour < 14:
+        return "점심"
+    if 14 <= hour < 18:
+        return "오후"
+    if 18 <= hour < 22:
+        return "저녁"
+    return "밤"
+
+
+async def _build_user_slots(current_hour: int, current_minute: int) -> dict[int, dict]:
+    """복용 예정 약물을 사용자별로 그룹화."""
     from app.models.medicine import Medicine
     from app.models.user_medication import UserMedication
-    from app.models.users import User
 
-    # KST 현재 시간 (UTC+9)
-    now = datetime.now(UTC) + timedelta(hours=9)
-    current_hour = now.hour
-    current_minute = now.minute
-
-    # 현재 시간 ±5분 범위 계산
-    def is_within_range(slot_time: str) -> bool:
-        try:
-            parts = slot_time.strip().split(":")
-            slot_hour = int(parts[0])
-            slot_minute = int(parts[1])
-            slot_total = slot_hour * 60 + slot_minute
-            current_total = current_hour * 60 + current_minute
-            return abs(slot_total - current_total) <= 5
-        except (ValueError, IndexError):
-            return False
-
-    # 시간대 라벨
-    def get_time_label(hour: int) -> str:
-        if 5 <= hour < 10:
-            return "아침"
-        if 10 <= hour < 14:
-            return "점심"
-        if 14 <= hour < 18:
-            return "오후"
-        if 18 <= hour < 22:
-            return "저녁"
-        return "밤"
-
-    # 활성 복약 정보 조회
     all_meds = await UserMedication.filter(status="ACTIVE")
-
-    # 사용자별 복용 예정 약물 그룹화
-    user_slots: dict[int, dict] = {}  # user_id -> {time_slot: [medicines]}
+    user_slots: dict[int, dict] = {}
 
     for med in all_meds:
         if not med.time_slots:
             continue
-
-        # 직접 Medicine 조회 (prefetch_related 대신)
         medicine = await Medicine.get_or_none(item_seq=med.medicine_id)
         if not medicine:
             continue
 
         for slot in med.time_slots:
-            if is_within_range(slot):
+            if _is_within_time_range(slot, current_hour, current_minute):
                 user_id = med.user_id
-                if user_id not in user_slots:
-                    user_slots[user_id] = {}
-                if slot not in user_slots[user_id]:
-                    user_slots[user_id][slot] = []
-                user_slots[user_id][slot].append(medicine.item_name)
+                user_slots.setdefault(user_id, {}).setdefault(slot, []).append(medicine.item_name)
+
+    return user_slots
+
+
+async def get_active_medication_users(redis_client: Redis) -> list[dict]:
+    """현재 시간 기준 복용 예정 사용자 조회."""
+    from app.models.users import User
+
+    now = datetime.now(UTC) + timedelta(hours=9)
+    user_slots = await _build_user_slots(now.hour, now.minute)
 
     if not user_slots:
         return []
 
-    # 사용자 정보 조회 (전화번호, 닉네임)
-    user_ids = list(user_slots.keys())
-    users = await User.filter(user_id__in=user_ids).all()
+    users = await User.filter(user_id__in=list(user_slots.keys())).all()
     user_map = {u.user_id: u for u in users}
 
     result: list[dict] = []
@@ -241,21 +218,18 @@ async def get_active_medication_users(redis_client: Redis) -> list[dict]:
             continue
 
         for time_slot, medicines in slots.items():
-            # 중복 발송 체크
             if await sms_service._is_already_sent(user_id, time_slot):
                 continue
 
             hour = int(time_slot.split(":")[0])
-            result.append(
-                {
-                    "user_id": user_id,
-                    "phone_number": user.phone_number,
-                    "nickname": user.nickname,
-                    "medicine_names": medicines,
-                    "time_slot": time_slot,
-                    "time_label": get_time_label(hour),
-                }
-            )
+            result.append({
+                "user_id": user_id,
+                "phone_number": user.phone_number,
+                "nickname": user.nickname,
+                "medicine_names": medicines,
+                "time_slot": time_slot,
+                "time_label": _get_time_label_for_sms(hour),
+            })
 
     return result
 

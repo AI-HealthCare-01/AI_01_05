@@ -22,7 +22,6 @@ class TimeSlotsUpdateRequest(BaseModel):
     night: str | None = None
 
 
-
 @router.post("", response_model=UserMedicationResponse, status_code=status.HTTP_201_CREATED)
 async def create_user_medication(
     user: Annotated[User, Depends(get_request_user)],
@@ -75,7 +74,6 @@ async def delete_user_medication(
     deleted = await service.delete(user, medication_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="복용약을 찾을 수 없습니다.")
-
 
 
 @router.patch("/time-slots", status_code=status.HTTP_200_OK)
