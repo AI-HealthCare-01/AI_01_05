@@ -77,12 +77,20 @@ function getAppointmentDotWidth(count: number): number {
 /* ─── 무드 클로버 컴포넌트 ─── */
 const CLOVER_SLOTS = ["MORNING", "LUNCH", "EVENING", "BEDTIME"] as const;
 const CLOVER_LABELS = ["아침 기분", "점심 기분", "저녁 기분", "취침 전 기분"];
+const PETAL_COLORS: Record<string, string> = {
+  MORNING: "rgba(154, 190, 240, 0.75)",
+  LUNCH: "rgba(232, 185, 120, 0.75)",
+  EVENING: "rgba(220, 150, 80, 0.75)",
+  BEDTIME: "rgba(80, 130, 210, 0.75)",
+};
+// 임시 롤백 스위치: false로 바꾸면 기존 getMoodGradient 스타일로 즉시 복귀
+const USE_SLOT_PETAL_COLOR = true;
 // 상(아침), 우(점심), 하(저녁), 좌(취침) — 클로버 배치
 const CLOVER_OFFSETS: Record<string, CSSProperties> = {
-  MORNING: { top: 0, left: "50%", transform: "translateX(-50%)" },
-  LUNCH:   { top: "50%", right: 0, transform: "translateY(-50%)" },
-  EVENING: { bottom: 0, left: "50%", transform: "translateX(-50%)" },
-  BEDTIME: { top: "50%", left: 0, transform: "translateY(-50%)" },
+  MORNING: { top: 1.3, left: "50%", transform: "translateX(-50%)" },
+  LUNCH: { top: "50%", right: 1.3, transform: "translateY(-50%)" },
+  EVENING: { bottom: 1.3, left: "50%", transform: "translateX(-50%)" },
+  BEDTIME: { top: "50%", left: 1.3, transform: "translateY(-50%)" },
 };
 
 function MoodClover({
@@ -125,7 +133,11 @@ function MoodClover({
               width: petalSize,
               height: petalSize,
               borderRadius: "50%",
-              background: getMoodGradient(level),
+              background: USE_SLOT_PETAL_COLOR
+                ? level
+                  ? PETAL_COLORS[slot]
+                  : "rgba(200,200,200,0.15)"
+                : getMoodGradient(level),
               mixBlendMode: "multiply",
               boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
               ...CLOVER_OFFSETS[slot],
