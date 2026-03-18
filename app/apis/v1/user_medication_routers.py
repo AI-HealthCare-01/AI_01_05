@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import ORJSONResponse as Response
 
 from app.dependencies.security import get_request_user
@@ -34,5 +34,32 @@ async def list_user_medications(
     user: Annotated[User, Depends(get_request_user)],
     service: Annotated[UserMedicationService, Depends(UserMedicationService)],
 ) -> Response:
-    meds = await service.list_active(user)
-    return Response([{"medication_id": m.medication_id, "item_seq": m.medicine_id, "status": m.status} for m in meds])
+    meds = await service.list_all(user)
+    items = []
+    for m in meds:
+        medicine = await m.medicine
+        items.append(
+            {
+                "medication_id": m.medication_id,
+                "item_seq": m.medicine_id,
+                "item_name": medicine.item_name,
+                "dose_per_intake": float(m.dose_per_intake),
+                "daily_frequency": m.daily_frequency,
+                "total_days": m.total_days,
+                "start_date": str(m.start_date),
+                "time_slots": m.time_slots,
+                "status": m.status,
+            }
+        )
+    return Response({"items": items})
+
+
+@router.delete("/{medication_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user_medication(
+    medication_id: int,
+    user: Annotated[User, Depends(get_request_user)],
+    service: Annotated[UserMedicationService, Depends(UserMedicationService)],
+) -> None:
+    deleted = await service.delete(user, medication_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="복용약을 찾을 수 없습니다.")

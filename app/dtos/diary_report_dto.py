@@ -98,6 +98,10 @@ class DeleteDiaryResponse(BaseModel):
     message: str
 
 
+class DeleteReportResponse(BaseModel):
+    message: str
+
+
 class ReportListItem(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
