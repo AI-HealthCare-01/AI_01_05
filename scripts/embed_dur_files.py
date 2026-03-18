@@ -47,6 +47,31 @@ def make_id(text: str) -> str:
     return hashlib.md5(text.encode()).hexdigest()
 
 
+def _parse_pregnancy_grade(grade_raw: str) -> str:
+    """임부금기 등급 파싱."""
+    if "1등급" in grade_raw:
+        return "1등급"
+    if "2등급" in grade_raw:
+        return "2등급"
+    return ""
+
+
+def _build_pregnancy_text(ingredient: str, grade: str, grade_raw: str, detail: str, note: str) -> str:
+    """임부금기 텍스트 생성."""
+    text = f"{ingredient}은(는) 임부금기 {grade} 성분입니다."
+    if grade == "1등급":
+        text += " 사람에서 태아에 대한 위해성이 명확하여 원칙적으로 사용이 금지됩니다."
+    elif grade == "2등급":
+        text += " 태아에 대한 위해성이 나타날 수 있어 원칙적으로 사용이 금지됩니다."
+    if grade_raw and grade_raw != grade:
+        text += f" 세부사항: {grade_raw}"
+    if detail:
+        text += f" {detail}"
+    if note:
+        text += f" 비고: {note}"
+    return text
+
+
 def process_pregnancy_xlsx() -> list[dict]:
     """임부금기 성분리스트 xlsx 처리 (skiprows=1, 실제 데이터는 row 2부터)."""
     import openpyxl
@@ -58,36 +83,20 @@ def process_pregnancy_xlsx() -> list[dict]:
 
     wb = openpyxl.load_workbook(filepath, read_only=True)
     ws = wb.active
-    rows = list(ws.iter_rows(min_row=3, values_only=True))  # row1=설명, row2=헤더, row3~=데이터
+    rows = list(ws.iter_rows(min_row=3, values_only=True))
     wb.close()
 
     results = []
     for row in rows:
-        if not row or not row[1]:  # 연번, 성분명
+        if not row or not row[1]:
             continue
         ingredient = str(row[1]).strip()
         grade_raw = str(row[2]).strip() if row[2] else ""
         note = str(row[3]).strip() if row[3] else ""
         detail = str(row[4]).strip() if row[4] else ""
 
-        # 등급 파싱
-        grade = ""
-        if "1등급" in grade_raw:
-            grade = "1등급"
-        elif "2등급" in grade_raw:
-            grade = "2등급"
-
-        text = f"{ingredient}은(는) 임부금기 {grade} 성분입니다."
-        if grade == "1등급":
-            text += " 사람에서 태아에 대한 위해성이 명확하여 원칙적으로 사용이 금지됩니다."
-        elif grade == "2등급":
-            text += " 태아에 대한 위해성이 나타날 수 있어 원칙적으로 사용이 금지됩니다."
-        if grade_raw and grade_raw != grade:
-            text += f" 세부사항: {grade_raw}"
-        if detail:
-            text += f" {detail}"
-        if note:
-            text += f" 비고: {note}"
+        grade = _parse_pregnancy_grade(grade_raw)
+        text = _build_pregnancy_text(ingredient, grade, grade_raw, detail, note)
 
         results.append({
             "text": text,
@@ -111,7 +120,6 @@ def process_pregnancy_csv() -> list[dict]:
 
     rows = read_csv(filepath)
     # 컬럼: 성분명, 성분코드, 제품코드, 제품명, 업체명, 고시일자, 고시번호, 금기등급, 상세정보, 급여여부
-    header = rows[0]
     data = rows[1:]
 
     seen_ingredients = set()
