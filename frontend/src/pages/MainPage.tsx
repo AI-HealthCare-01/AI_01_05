@@ -18,8 +18,10 @@ import {
 import { getNextAppointment } from "../api/appointments";
 import { getMedicineDetail, type MedicineDetailItem } from "../api/medicines";
 import { getMyCharacter } from "../apis/characterApi";
+import CoachMarkOverlay from "../components/CoachMarkOverlay";
 import { CHARACTER_IMAGE_BY_ID, DEFAULT_CHARACTER_IMAGE } from "../constants/characters";
 import { COLORS } from "../constants/theme";
+import { useCoachMark, type CoachMarkStep } from "../hooks/useCoachMark";
 import { useAuthStore } from "../store/authStore";
 
 type UiSlot = TimeRangeUiSlot;
@@ -102,6 +104,15 @@ const GREETING_MESSAGES_2L = [
   "잠은 잘 잤어요? 😴\n오늘도 활기차게 시작해요!",
   "오늘도 함께해서 좋아요 🐶\n언제나 응원할게요!",
   "오늘 하루도 잘 부탁해요! 🌿\n건강한 하루 보내요.",
+];
+
+const HOME_COACHMARK_STEPS: CoachMarkStep[] = [
+  { id: "coach-mood-emoji-area", message: "이모지를 눌러 기분을 기록해보세요." },
+  { id: "coach-chatbot-dog", message: "강아지를 누르면 챗봇으로 이동해요." },
+  { id: "coach-med-check-area", message: "복용한 약을 체크해서 기록할 수 있어요." },
+  { id: "coach-add-med-button", message: "복용 중인 약을 먼저 추가해보세요." },
+  { id: "coach-diary-button", message: "일기에서 하루 기록을 남길 수 있어요." },
+  { id: "coach-dday-button", message: "D-day에서 다가오는 진료일을 설정할 수 있어요." },
 ];
 
 /**
@@ -385,6 +396,7 @@ export default function MainPage() {
 
   const selectedCharacter = useAuthStore((s) => s.selectedCharacter);
   const setSelectedCharacter = useAuthStore((s) => s.setSelectedCharacter);
+  const userId = useAuthStore((s) => s.userId);
   const [characterImage, setCharacterImage] = useState(DEFAULT_CHARACTER_IMAGE);
 
   const [loading, setLoading] = useState(true);
@@ -722,6 +734,15 @@ export default function MainPage() {
     setToast(msg);
     setTimeout(() => setToast(""), 3000);
   }, []);
+  const coachMarkStorageKey = useMemo(
+    () => `home_coachmark_seen:${userId ?? "guest"}`,
+    [userId],
+  );
+  const coachMark = useCoachMark({
+    steps: HOME_COACHMARK_STEPS,
+    enabled: !loading,
+    storageKey: coachMarkStorageKey,
+  });
 
   // 에러를 토스트로 대체
   useEffect(() => {
@@ -812,13 +833,14 @@ export default function MainPage() {
           animation: "fadeSlideUp 0.4s ease-out both",
           animationDelay: "0ms",
         }}>
-          <button style={topButtonStyle} onClick={() => navigateWithFade("/diary")}
+          <button id="coach-diary-button" style={topButtonStyle} onClick={() => navigateWithFade("/diary")}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 16px rgba(153,169,136,0.45)"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 12px rgba(153,169,136,0.35)"; }}
             onMouseDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.96)"; }}
             onMouseUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; }}
           >일기</button>
           <button
+            id="coach-dday-button"
             style={{
               background: "transparent",
               border: "none",
@@ -929,6 +951,7 @@ export default function MainPage() {
 
           <div style={{ marginBottom: 16, textAlign: "center" }}>
             <img
+              id="coach-chatbot-dog"
               src={characterImage}
               alt="선택 캐릭터"
               onClick={() => navigateWithFade("/chat")}
@@ -947,6 +970,7 @@ export default function MainPage() {
           </div>
 
           <div
+            id="coach-mood-emoji-area"
             ref={moodSwipeRef}
             className="swipeContainer"
             style={{
@@ -1016,7 +1040,7 @@ export default function MainPage() {
         </div>
 
         {/* ── 복약 카드 ── */}
-        <div style={{
+        <div id="coach-med-check-area" style={{
           ...cardStyle,
           animation: "fadeSlideUp 0.4s ease-out both",
           animationDelay: "160ms",
@@ -1027,7 +1051,7 @@ export default function MainPage() {
             style={swipeContainerStyle}
             onScroll={updateMedIndicator}
           >
-            {TIME_SLOTS.map((slot) => {
+            {TIME_SLOTS.map((slot, index) => {
               const medications = medsBySlot[slot.key];
               const completed = medications.filter((med) => med.checked).length;
               const total = medications.length;
@@ -1049,7 +1073,10 @@ export default function MainPage() {
                     <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#3a3228" }}>
                       오늘의 <span>{slot.label}</span> 약
                     </h3>
-                    <button style={topButtonStyle} onClick={() => navigateWithFade("/medications/add")}
+                    <button
+                      id={index === medSwipeIndex ? "coach-add-med-button" : undefined}
+                      style={topButtonStyle}
+                      onClick={() => navigateWithFade("/medications/add")}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 16px rgba(153,169,136,0.45)"; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 12px rgba(153,169,136,0.35)"; }}
                       onMouseDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.96)"; }}
@@ -1330,6 +1357,16 @@ export default function MainPage() {
           {toast}
         </div>
       )}
+      <CoachMarkOverlay
+        open={coachMark.isOpen}
+        stepIndex={coachMark.currentIndex}
+        totalSteps={coachMark.totalSteps}
+        message={coachMark.currentStep?.message ?? ""}
+        spotlight={coachMark.spotlightRect}
+        onTargetClick={coachMark.goNext}
+        onPrev={coachMark.goPrev}
+        onSkip={coachMark.skip}
+      />
     </div>
   );
 }
