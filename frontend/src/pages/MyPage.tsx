@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { deleteMyAccount, getMyInfo, updateMyInfo } from "../api/users";
+import { updateTimeSlots } from "../api/userMedications";
 import { getMyCharacter } from "../apis/characterApi";
 import { CHARACTER_IMAGE_BY_ID, DEFAULT_CHARACTER_IMAGE } from "../constants/characters";
 import { COLORS } from "../constants/theme";
@@ -37,10 +38,31 @@ function TimeRangeSettings() {
     setSaved(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const errs = validate(ranges);
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+
+    // 1. 로컬 저장 (항상 성공)
     saveTimeRanges(ranges);
+
+    // 2. DB 저장 (silent fail - 실패해도 로컬 저장은 유지)
+    try {
+      // 각 슬롯의 start 시간을 DB에 저장
+      const slotMap: Record<string, string> = {};
+      for (const r of ranges) {
+        slotMap[r.slot] = r.start;
+      }
+      await updateTimeSlots({
+        morning: slotMap.morning,
+        lunch: slotMap.lunch,
+        dinner: slotMap.dinner,
+        night: slotMap.night,
+      });
+    } catch {
+      // API 실패해도 무시 (로컬 저장은 성공)
+      console.warn("시간대 DB 저장 실패 (로컬 저장은 완료됨)");
+    }
+
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };

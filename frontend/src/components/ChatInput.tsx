@@ -7,6 +7,7 @@ interface ChatInputProps {
 
 export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [text, setText] = useState("");
+  const [isComposing, setIsComposing] = useState(false); // 한글 IME 조합 중 여부
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSend = () => {
@@ -18,6 +19,8 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // 한글 IME 조합 중이면 Enter 무시 (이중 전송 방지)
+    if (isComposing) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -42,6 +45,8 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
+        onCompositionStart={() => setIsComposing(true)}
+        onCompositionEnd={() => setIsComposing(false)}
         placeholder="메시지를 입력하세요..."
         disabled={disabled}
         maxLength={2000}

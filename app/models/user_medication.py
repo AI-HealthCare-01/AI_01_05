@@ -4,7 +4,12 @@ from tortoise import fields, models
 class UserMedication(models.Model):
     medication_id = fields.BigIntField(primary_key=True)
     user = fields.ForeignKeyField("models.User", related_name="user_medications", on_delete=fields.CASCADE)
-    medicine = fields.ForeignKeyField("models.Medicine", related_name="user_medications", on_delete=fields.RESTRICT)
+    medicine = fields.ForeignKeyField(
+        "models.Medicine",
+        related_name="user_medications",
+        on_delete=fields.RESTRICT,
+        to_field="item_seq",
+    )
     dose_per_intake = fields.DecimalField(max_digits=5, decimal_places=2)
     daily_frequency = fields.SmallIntField()
     total_days = fields.IntField()

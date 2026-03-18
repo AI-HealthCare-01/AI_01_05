@@ -4,6 +4,9 @@ export interface ChatRequest {
   medication_list: string[];
   user_note?: string;
   character_id?: number | null;
+  chat_history?: { role: string; content: string }[];
+  message_count?: number;
+  last_message_time?: string;
 }
 
 export interface ChatResponse {
@@ -35,6 +38,9 @@ export interface ChatState {
 export type ChatAction =
   | { type: "ADD_USER_MESSAGE"; payload: string }
   | { type: "ADD_AI_MESSAGE"; payload: ChatResponse }
+  | { type: "START_AI_STREAM" }
+  | { type: "STREAM_AI_TOKEN"; payload: string }
+  | { type: "FINALIZE_AI_STREAM"; payload: { warning_level: string; red_alert: boolean; alert_type: string | null } }
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "SHOW_RED_ALERT"; payload: string }
   | { type: "HIDE_RED_ALERT" }

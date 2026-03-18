@@ -21,50 +21,90 @@ export default function RedAlertOverlay({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-red-900/80 p-4"
       style={{
-        animation: "red-pulse 1s ease-in-out 3",
+        position: "fixed",
+        inset: 0,
+        zIndex: 50,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(0,0,0,0.4)",
+        padding: 16,
       }}
       role="alertdialog"
       aria-label="위기 상황 경고"
     >
-      <div className="flex w-full max-w-sm flex-col items-center gap-6">
-        {/* Message */}
-        <div className="text-center">
-          <p className="mb-2 text-2xl font-bold text-white">
+      <div
+        style={{
+          background: "#FFFFFF",
+          borderRadius: 20,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+          width: "100%",
+          maxWidth: 360,
+          padding: "28px 24px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 20,
+        }}
+      >
+        {/* Header */}
+        <div style={{ textAlign: "center" }}>
+          <p style={{ fontSize: 22, fontWeight: 700, color: "#DC2626", margin: "0 0 6px" }}>
             지금 많이 힘드시군요
           </p>
-          <p className="text-sm text-red-100">
+          <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>
             전문가가 도와드릴 수 있습니다.
           </p>
         </div>
 
         {/* Crisis contacts */}
-        <div className="flex w-full flex-col gap-3">
+        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 10 }}>
           {CRISIS_CONTACTS.map((contact) => (
             <a
               key={contact.number}
               href={`tel:${contact.number}`}
-              className="flex flex-col items-center rounded-xl bg-white p-4 shadow-lg transition-transform active:scale-95"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                padding: "14px 16px",
+                borderRadius: 12,
+                background: "#FEF2F2",
+                border: "1px solid #FECACA",
+                textDecoration: "none",
+              }}
             >
-              <span className="text-sm font-medium text-gray-600">
+              <span style={{ fontSize: 13, fontWeight: 500, color: "#6B7280" }}>
                 {contact.name}
                 {contact.desc && (
-                  <span className="ml-1 text-xs text-gray-400">
+                  <span style={{ marginLeft: 4, fontSize: 11, color: "#9CA3AF" }}>
                     ({contact.desc})
                   </span>
                 )}
               </span>
-              <span className="mt-1 text-2xl font-bold text-red-600">
+              <span style={{ marginTop: 4, fontSize: 22, fontWeight: 700, color: "#DC2626" }}>
                 {contact.number}
               </span>
             </a>
           ))}
         </div>
 
-        {/* Response message (collapsed) */}
+        {/* Response message */}
         {message && (
-          <div className="max-h-32 w-full overflow-y-auto rounded-lg bg-red-800/50 p-3 text-xs text-red-100">
+          <div
+            style={{
+              width: "100%",
+              maxHeight: 100,
+              overflowY: "auto",
+              borderRadius: 8,
+              background: "#F9FAFB",
+              padding: 10,
+              fontSize: 12,
+              color: "#6B7280",
+              lineHeight: 1.5,
+            }}
+          >
             {message}
           </div>
         )}
@@ -72,7 +112,16 @@ export default function RedAlertOverlay({
         {/* Close button */}
         <button
           onClick={onClose}
-          className="rounded-full bg-white/20 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/30"
+          style={{
+            padding: "10px 28px",
+            borderRadius: 24,
+            background: "#6B7F5E",
+            color: "#FFFFFF",
+            border: "none",
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: "pointer",
+          }}
         >
           대화로 돌아가기
         </button>

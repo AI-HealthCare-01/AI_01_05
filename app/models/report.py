@@ -2,7 +2,7 @@ from tortoise import fields, models
 
 
 class Report(models.Model):
-    report_id = fields.BigIntField(pk=True)
+    report_id = fields.BigIntField(primary_key=True)
     user = fields.ForeignKeyField("models.User", related_name="reports")
     start_date = fields.DateField()
     end_date = fields.DateField()

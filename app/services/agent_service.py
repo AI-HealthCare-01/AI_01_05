@@ -1,86 +1,603 @@
+"""LangGraph ReAct Agent 서비스.
+
+기존 직접 함수 호출 방식을 LangGraph ToolNode 패턴으로 교체.
+LLM이 Pydantic Structured Output으로 위험도를 직접 판단.
+"""
+
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import os
-import re
+from typing import Annotated
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
-from langgraph.prebuilt import create_react_agent
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.message import add_messages
+from langgraph.prebuilt import ToolNode
+from typing_extensions import TypedDict
 
-from app.services.kfda_service import KFDAClient
+from app.schemas.chat_response import LLMChatResponse
+from app.services.persona_service import get_persona_prompt
 
 logger = logging.getLogger("dodaktalk.agent")
-kfda_client = KFDAClient()
+
+# ── 설정 ────────────────────────────────────────────────────
+MAX_ITERATIONS = 10
+TIMEOUT_SECONDS = 30
+MODEL_NAME = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+
+# ── Tool 정의 (기존 함수 래핑) ─────────────────────────────────
+@tool
+def search_drug_info(query: str, top_k: int = 3) -> str:
+    """약물의 효능, 용법용량, 주의사항, 이상반응, 외형 정보를 검색합니다.
+
+    Args:
+        query: 검색할 약물명, 증상, 또는 질문 내용
+        top_k: 반환할 결과 수 (기본 3)
+    """
+    from app.services.drug_agent import search_drug_info as _search
+
+    return _search(query, top_k)
 
 
 @tool
-async def search_medicine_info(medicine_name: str) -> str:
-    """식약처 e약은요 API에서 약물의 효능, 주의사항, 상호작용, 부작용 정보를 검색합니다."""
-    clean_name = re.sub(r"\s*\(.*", "", medicine_name).strip()
-    info = await kfda_client.search_drug(clean_name)
-    if not info:
-        return f"{medicine_name}에 대한 식약처 정보를 찾을 수 없습니다."
-    result = f"[{info['name']}]\n"
-    if info["efcy"]:
-        result += f"효능: {info['efcy'][:300]}\n"
-    if info["caution"]:
-        result += f"주의사항: {info['caution'][:300]}\n"
-    if info["interaction"]:
-        result += f"상호작용: {info['interaction'][:300]}\n"
-    if info["side_effect"]:
-        result += f"부작용: {info['side_effect'][:200]}\n"
-    return result
+def search_safety(query: str, top_k: int = 3) -> str:
+    """DUR 안전 정보를 검색합니다 (병용금기, 임부금기, 노인주의, 용량주의 등).
+
+    Args:
+        query: 성분명, 약물 계열, 또는 안전 관련 질문
+        top_k: 반환할 결과 수 (기본 3)
+    """
+    from app.services.drug_agent import search_safety as _search
+
+    return _search(query, top_k)
+
+
+def _run_async(coro):
+    """동기 컨텍스트에서 비동기 코루틴 실행 (Tortoise ORM 호환)."""
+    try:
+        asyncio.get_running_loop()
+        # 이미 실행 중인 루프가 있으면 새 스레드에서 실행
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            future = pool.submit(asyncio.run, coro)
+            return future.result(timeout=30)
+    except RuntimeError:
+        # 실행 중인 루프 없음 → asyncio.run() 사용
+        return asyncio.run(coro)
 
 
 @tool
-def check_drug_interaction(drug_a: str, drug_b: str) -> str:
-    """두 약물을 함께 복용해도 되는지 기본 규칙을 반환합니다."""
-    nsaids = ["나프록센", "이부프로펜", "아스피린", "디클로페낙", "탁센", "애드빌", "부루펜"]
-    acetaminophen = ["아세트아미노펜", "타이레놀", "타세놀"]
-    a_is_nsaid = any(n in drug_a for n in nsaids)
-    b_is_nsaid = any(n in drug_b for n in nsaids)
-    a_is_acet = any(n in drug_a for n in acetaminophen)
-    b_is_acet = any(n in drug_b for n in acetaminophen)
-    if a_is_nsaid and b_is_nsaid:
-        return f"위험: {drug_a}와 {drug_b}는 모두 NSAID 계열입니다. 동시 복용 시 위장출혈, 신장 손상 위험이 높아집니다."
-    if (a_is_nsaid and b_is_acet) or (a_is_acet and b_is_nsaid):
-        return f"주의: {drug_a}와 {drug_b}는 함께 복용 가능하지만 용량을 엄격히 지켜야 합니다."
-    return f"{drug_a}와 {drug_b}의 상호작용은 search_medicine_info로 각각 확인하세요."
+def search_food_drug_sync(query: str, user_drugs_json: str) -> str:
+    """음식-약물 상호작용을 검색합니다.
+
+    Args:
+        query: 사용자 질문 (음식 관련 키워드 포함)
+        user_drugs_json: 사용자가 복용 중인 약물 목록 (JSON 문자열)
+    """
+    from app.services.food_drug_service import search_food_drug as _search
+
+    user_drugs = json.loads(user_drugs_json) if user_drugs_json else []
+    return _run_async(_search(query, user_drugs))
 
 
-class AgentService:
-    def __init__(self) -> None:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY 환경 변수가 설정되지 않았습니다.")
-        self.llm = ChatOpenAI(
-            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-            temperature=0.7,
-            api_key=api_key,
-            max_tokens=1000,
+@tool
+def search_rag_sync(query: str, n_results: int = 3) -> str:
+    """의학 가이드라인을 벡터 검색합니다.
+
+    Args:
+        query: 검색 쿼리
+        n_results: 반환할 결과 수
+    """
+    from app.services.rag_service import RAGService
+
+    async def _search():
+        rag = RAGService()
+        results = await rag.search(query, n_results)
+        return "\n".join(results) if results else "관련 가이드라인 없음"
+
+    return _run_async(_search())
+
+
+@tool
+def get_drug_interactions_sync(drug_names_json: str) -> str:
+    """Neo4j에서 약물 상호작용 정보를 조회합니다.
+
+    Args:
+        drug_names_json: 조회할 약물명 목록 (JSON 문자열)
+    """
+    from app.services.graph_service import get_graph_service
+
+    drug_names = json.loads(drug_names_json) if drug_names_json else []
+
+    async def _get():
+        graph = await get_graph_service()
+        return await graph.get_drug_interactions(drug_names)
+
+    return _run_async(_get())
+
+
+@tool
+def query_knowledge_graph(query_drug: str, user_drugs_json: str) -> str:
+    """Neo4j 지식그래프에서 약물 상호작용을 검색합니다.
+
+    질문에 언급된 약물과 사용자 복용약 간 DANGER/CAUTION 상호작용을 찾습니다.
+    DANGER 발견 시 red_alert=True로 설정해야 합니다.
+
+    Args:
+        query_drug: 질문에 언급된 약물 (예: "졸피뎀", "술", "알코올", "리튬")
+        user_drugs_json: 사용자 복용 중인 약물 목록 (JSON 문자열, 예: '["리스페리돈", "올란자핀"]')
+
+    Returns:
+        상호작용 검색 결과. DANGER 발견 시 명시적 경고 포함.
+    """
+    from app.services.graph_service import get_graph_service
+
+    user_drugs = json.loads(user_drugs_json) if user_drugs_json else []
+
+    # "술" → "알코올"로 정규화
+    query_normalized = query_drug
+    alcohol_aliases = ["술", "음주", "맥주", "소주", "와인", "알콜"]
+    if any(alias in query_drug for alias in alcohol_aliases):
+        query_normalized = "알코올"
+
+    async def _search():
+        graph = await get_graph_service()
+        result = await graph.search_interaction(query_normalized, user_drugs)
+        return await graph.format_interaction_result(result), result
+
+    formatted, result = _run_async(_search())
+
+    # DANGER 발견 시 명시적 경고 추가
+    if result["has_danger"]:
+        return (
+            f"🚨 [DANGER 상호작용 발견] red_alert=True 필수!\n\n"
+            f"{formatted}\n\n"
+            f"⚠️ 이 조합은 생명을 위협할 수 있습니다. "
+            f"반드시 answer에 구체적인 위험 내용을 포함하고 red_alert=True로 설정하세요."
         )
-        self.tools = [search_medicine_info, check_drug_interaction]
-        self.agent = create_react_agent(self.llm, self.tools)
+    elif result["has_caution"]:
+        return f"⚠️ [CAUTION 상호작용 발견]\n\n{formatted}"
+    elif not formatted:
+        return f"'{query_drug}'와 사용자 복용약 간 알려진 상호작용 없음. 의사/약사 상담 권장."
+    return formatted
 
-    async def get_response(self, user_message: str, meds: list[str], med_dosages: list[str], system_prompt: str) -> str:
-        dosage_info = "\n".join(f"- {d}" for d in med_dosages) if med_dosages else "없음"
-        full_system = (
-            system_prompt
-            + f"\n\n[사용자 복용 중인 약물]\n{dosage_info}"
-            + "\n\n필요한 경우 search_medicine_info, check_drug_interaction 툴을 사용해서 정확한 정보를 찾아 답변해줘."
-            + "\n\n답변 규칙: 빈 줄을 최소화하고, 내용은 간결하게 작성해. 단락 사이 빈 줄은 1줄만 사용해."
+
+@tool
+def check_all_drug_combinations(drugs_json: str) -> str:
+    """사용자 복용약 전체 목록의 상호작용을 교차 검사합니다.
+
+    모든 약물 쌍에 대해 DANGER/CAUTION 상호작용을 검색합니다.
+
+    Args:
+        drugs_json: 검사할 약물 목록 (JSON 문자열, 예: '["리스페리돈", "졸피뎀", "알코올"]')
+
+    Returns:
+        발견된 모든 상호작용 목록. DANGER 발견 시 명시적 경고 포함.
+    """
+    from app.services.graph_service import get_graph_service
+
+    drugs = json.loads(drugs_json) if drugs_json else []
+
+    async def _check():
+        graph = await get_graph_service()
+        result = await graph.check_drug_combination(drugs)
+        return await graph.format_interaction_result(result), result
+
+    formatted, result = _run_async(_check())
+
+    if result["has_danger"]:
+        return (
+            f"🚨 [DANGER 상호작용 발견] red_alert=True 필수!\n\n"
+            f"{formatted}\n\n"
+            f"⚠️ 위험한 약물 조합이 발견되었습니다. "
+            f"반드시 answer에 구체적인 위험 내용을 포함하고 red_alert=True로 설정하세요."
         )
-        result = await self.agent.ainvoke(
-            {
+    elif result["has_caution"]:
+        return f"⚠️ [CAUTION 상호작용 발견]\n\n{formatted}"
+    elif not formatted:
+        return "복용 중인 약물 간 알려진 상호작용 없음."
+    return formatted
+
+
+@tool
+def get_user_medicines_sync(user_id: int) -> str:
+    """DB에서 사용자의 복용약 목록과 복용 스케줄을 조회합니다.
+
+    Args:
+        user_id: 사용자 ID
+
+    Returns:
+        복용약 목록 + 복용 시간대 정보
+    """
+    from app.models.medicine import Medicine
+    from app.models.user_medication import UserMedication
+    from app.services.medication_schedule_service import format_schedule_text
+
+    async def _get():
+        meds = await UserMedication.filter(user_id=user_id, status="ACTIVE")
+        if not meds:
+            return "복용 중인 약 없음"
+
+        # 기본 복용약 목록
+        med_list = ["[복용 중인 약물]"]
+        for um in meds:
+            # 직접 Medicine 조회 (prefetch_related 대신)
+            medicine = await Medicine.get_or_none(item_seq=um.medicine_id)
+            if not medicine:
+                continue
+            time_slots = um.time_slots or []
+            time_info = ", ".join(time_slots) if time_slots else "시간 미지정"
+            med_list.append(
+                f"- {medicine.item_name}: {um.dose_per_intake}정, 하루 {um.daily_frequency}회 ({time_info})"
+            )
+
+        # 복용 스케줄 현황 추가
+        schedule_text = await format_schedule_text(user_id)
+        if schedule_text:
+            med_list.append("")
+            med_list.append(schedule_text)
+
+        return "\n".join(med_list)
+
+    return _run_async(_get())
+
+
+@tool
+def get_medication_schedule_sync(user_id: int) -> str:
+    """사용자의 오늘 복용 스케줄을 조회합니다.
+
+    현재 시간 기준으로 복용 예정, 복용 시간 지남, 다음 복용 시간 정보를 반환합니다.
+    "약 먹을 시간", "언제 먹어", "복용 시간" 등의 질문에 사용하세요.
+
+    Args:
+        user_id: 사용자 ID
+
+    Returns:
+        오늘 전체 복용 스케줄 (시간대별 정리)
+    """
+    from app.services.medication_schedule_service import get_full_schedule_text
+
+    return _run_async(get_full_schedule_text(user_id))
+
+
+# ── Agent State 정의 ─────────────────────────────────────────
+class AgentState(TypedDict):
+    messages: Annotated[list, add_messages]
+    iteration_count: int
+    user_drugs: list[str]
+
+
+# ── System Prompt ─────────────────────────────────────────────
+AGENT_SYSTEM_PROMPT = """당신은 정신건강 관련 약물 상담을 제공하는 AI 약사 어시스턴트입니다.
+사용자는 정신질환을 가진 환자이므로, 안전 판단이 가장 중요합니다.
+
+## 도구 사용 가이드
+사용자 질문에 답하기 위해 제공된 도구를 적극 활용하세요:
+- query_knowledge_graph: Neo4j 지식그래프에서 약물 상호작용 검색 (★ 우선 사용)
+- check_all_drug_combinations: 사용자 복용약 전체 교차 검사
+- search_drug_info: 약물 효능, 용법, 주의사항, 이상반응 검색
+- search_safety: DUR 병용금기, 임부금기, 노인주의 검색
+- search_food_drug_sync: 음식-약물 상호작용 검색 (user_drugs_json은 JSON 배열 문자열)
+- search_rag_sync: 의학 가이드라인 검색
+- get_drug_interactions_sync: Neo4j 약물 상호작용 조회 (drug_names_json은 JSON 배열 문자열)
+- get_user_medicines_sync: 사용자 복용약 목록 + 복용 시간대 조회
+- get_medication_schedule_sync: 오늘 복용 스케줄 조회 (현재 시간 기준 복용 예정/지남 정보)
+
+## 복용 스케줄 질문 처리 규칙
+아래 키워드 감지 시 get_medication_schedule_sync를 호출하세요:
+- "약 먹을 시간", "언제 먹어", "몇 시에", "복용 시간", "지금 먹어도", "약 먹었어"
+
+스케줄 응답 시:
+- 복용 예정인 약이 있으면 몇 분 후인지 명시
+- 복용 시간이 지난 약이 있으면 바로 복용 권고
+- 다음 복용 시간도 함께 안내
+
+## Neo4j 지식그래프 사용 규칙 (필수)
+1. "~랑 ~같이 먹어도 돼?", "~먹고 술 마셔도 돼?" 등 약물 조합 질문 시:
+   → 반드시 query_knowledge_graph를 먼저 호출하세요
+2. "술" = "알코올"로 자동 변환됩니다
+3. 검색 결과에서 DANGER 상호작용이 발견되면:
+   → 반드시 red_alert=True로 설정하세요
+   → answer에 구체적인 위험 내용(호흡억제, 과진정, 세로토닌 증후군 등)을 포함하세요
+4. CAUTION 상호작용 발견 시:
+   → red_alert=False, 하지만 주의사항 명시
+
+## 안전 판단 기준
+- 위기 감지 (is_flagged=true): 자살, 자해, 죽고싶다, 사라지고싶다 등 위기 표현
+- 위험 약물 조합 (red_alert=true):
+  - Neo4j에서 DANGER 상호작용 발견 시 (호흡억제, 과진정, 세로토닌 증후군 등)
+  - 병용금기 약물 조합
+  - 알코올 + 진정제/수면제/벤조디아제핀/오피오이드
+
+## 응답 규칙
+1. 반드시 아래 JSON 형식으로만 응답하세요
+2. 검색 결과가 불확실하면 의사/약사 상담 권장
+3. 의학적 진단이나 처방은 하지 마세요
+4. 따뜻하고 공감적인 어조를 유지하세요
+
+{persona_prompt}
+
+## 응답 형식 (도구 호출 완료 후 반드시 이 JSON 형식만 사용)
+```json
+{{
+  "answer": "사용자에게 전달할 따뜻한 답변",
+  "is_flagged": false,
+  "red_alert": false,
+  "reasoning": "판단 근거"
+}}
+```"""
+
+
+# ── LangGraph Agent 구성 ─────────────────────────────────────
+ALL_TOOLS = [
+    search_drug_info,
+    search_safety,
+    search_food_drug_sync,
+    search_rag_sync,
+    get_drug_interactions_sync,
+    get_user_medicines_sync,
+    get_medication_schedule_sync,
+    query_knowledge_graph,
+    check_all_drug_combinations,
+]
+
+
+def create_agent(character_id: int | None = None) -> StateGraph:
+    """LangGraph ReAct Agent 생성."""
+    persona_prompt = get_persona_prompt(character_id)
+    system_prompt = AGENT_SYSTEM_PROMPT.format(persona_prompt=persona_prompt)
+
+    llm = ChatOpenAI(
+        model=MODEL_NAME,
+        temperature=0.7,
+        api_key=os.getenv("OPENAI_API_KEY"),
+    )
+    llm_with_tools = llm.bind_tools(ALL_TOOLS)
+
+    tool_node = ToolNode(ALL_TOOLS)
+
+    def agent_node(state: AgentState) -> dict:
+        """Agent 노드: LLM 호출."""
+        messages = state["messages"]
+        iteration = state.get("iteration_count", 0)
+
+        if iteration >= MAX_ITERATIONS:
+            return {
                 "messages": [
-                    SystemMessage(content=full_system),
-                    HumanMessage(content=user_message),
-                ]
+                    AIMessage(
+                        content=json.dumps(
+                            {
+                                "answer": "처리 시간이 초과되었습니다. 다시 시도해 주세요.",
+                                "is_flagged": False,
+                                "red_alert": False,
+                                "reasoning": "max_iterations 초과",
+                            },
+                            ensure_ascii=False,
+                        )
+                    )
+                ],
+                "iteration_count": iteration + 1,
             }
+
+        # System prompt가 없으면 추가
+        if not any(isinstance(m, SystemMessage) for m in messages):
+            messages = [SystemMessage(content=system_prompt)] + list(messages)
+
+        response = llm_with_tools.invoke(messages)
+        return {
+            "messages": [response],
+            "iteration_count": iteration + 1,
+        }
+
+    def should_continue(state: AgentState) -> str:
+        """도구 호출 여부 판단."""
+        messages = state["messages"]
+        last_message = messages[-1]
+
+        if state.get("iteration_count", 0) >= MAX_ITERATIONS:
+            return END
+
+        if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+            return "tools"
+
+        return END
+
+    # Graph 구성
+    graph = StateGraph(AgentState)
+    graph.add_node("agent", agent_node)
+    graph.add_node("tools", tool_node)
+
+    graph.add_edge(START, "agent")
+    graph.add_conditional_edges("agent", should_continue, {"tools": "tools", END: END})
+    graph.add_edge("tools", "agent")
+
+    return graph.compile()
+
+
+def parse_llm_response(content: str) -> LLMChatResponse:
+    """LLM 응답에서 JSON 파싱하여 LLMChatResponse 반환."""
+    try:
+        # JSON 블록 추출 시도
+        if "```json" in content:
+            start = content.find("```json") + 7
+            end = content.find("```", start)
+            json_str = content[start:end].strip()
+        elif "```" in content:
+            start = content.find("```") + 3
+            end = content.find("```", start)
+            json_str = content[start:end].strip()
+        elif content.strip().startswith("{"):
+            json_str = content.strip()
+        else:
+            # JSON 형식이 아니면 answer로 사용
+            return LLMChatResponse(
+                answer=content,
+                is_flagged=False,
+                red_alert=False,
+                reasoning="비구조화 응답",
+            )
+
+        data = json.loads(json_str)
+        return LLMChatResponse.model_validate(data)
+
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.warning("LLM 응답 파싱 실패: %s", e)
+        return LLMChatResponse.safe_default(answer=content if content else "응답 생성 실패")
+
+
+async def run_agent(
+    user_message: str,
+    user_drugs: list[str],
+    character_id: int | None = None,
+    nickname: str | None = None,
+    chat_history: list[dict] | None = None,
+    message_count: int = 0,
+    intimacy: str = "formal",
+    user_id: int | None = None,
+) -> LLMChatResponse:
+    """Agent 실행 및 LLMChatResponse 반환.
+
+    Args:
+        user_message: 사용자 질문
+        user_drugs: 사용자 복용약 목록
+        character_id: 페르소나 캐릭터 ID
+        nickname: 사용자 닉네임
+        chat_history: 대화 히스토리
+        message_count: 메시지 수 (친밀도 계산용)
+        intimacy: 친밀도 레벨 (formal/normal/friendly)
+        user_id: 사용자 ID (복용 스케줄 조회용)
+
+    Returns:
+        LLMChatResponse: 구조화된 LLM 응답
+    """
+    agent = create_agent(character_id)
+
+    # 컨텍스트 구성
+    context_parts = [f"[친밀도: {intimacy}]"]
+    if user_id:
+        context_parts.append(f"[사용자 ID: {user_id}]")
+    if nickname and intimacy == "formal":
+        context_parts.append(f"사용자 닉네임: {nickname}")
+    if user_drugs:
+        context_parts.append(f"복용 중인 약: {', '.join(user_drugs)}")
+    context_parts.append(f"\n질문: {user_message}")
+
+    user_content = "\n".join(context_parts)
+
+    # 대화 히스토리를 LangChain 메시지로 변환
+    messages = []
+    if chat_history:
+        for entry in chat_history[-10:]:
+            role = entry.get("role", "user")
+            content = entry.get("content", "")
+            if role == "user":
+                messages.append(HumanMessage(content=content))
+            elif role == "assistant":
+                messages.append(AIMessage(content=content))
+    messages.append(HumanMessage(content=user_content))
+
+    initial_state: AgentState = {
+        "messages": messages,
+        "iteration_count": 0,
+        "user_drugs": user_drugs,
+    }
+
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(agent.invoke, initial_state),
+            timeout=TIMEOUT_SECONDS,
         )
-        return result["messages"][-1].content
+
+        # 마지막 AI 메시지 추출
+        final_messages = result.get("messages", [])
+        for msg in reversed(final_messages):
+            if isinstance(msg, AIMessage) and msg.content:
+                return parse_llm_response(msg.content)
+
+        return LLMChatResponse.safe_default()
+
+    except TimeoutError:
+        logger.error("Agent 실행 타임아웃 (%ds)", TIMEOUT_SECONDS)
+        return LLMChatResponse.safe_default(answer="응답 시간이 초과되었습니다. 다시 시도해 주세요.")
+    except Exception as e:
+        logger.error("Agent 실행 실패: %s", e)
+        return LLMChatResponse.safe_default()
+
+
+async def run_agent_stream(
+    user_message: str,
+    user_drugs: list[str],
+    character_id: int | None = None,
+    nickname: str | None = None,
+    chat_history: list[dict] | None = None,
+    message_count: int = 0,
+    intimacy: str = "formal",
+    user_id: int | None = None,
+):
+    """Agent 스트리밍 실행 - SSE용 async generator.
+
+    도구 호출 결과를 기다린 후 최종 응답만 스트리밍.
+    (LangGraph의 도구 호출은 내부에서 처리)
+    """
+    response = await run_agent(
+        user_message=user_message,
+        user_drugs=user_drugs,
+        character_id=character_id,
+        nickname=nickname,
+        chat_history=chat_history,
+        message_count=message_count,
+        user_id=user_id,
+        intimacy=intimacy,
+    )
+
+    # 답변을 청크로 분할하여 스트리밍 효과
+    answer = response.answer
+    chunk_size = 10  # 10자씩 전송
+
+    for i in range(0, len(answer), chunk_size):
+        chunk = answer[i : i + chunk_size]
+        yield json.dumps({"token": chunk}, ensure_ascii=False)
+
+    # 최종 메타데이터 전송
+    yield json.dumps(
+        {
+            "warning_level": "Critical" if response.is_flagged else ("Caution" if response.red_alert else "Normal"),
+            "red_alert": response.red_alert,
+            "is_flagged": response.is_flagged,
+            "alert_type": "Direct" if response.is_flagged else None,
+            "reasoning": response.reasoning,
+        },
+        ensure_ascii=False,
+    )
+
+
+# ── 레거시 호환 ─────────────────────────────────────────────
+class AgentService:
+    """레거시 호환용 클래스. 새 코드는 run_agent() 사용 권장."""
+
+    async def get_response(
+        self,
+        user_message: str,
+        meds: list[str],
+        med_dosages: list[str],
+        system_prompt: str,
+        character_id: int | None = None,
+        nickname: str | None = None,
+    ) -> str:
+        response = await run_agent(
+            user_message=user_message,
+            user_drugs=meds,
+            character_id=character_id,
+            nickname=nickname,
+        )
+        return response.answer
 
 
 _agent_service: AgentService | None = None

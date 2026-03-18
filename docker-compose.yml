@@ -50,7 +50,6 @@ services:
       context: .  # 프로젝트 루트를 빌드 컨텍스트로 지정
       dockerfile: app/Dockerfile  # Dockerfile 위치 지정
       platforms:
-        - linux/amd64
         - linux/arm64
     image: ${DOCKER_USER}/${DOCKER_REPOSITORY}:app-${APP_VERSION}  # APP_VERSION은 빌드된 이미지의 버전관리를 위함입니다. v1.0.0 형식으로 사용합니다.
     env_file: .env
@@ -59,6 +58,8 @@ services:
     volumes:
       - ./app:/app/app  # 로컬의 app 디렉토리를 컨테이너의 /app/app에 마운트(수정사항 즉시 반영)
       - static_volume:/app/templates
+      - hf_cache:/root/.cache/huggingface
+      - ./data/faiss:/app/data/faiss
     restart: always
     ports:
       - "8000:8000"
@@ -69,7 +70,29 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      neo4j:
+        condition: service_healthy
 
+  # 5. Neo4j (지식그래프 DB)
+  neo4j:
+    image: neo4j:5.18
+    container_name: neo4j
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER}/${NEO4J_PASSWORD}
+      NEO4J_PLUGINS: '["apoc"]'
+    ports:
+      - "7474:7474"  # 웹 UI
+      - "7687:7687"  # Bolt 프로토콜
+    networks:
+      - ws
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "${NEO4J_USER}", "-p", "${NEO4J_PASSWORD}", "RETURN 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
   # 4. Nginx (웹 서버 - 요청 리버스 프록시로 전달)
   nginx:
     container_name: nginx
@@ -87,6 +110,8 @@ services:
 volumes:
   mysql_data:
   static_volume:
+  neo4j_data:
+  hf_cache:
 
 networks:
   ws:

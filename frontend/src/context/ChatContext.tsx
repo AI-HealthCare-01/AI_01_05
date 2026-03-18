@@ -64,6 +64,50 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       };
     }
 
+    case "START_AI_STREAM":
+      return {
+        ...state,
+        isLoading: false,
+        messages: [
+          ...state.messages,
+          {
+            id: crypto.randomUUID(),
+            role: "ai",
+            content: "",
+            timestamp: new Date(),
+            warningLevel: "Normal",
+          },
+        ],
+      };
+
+    case "STREAM_AI_TOKEN": {
+      const msgs = [...state.messages];
+      const last = msgs[msgs.length - 1];
+      if (last && last.role === "ai") {
+        msgs[msgs.length - 1] = { ...last, content: last.content + action.payload };
+      }
+      return { ...state, messages: msgs };
+    }
+
+    case "FINALIZE_AI_STREAM": {
+      const msgs2 = [...state.messages];
+      const last2 = msgs2[msgs2.length - 1];
+      if (last2 && last2.role === "ai") {
+        msgs2[msgs2.length - 1] = {
+          ...last2,
+          warningLevel: action.payload.warning_level as "Normal" | "Caution" | "Critical",
+        };
+      }
+      return {
+        ...state,
+        messages: msgs2,
+        showRedAlert: action.payload.red_alert ? true : state.showRedAlert,
+        redAlertMessage: action.payload.red_alert
+          ? msgs2[msgs2.length - 1]?.content || null
+          : state.redAlertMessage,
+      };
+    }
+
     case "LOAD_HISTORY":
       return { ...state, messages: action.payload, isLoading: false };
     case "SET_LOADING":

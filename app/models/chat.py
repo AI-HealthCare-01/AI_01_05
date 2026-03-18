@@ -7,6 +7,8 @@ class ChatLog(models.Model):
     message_content = fields.TextField()
     response_content = fields.TextField()
     is_flagged = fields.BooleanField(default=False)
+    red_alert = fields.BooleanField(default=False)
+    reasoning = fields.TextField(null=True)
     created_at = fields.DatetimeField(auto_now_add=True)
 
     class Meta:

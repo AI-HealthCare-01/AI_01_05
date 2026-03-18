@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
-import { sendMessage, getChatLog } from "../api/chatApi";
+import { sendMessage, sendMessageStream, getChatLog } from "../api/chatApi";
 import ChatBubble from "../components/ChatBubble";
 import ChatInput from "../components/ChatInput";
 import ChipMenu from "../components/ChipMenu";
@@ -11,6 +11,30 @@ import TypingIndicator from "../components/TypingIndicator";
 import { useChatDispatch, useChatState } from "../context/ChatContext";
 import { useAuthStore } from "../store/authStore";
 import { CHARACTER_IMAGE_BY_ID, DEFAULT_CHARACTER_IMAGE } from "../constants/characters";
+
+const DAYS = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+
+function formatDateDivider(date: Date): string {
+  const y = date.getFullYear();
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const day = DAYS[date.getDay()];
+  return `${y}년 ${m}월 ${d}일 ${day}`;
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function DateDivider({ date }: { date: Date }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 16px", margin: "4px 0" }}>
+      <div style={{ flex: 1, height: 1, background: "#D1D5DB" }} />
+      <span style={{ fontSize: 12, color: "#9CA3AF", whiteSpace: "nowrap" }}>{formatDateDivider(date)}</span>
+      <div style={{ flex: 1, height: 1, background: "#D1D5DB" }} />
+    </div>
+  );
+}
 
 export default function ChatPage() {
   const state = useChatState();
@@ -58,29 +82,56 @@ export default function ChatPage() {
   };
 
   const handleSend = async (text: string) => {
+    // 최근 10개 메시지로 대화 히스토리 구성
+    const chatHistory = state.messages.slice(-10).map((msg) => ({
+      role: msg.role === "user" ? "user" : "assistant",
+      content: msg.content,
+    }));
+
+    // 친밀도 계산용: 현재 대화 메시지 수 & 마지막 메시지 시각
+    const messageCount = state.messages.filter((m) => m.role === "user").length + 1;
+    const lastMsg = state.messages[state.messages.length - 1];
+    const lastMessageTime = lastMsg ? new Date(lastMsg.timestamp).toISOString() : undefined;
+
     dispatch({ type: "ADD_USER_MESSAGE", payload: text });
     dispatch({ type: "SET_LOADING", payload: true });
 
+    const requestPayload = {
+      user_id: userId!,
+      message: text,
+      medication_list: state.medicationList,
+      character_id: selectedCharacter?.id ?? null,
+      chat_history: chatHistory.length > 0 ? chatHistory : undefined,
+      message_count: messageCount,
+      last_message_time: lastMessageTime,
+    };
+
     try {
-      const response = await sendMessage({
-        user_id: userId!,
-        message: text,
-        medication_list: state.medicationList,
-        character_id: selectedCharacter?.id ?? null,
-      });
+      // 스트리밍으로 빈 AI 메시지 먼저 추가, 토큰 단위로 업데이트
+      dispatch({ type: "START_AI_STREAM" });
       setIsHistory(false);
-      dispatch({ type: "ADD_AI_MESSAGE", payload: response });
+
+      await sendMessageStream(
+        requestPayload,
+        (token) => dispatch({ type: "STREAM_AI_TOKEN", payload: token }),
+        (meta) => dispatch({ type: "FINALIZE_AI_STREAM", payload: meta }),
+      );
     } catch {
-      dispatch({
-        type: "ADD_AI_MESSAGE",
-        payload: {
-          answer:
-            "네트워크 연결에 문제가 있습니다. 잠시 후 다시 시도해 주세요.",
-          warning_level: "Normal",
-          red_alert: false,
-          alert_type: null,
-        },
-      });
+      // 스트리밍 실패 시 기존 방식 폴백
+      try {
+        const response = await sendMessage(requestPayload);
+        dispatch({ type: "ADD_AI_MESSAGE", payload: response });
+      } catch {
+        dispatch({
+          type: "ADD_AI_MESSAGE",
+          payload: {
+            answer: "네트워크 연결에 문제가 있습니다. 잠시 후 다시 시도해 주세요.",
+            warning_level: "Normal",
+            red_alert: false,
+            alert_type: null,
+          },
+        });
+      }
     }
   };
 
@@ -125,9 +176,23 @@ export default function ChatPage() {
             padding: "16px 0",
           }}
         >
-          {state.messages.map((msg, idx) => (
-            <div id={`msg-${msg.id}`}><ChatBubble petImage={characterImage} key={msg.id} message={msg} isHistory={isHistory} onWord={idx === state.messages.length - 1 ? () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }) : undefined} /></div>
-          ))}
+          {state.messages.map((msg, idx) => {
+            const prevMsg = idx > 0 ? state.messages[idx - 1] : null;
+            const showDateDivider = !prevMsg || !isSameDay(new Date(prevMsg.timestamp), new Date(msg.timestamp));
+            return (
+              <React.Fragment key={msg.id}>
+                {showDateDivider && <DateDivider date={new Date(msg.timestamp)} />}
+                <div id={`msg-${msg.id}`}>
+                  <ChatBubble
+                    petImage={characterImage}
+                    message={msg}
+                    isHistory={isHistory}
+                    onWord={idx === state.messages.length - 1 ? () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }) : undefined}
+                  />
+                </div>
+              </React.Fragment>
+            );
+          })}
           <TypingIndicator visible={state.isLoading} />
           <div ref={bottomRef} />
         </div>
