@@ -1,3 +1,5 @@
+from datetime import time, timedelta
+
 from fastapi import HTTPException, status
 
 from app.dtos.user_medication_dto import TimeSlotsUpdateRequest, TimeSlotsUpdateResponse, UserMedicationCreateRequest
@@ -8,6 +10,22 @@ from app.models.users import User
 
 
 class UserMedicationService:
+    @staticmethod
+    def _format_hhmm(value: object) -> str:
+        if isinstance(value, time):
+            return value.strftime("%H:%M")
+        if isinstance(value, timedelta):
+            total_seconds = int(value.total_seconds()) % (24 * 60 * 60)
+            hour = total_seconds // 3600
+            minute = (total_seconds % 3600) // 60
+            return f"{hour:02d}:{minute:02d}"
+        return "00:00"
+
+    @staticmethod
+    def _hhmm_to_timedelta(hhmm: str) -> timedelta:
+        hour, minute = map(int, hhmm.split(":"))
+        return timedelta(hours=hour, minutes=minute)
+
     async def create(self, user: User, data: UserMedicationCreateRequest) -> UserMedication:
         medicine = await Medicine.get_or_none(item_seq=data.item_seq, is_active=True)
         if not medicine:
@@ -47,10 +65,10 @@ class UserMedicationService:
     async def get_time_slots(self, user: User) -> dict[str, str]:
         settings = await self.get_or_create_settings(user)
         return {
-            "morning": settings.morning_time.strftime("%H:%M"),
-            "lunch": settings.lunch_time.strftime("%H:%M"),
-            "evening": settings.evening_time.strftime("%H:%M"),
-            "bedtime": settings.bedtime_time.strftime("%H:%M"),
+            "morning": self._format_hhmm(settings.morning_time),
+            "lunch": self._format_hhmm(settings.lunch_time),
+            "evening": self._format_hhmm(settings.evening_time),
+            "bedtime": self._format_hhmm(settings.bedtime_time),
         }
 
     async def update_time_slots(self, user: User, body: TimeSlotsUpdateRequest) -> TimeSlotsUpdateResponse:
@@ -58,20 +76,16 @@ class UserMedicationService:
 
         update_fields: list[str] = []
         if body.morning is not None:
-            hour, minute = map(int, body.morning.split(":"))
-            settings.morning_time = settings.morning_time.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            settings.morning_time = self._hhmm_to_timedelta(body.morning)
             update_fields.append("morning_time")
         if body.lunch is not None:
-            hour, minute = map(int, body.lunch.split(":"))
-            settings.lunch_time = settings.lunch_time.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            settings.lunch_time = self._hhmm_to_timedelta(body.lunch)
             update_fields.append("lunch_time")
         if body.evening is not None:
-            hour, minute = map(int, body.evening.split(":"))
-            settings.evening_time = settings.evening_time.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            settings.evening_time = self._hhmm_to_timedelta(body.evening)
             update_fields.append("evening_time")
         if body.bedtime is not None:
-            hour, minute = map(int, body.bedtime.split(":"))
-            settings.bedtime_time = settings.bedtime_time.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            settings.bedtime_time = self._hhmm_to_timedelta(body.bedtime)
             update_fields.append("bedtime_time")
 
         if update_fields:
