@@ -8,7 +8,7 @@ services:
     ports:
       - "6379:6379"
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -20,25 +20,25 @@ services:
     container_name: mysql
     restart: always
     environment:
-    # ${환경변수명} 문법은 OS 환경변수 혹은 .env에서 해당 환경변수명과 일치하는 항목이 있으면 대입합니다.
-    # 반드시 사전에 .env에 해당 항목이 존재하는지 확인해야 합니다.
+      # ${환경변수명} 문법은 OS 환경변수 혹은 .env에서 해당 환경변수명과 일치하는 항목이 있으면 대입합니다.
+      # 반드시 사전에 .env에 해당 항목이 존재하는지 확인해야 합니다.
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
-      TZ: 'Asia/Seoul'
+      TZ: "Asia/Seoul"
     ports:
       - ${DB_EXPOSE_PORT}:${DB_PORT}
     networks:
       - ws
     volumes:
-      - mysql_data:/var/lib/mysql  # 컨테이너가 삭제돼도 데이터는 호스트 파일시스템에 남음
+      - mysql_data:/var/lib/mysql # 컨테이너가 삭제돼도 데이터는 호스트 파일시스템에 남음
     command: # 한글 저장을 위한 문자셋 설정 (필수!)
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --port=${DB_PORT}
     healthcheck:
-      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -47,16 +47,17 @@ services:
   fastapi:
     container_name: fastapi
     build:
-      context: .  # 프로젝트 루트를 빌드 컨텍스트로 지정
-      dockerfile: app/Dockerfile  # Dockerfile 위치 지정
+      context: . # 프로젝트 루트를 빌드 컨텍스트로 지정
+      dockerfile: app/Dockerfile # Dockerfile 위치 지정
       platforms:
         - linux/arm64
-    image: ${DOCKER_USER}/${DOCKER_REPOSITORY}:app-${APP_VERSION}  # APP_VERSION은 빌드된 이미지의 버전관리를 위함입니다. v1.0.0 형식으로 사용합니다.
+        - linux/amd64
+    image: ${DOCKER_USER}/${DOCKER_REPOSITORY}:app-${APP_VERSION} # APP_VERSION은 빌드된 이미지의 버전관리를 위함입니다. v1.0.0 형식으로 사용합니다.
     env_file: .env
     command: |
       sh -c "uv run --no-sync uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     volumes:
-      - ./app:/app/app  # 로컬의 app 디렉토리를 컨테이너의 /app/app에 마운트(수정사항 즉시 반영)
+      - ./app:/app/app # 로컬의 app 디렉토리를 컨테이너의 /app/app에 마운트(수정사항 즉시 반영)
       - static_volume:/app/templates
       - hf_cache:/root/.cache/huggingface
       - ./data/faiss:/app/data/faiss
@@ -81,19 +82,27 @@ services:
       NEO4J_AUTH: ${NEO4J_USER}/${NEO4J_PASSWORD}
       NEO4J_PLUGINS: '["apoc"]'
     ports:
-      - "7474:7474"  # 웹 UI
-      - "7687:7687"  # Bolt 프로토콜
+      - "7474:7474" # 웹 UI
+      - "7687:7687" # Bolt 프로토콜
     networks:
       - ws
     volumes:
       - neo4j_data:/data
     healthcheck:
-      test: ["CMD", "cypher-shell", "-u", "${NEO4J_USER}", "-p", "${NEO4J_PASSWORD}", "RETURN 1"]
+      test:
+        [
+          "CMD",
+          "cypher-shell",
+          "-u",
+          "${NEO4J_USER}",
+          "-p",
+          "${NEO4J_PASSWORD}",
+          "RETURN 1",
+        ]
       interval: 10s
       timeout: 10s
       retries: 5
       start_period: 30s
-
 
   # 4. Nginx (웹 서버 - 요청 리버스 프록시로 전달)
   nginx:
