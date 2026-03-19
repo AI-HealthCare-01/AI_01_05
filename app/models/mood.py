@@ -2,7 +2,7 @@ from tortoise import fields, models
 
 
 class Mood(models.Model):
-    mood_id = fields.BigIntField(primary_key=True)
+    mood_id = fields.BigIntField(pk=True)
     user = fields.ForeignKeyField("models.User", related_name="moods")
     log_date = fields.DateField()
     time_slot = fields.CharField(max_length=10)

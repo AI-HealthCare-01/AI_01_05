@@ -2,7 +2,7 @@ from tortoise import fields, models
 
 
 class Appointment(models.Model):
-    appointment_id = fields.BigIntField(primary_key=True)
+    appointment_id = fields.BigIntField(pk=True)
     user = fields.ForeignKeyField("models.User", related_name="appointments")
     appointment_date = fields.DateField(null=True)
     appointment_time = fields.TimeField(null=True)
