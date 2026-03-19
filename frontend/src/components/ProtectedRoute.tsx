@@ -8,6 +8,6 @@ export function AuthRequired({ children }: { children: ReactNode }) {
 }
 
 export function SignupRequired({ children }: { children: ReactNode }) {
-  const hasTempToken = Boolean(sessionStorage.getItem('temp_token'))
+  const hasTempToken = Boolean(new URLSearchParams(window.location.search).get('temp_token'))
   return hasTempToken ? <>{children}</> : <Navigate to="/" replace />
 }
