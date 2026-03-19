@@ -24,10 +24,6 @@ dependencies = [
 [dependency-groups]
 ai = [
     "apscheduler>=3.10",
-    "scikit-learn>=1.8.0",
-    "torch",
-    "torchvision",
-    "torchaudio",
     "sentence-transformers>=5.2.0"
 ]
 app = [

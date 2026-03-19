@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { deleteMyAccount, getMyInfo, updateMyInfo } from "../api/users";
-import { updateTimeSlots } from "../api/userMedications";
+import { deleteMyAccount, getMyInfo, updateMyInfo } from "../apis/users";
+import { updateTimeSlots } from "../apis/userMedications";
 import { getMyCharacter } from "../apis/characterApi";
 import { CHARACTER_IMAGE_BY_ID, DEFAULT_CHARACTER_IMAGE } from "../constants/characters";
 import { COLORS } from "../constants/theme";

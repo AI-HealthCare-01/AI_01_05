@@ -1,6 +1,6 @@
 import { useAuthStore } from '../store/authStore';
 
-const BASE_URL = "/api/v1";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 const ACCESS_TOKEN_KEY = "access_token";
 
 export class SessionExpiredError extends Error {
@@ -15,7 +15,7 @@ function getAccessToken(): string | null {
 }
 
 async function refreshAccessToken(): Promise<string | null> {
-  const response = await fetch(`${BASE_URL}/auth/token/refresh`, {
+  const response = await fetch(`${API_BASE_URL}/auth/token/refresh`, {
     method: "GET",
     credentials: "include",
   });
@@ -41,7 +41,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 
   let response: Response;
   try {
-    response = await fetch(`${BASE_URL}${path}`, {
+    response = await fetch(`${API_BASE_URL}${path}`, {
       ...rest,
       headers: {
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
@@ -60,7 +60,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       throw new SessionExpiredError();
     }
 
-    const retryResponse = await fetch(`${BASE_URL}${path}`, {
+    const retryResponse = await fetch(`${API_BASE_URL}${path}`, {
       ...rest,
       headers: {
         ...(isFormData ? {} : { "Content-Type": "application/json" }),

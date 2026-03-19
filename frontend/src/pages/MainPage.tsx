@@ -14,9 +14,9 @@ import {
   patchHomeMedicationCheck,
   postHomeMoodToday,
   type HomeMedicationItem,
-} from "../api/home";
-import { getNextAppointment } from "../api/appointments";
-import { getMedicineDetail, type MedicineDetailItem } from "../api/medicines";
+} from "../apis/home";
+import { getNextAppointment } from "../apis/appointments";
+import { getMedicineDetail, type MedicineDetailItem } from "../apis/medicines";
 import { getMyCharacter } from "../apis/characterApi";
 import CoachMarkOverlay from "../components/CoachMarkOverlay";
 import { CHARACTER_IMAGE_BY_ID, DEFAULT_CHARACTER_IMAGE } from "../constants/characters";

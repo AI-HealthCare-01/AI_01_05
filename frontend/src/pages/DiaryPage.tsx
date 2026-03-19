@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { getAppointments, type AppointmentItem } from "../api/appointments";
-import { tokenStorage } from "../api/client";
+import { getAppointments, type AppointmentItem } from "../apis/appointments";
+import { tokenStorage } from "../apis/client";
 import {
   deleteDiaryEntry,
   getDiaryByDate,
   getDiaryCalendar,
   type DiaryCalendarResponse,
-} from "../api/diary";
+} from "../apis/diary";
 import Button from "../components/Button";
 import { Calendar } from "../components/Calendar";
 import { EmptyState, ErrorMessage, Loading } from "../components/CommonUI";

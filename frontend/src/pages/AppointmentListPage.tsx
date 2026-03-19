@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { deleteAppointment, getAppointments, type AppointmentItem, updateAppointment } from "../api/appointments";
+import { deleteAppointment, getAppointments, type AppointmentItem, updateAppointment } from "../apis/appointments";
 import { Button } from "../components/Button";
 import { ErrorMessage } from "../components/ErrorMessage";
 import { Loading } from "../components/Loading";

@@ -1,7 +1,7 @@
 import type { KakaoLoginResponse, SignupRequest, PhoneSendResponse, PhoneVerifyResponse } from '../types/auth'
 import { useAuthStore } from '../store/authStore'
 
-const BASE = '/api/v1'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ""
 
 async function request<T>(
   path: string,
@@ -19,7 +19,7 @@ async function request<T>(
     if (token) headers['Authorization'] = `Bearer ${token}`
   }
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers, credentials: 'include' })
+  const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, credentials: 'include' })
 
   if (res.status === 401 && retry && withAuth) {
     const refreshed = await refreshToken()
@@ -42,7 +42,7 @@ async function request<T>(
 
 export async function refreshToken(): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE}/auth/token/refresh`, { credentials: 'include' })
+    const res = await fetch(`${API_BASE_URL}/auth/token/refresh`, { credentials: 'include' })
     if (!res.ok) return false
     const data = await res.json()
     useAuthStore.getState().setAccessToken(data.access_token)
