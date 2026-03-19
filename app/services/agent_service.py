@@ -60,9 +60,11 @@ def search_safety(query: str, top_k: int = 3) -> str:
 
 _main_loop: asyncio.AbstractEventLoop | None = None
 
+
 def set_main_loop(loop: asyncio.AbstractEventLoop) -> None:
     global _main_loop
     _main_loop = loop
+
 
 def _run_async(coro):
     """동기 컨텍스트에서 비동기 코루틴 실행 (Tortoise ORM 호환)."""
