@@ -9,7 +9,8 @@
  *  - 현재 시각 → 레이블 변환 (자정 넘김 범위 처리 포함)
  */
 
-export type UiSlot = "morning" | "lunch" | "dinner" | "night";
+export type UiSlot = "morning" | "lunch" | "evening" | "bedtime";
+type LegacyUiSlot = UiSlot | "dinner" | "night";
 
 export interface TimeRange {
   slot: UiSlot;
@@ -23,11 +24,48 @@ export interface TimeRange {
 export const DEFAULT_TIME_RANGES: TimeRange[] = [
   { slot: "morning", label: "아침",   start: "06:00", end: "10:59" },
   { slot: "lunch",   label: "점심",   start: "11:00", end: "16:59" },
-  { slot: "dinner",  label: "저녁",   start: "17:00", end: "20:59" },
-  { slot: "night",   label: "취침 전", start: "21:00", end: "05:59" },
+  { slot: "evening", label: "저녁",   start: "17:00", end: "20:59" },
+  { slot: "bedtime", label: "취침 전", start: "21:00", end: "05:59" },
 ];
 
 const STORAGE_KEY = "timeRanges";
+const SLOT_ORDER: UiSlot[] = ["morning", "lunch", "evening", "bedtime"];
+
+function normalizeSlot(slot: string): UiSlot | null {
+  const normalized = slot.toLowerCase() as LegacyUiSlot;
+  if (normalized === "morning" || normalized === "lunch" || normalized === "evening" || normalized === "bedtime") {
+    return normalized;
+  }
+  if (normalized === "dinner") return "evening";
+  if (normalized === "night") return "bedtime";
+  return null;
+}
+
+function toDefaultLabel(slot: UiSlot): string {
+  return DEFAULT_TIME_RANGES.find((item) => item.slot === slot)?.label ?? slot;
+}
+
+function normalizeRanges(input: unknown[]): TimeRange[] | null {
+  const mapped = new Map<UiSlot, TimeRange>();
+
+  for (const item of input) {
+    if (typeof item !== "object" || item === null) return null;
+    const candidate = item as { slot?: string; label?: string; start?: string; end?: string };
+    if (!candidate.slot || !candidate.start || !candidate.end) return null;
+    const slot = normalizeSlot(candidate.slot);
+    if (!slot) return null;
+    if (!isValidTimeString(candidate.start) || !isValidTimeString(candidate.end)) return null;
+    mapped.set(slot, {
+      slot,
+      label: typeof candidate.label === "string" && candidate.label.trim() ? candidate.label : toDefaultLabel(slot),
+      start: candidate.start,
+      end: candidate.end,
+    });
+  }
+
+  if (mapped.size !== SLOT_ORDER.length) return null;
+  return SLOT_ORDER.map((slot) => mapped.get(slot) as TimeRange);
+}
 
 // ── localStorage 유틸 ────────────────────────────────────────────────────────
 
@@ -39,18 +77,8 @@ export function loadTimeRanges(): TimeRange[] {
 
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length !== 4) return DEFAULT_TIME_RANGES;
-
-    // 각 항목의 형식 검증
-    const validated = (parsed as TimeRange[]).every(
-      (r) =>
-        typeof r.slot === "string" &&
-        typeof r.label === "string" &&
-        isValidTimeString(r.start) &&
-        isValidTimeString(r.end),
-    );
-    if (!validated) return DEFAULT_TIME_RANGES;
-
-    return parsed as TimeRange[];
+    const normalized = normalizeRanges(parsed);
+    return normalized ?? DEFAULT_TIME_RANGES;
   } catch {
     return DEFAULT_TIME_RANGES;
   }
@@ -58,7 +86,8 @@ export function loadTimeRanges(): TimeRange[] {
 
 /** 시간대 설정을 localStorage에 저장합니다. */
 export function saveTimeRanges(ranges: TimeRange[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(ranges));
+  const normalized = normalizeRanges(ranges);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized ?? DEFAULT_TIME_RANGES));
 }
 
 // ── 시간 계산 ────────────────────────────────────────────────────────────────
