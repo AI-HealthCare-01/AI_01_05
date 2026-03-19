@@ -90,4 +90,7 @@ class TestUserMedicationAPI(TestCase):
                 headers={"Authorization": f"Bearer {token}"},
             )
         assert response.status_code == status.HTTP_200_OK
-        assert isinstance(response.json(), list)
+        data = response.json()
+        assert isinstance(data, dict)
+        assert "items" in data
+        assert isinstance(data["items"], list)
