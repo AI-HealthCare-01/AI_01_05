@@ -1,7 +1,10 @@
+const API_BASE = import.meta.env.VITE_API_BASE_URL as string
+const KAKAO_CALLBACK_URI = `${API_BASE.replace('/api/v1', '')}/api/v1/auth/kakao/callback`
+
 const KAKAO_AUTH_URL =
   `https://kauth.kakao.com/oauth/authorize?response_type=code` +
   `&client_id=${import.meta.env.VITE_KAKAO_REST_API_KEY}` +
-  `&redirect_uri=${encodeURIComponent(import.meta.env.VITE_KAKAO_REDIRECT_URI)}`
+  `&redirect_uri=${encodeURIComponent(KAKAO_CALLBACK_URI)}`
 
 export default function LoginPage() {
   return (

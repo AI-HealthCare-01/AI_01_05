@@ -1,4 +1,4 @@
-import type { KakaoLoginResponse, SignupRequest, PhoneSendResponse, PhoneVerifyResponse } from '../types/auth'
+import type { SignupRequest, PhoneSendResponse, PhoneVerifyResponse } from '../types/auth'
 import { useAuthStore } from '../store/authStore'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ""
@@ -50,10 +50,6 @@ export async function refreshToken(): Promise<boolean> {
   } catch {
     return false
   }
-}
-
-export function kakaoLogin(code: string): Promise<KakaoLoginResponse> {
-  return request('/auth/kakao', { method: 'POST', body: JSON.stringify({ code }) })
 }
 
 export function kakaoSignup(body: SignupRequest, tempToken: string): Promise<{ access_token: string }> {
