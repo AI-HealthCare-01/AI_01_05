@@ -7,4 +7,5 @@ from .medicine import Medicine
 from .mood import Mood
 from .report import Report
 from .user_medication import UserMedication
+from .user_settings import UserSettings
 from .users import User
