@@ -94,7 +94,7 @@ async def post_home_mood_today(
 @router.get("/medications/today")
 async def get_home_medications_today(user: Annotated[User, Depends(get_request_user)]):
     today = date.today()
-    active_meds = await UserMedication.filter(user_id=user.user_id, status="ACTIVE")
+    active_meds = await UserMedication.filter(user_id=user.user_id, status="ACTIVE").prefetch_related("medicine")
     today_meds = [
         med for med in active_meds if med.start_date <= today <= med.start_date + timedelta(days=med.total_days - 1)
     ]
@@ -104,10 +104,7 @@ async def get_home_medications_today(user: Annotated[User, Depends(get_request_u
 
     response_items = []
     for med in today_meds:
-        # 직접 Medicine 조회 (prefetch_related 대신)
-        medicine = await Medicine.get_or_none(item_seq=med.medicine_id)
-        if not medicine:
-            continue
+        medicine = med.medicine
         for slot in med.time_slots:
             check_key = f"{med.medication_id}:{slot}:{today_str}"
             check_info = check_store.get(check_key, {})
