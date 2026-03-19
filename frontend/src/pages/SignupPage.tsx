@@ -121,6 +121,14 @@ export default function SignupPage() {
       sessionStorage.removeItem('temp_token')
       localStorage.setItem('access_token', res.access_token)
       useAuthStore.getState().setAccessToken(res.access_token)
+      const meRes = await fetch('/api/v1/users/me', {
+        headers: { Authorization: `Bearer ${res.access_token}` },
+        credentials: 'include',
+      })
+      if (meRes.ok) {
+        const me = await meRes.json()
+        if (me.user_id) useAuthStore.getState().setUserId(me.user_id)
+      }
       navigate('/character-select', { replace: true })
     } catch (err: unknown) {
       const e = err as { status?: number; detail?: string }

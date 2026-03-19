@@ -4,12 +4,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
+import asyncio
 
 from app.apis.v1 import v1_routers
 from app.core import config
 from app.db.databases import initialize_tortoise
 from app.services.graph_service import get_graph_service
 from app.services.scheduler_service import start_scheduler, stop_scheduler
+from app.services.agent_service import set_main_loop
 
 
 @asynccontextmanager
@@ -22,6 +24,8 @@ async def lifespan(app):
 
     # APScheduler 시작 (복약 알림 등)
     await start_scheduler(redis_client)
+
+    set_main_loop(asyncio.get_event_loop())
 
     yield
 

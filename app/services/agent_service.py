@@ -58,19 +58,18 @@ def search_safety(query: str, top_k: int = 3) -> str:
     return _search(query, top_k)
 
 
+_main_loop: asyncio.AbstractEventLoop | None = None
+
+def set_main_loop(loop: asyncio.AbstractEventLoop) -> None:
+    global _main_loop
+    _main_loop = loop
+
 def _run_async(coro):
     """동기 컨텍스트에서 비동기 코루틴 실행 (Tortoise ORM 호환)."""
-    try:
-        asyncio.get_running_loop()
-        # 이미 실행 중인 루프가 있으면 새 스레드에서 실행
-        import concurrent.futures
-
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            future = pool.submit(asyncio.run, coro)
-            return future.result(timeout=30)
-    except RuntimeError:
-        # 실행 중인 루프 없음 → asyncio.run() 사용
-        return asyncio.run(coro)
+    if _main_loop is not None and _main_loop.is_running():
+        future = asyncio.run_coroutine_threadsafe(coro, _main_loop)
+        return future.result(timeout=30)
+    return asyncio.run(coro)
 
 
 @tool
