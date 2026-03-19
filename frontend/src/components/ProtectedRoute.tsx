@@ -4,7 +4,8 @@ import { useAuthStore } from '../store/authStore'
 
 export function AuthRequired({ children }: { children: ReactNode }) {
   const accessToken = useAuthStore((s) => s.accessToken)
-  return accessToken ? <>{children}</> : <Navigate to="/" replace />
+  const hasTokenInUrl = Boolean(new URLSearchParams(window.location.search).get('access_token'))
+  return (accessToken || hasTokenInUrl) ? <>{children}</> : <Navigate to="/" replace />
 }
 
 export function SignupRequired({ children }: { children: ReactNode }) {
