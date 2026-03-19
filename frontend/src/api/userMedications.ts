@@ -30,8 +30,8 @@ export function deleteUserMedication(medicationId: number): Promise<void> {
 export interface TimeSlotsUpdateRequest {
   morning?: string;  // "HH:MM" 형식
   lunch?: string;
-  dinner?: string;
-  night?: string;
+  evening?: string;
+  bedtime?: string;
 }
 
 export interface TimeSlotsUpdateResponse {

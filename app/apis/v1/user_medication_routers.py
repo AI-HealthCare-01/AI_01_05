@@ -4,7 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import ORJSONResponse as Response
 
 from app.dependencies.security import get_request_user
-from app.dtos.user_medication_dto import UserMedicationCreateRequest, UserMedicationResponse
+from app.dtos.user_medication_dto import (
+    TimeSlotsResponse,
+    TimeSlotsUpdateRequest,
+    TimeSlotsUpdateResponse,
+    UserMedicationCreateRequest,
+    UserMedicationResponse,
+)
 from app.models.users import User
 from app.services.user_medication_service import UserMedicationService
 
@@ -52,6 +58,24 @@ async def list_user_medications(
             }
         )
     return Response({"items": items})
+
+
+@router.get("/time-slots", response_model=TimeSlotsResponse, status_code=status.HTTP_200_OK)
+async def get_user_time_slots(
+    user: Annotated[User, Depends(get_request_user)],
+    service: Annotated[UserMedicationService, Depends(UserMedicationService)],
+) -> TimeSlotsResponse:
+    result = await service.get_time_slots(user)
+    return TimeSlotsResponse(**result)
+
+
+@router.patch("/time-slots", response_model=TimeSlotsUpdateResponse, status_code=status.HTTP_200_OK)
+async def update_user_time_slots(
+    body: TimeSlotsUpdateRequest,
+    user: Annotated[User, Depends(get_request_user)],
+    service: Annotated[UserMedicationService, Depends(UserMedicationService)],
+) -> TimeSlotsUpdateResponse:
+    return await service.update_time_slots(user, body)
 
 
 @router.delete("/{medication_id}", status_code=status.HTTP_204_NO_CONTENT)

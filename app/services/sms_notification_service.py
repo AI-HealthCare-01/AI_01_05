@@ -10,17 +10,27 @@ import hashlib
 import hmac
 import logging
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 import httpx
 from redis.asyncio import Redis
 
 from app.core import config
+from app.models.medicine import Medicine
+from app.models.user_medication import UserMedication
+from app.models.user_settings import UserSettings
+from app.models.users import User
 
 logger = logging.getLogger("dodaktalk.sms_notification")
 
 # SMS 메시지 템플릿
 SMS_TEMPLATE = "[도닥톡] {nickname}님, {time_label} 약 드실 시간이에요! {medicine_names}"
+DEFAULT_SLOT_TIMES = {
+    "MORNING": "06:00",
+    "LUNCH": "11:00",
+    "EVENING": "17:00",
+    "BEDTIME": "21:00",
+}
 
 
 class SMSNotificationService:
@@ -160,6 +170,61 @@ def _is_within_time_range(slot_time: str, current_hour: int, current_minute: int
         return False
 
 
+def _normalize_slot_name(slot: str) -> str | None:
+    normalized = slot.strip().upper()
+    if normalized in DEFAULT_SLOT_TIMES:
+        return normalized
+    if normalized == "DINNER":
+        return "EVENING"
+    if normalized == "NIGHT":
+        return "BEDTIME"
+    return None
+
+
+def _format_time_value(value: object) -> str | None:
+    if isinstance(value, time):
+        return value.strftime("%H:%M")
+    if isinstance(value, timedelta):
+        total_seconds = int(value.total_seconds()) % (24 * 60 * 60)
+        hour = total_seconds // 3600
+        minute = (total_seconds % 3600) // 60
+        return f"{hour:02d}:{minute:02d}"
+    if isinstance(value, str):
+        parts = value.split(":")
+        if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
+            hour = int(parts[0])
+            minute = int(parts[1])
+            if 0 <= hour <= 23 and 0 <= minute <= 59:
+                return f"{hour:02d}:{minute:02d}"
+    return None
+
+
+def _read_settings_time(slot_name: str, settings: UserSettings) -> object | None:
+    field_map = {
+        "MORNING": settings.morning_time,
+        "LUNCH": settings.lunch_time,
+        "EVENING": settings.evening_time,
+        "BEDTIME": settings.bedtime_time,
+    }
+    return field_map.get(slot_name)
+
+
+def _resolve_slot_time(slot: str, settings: UserSettings | None) -> str | None:
+    if ":" in slot:
+        return _format_time_value(slot)
+
+    slot_name = _normalize_slot_name(slot)
+    if slot_name is None:
+        return None
+
+    if settings:
+        formatted = _format_time_value(_read_settings_time(slot_name, settings))
+        if formatted:
+            return formatted
+
+    return DEFAULT_SLOT_TIMES[slot_name]
+
+
 def _get_time_label_for_sms(hour: int) -> str:
     """시간대 라벨 반환."""
     if 5 <= hour < 10:
@@ -175,10 +240,11 @@ def _get_time_label_for_sms(hour: int) -> str:
 
 async def _build_user_slots(current_hour: int, current_minute: int) -> dict[int, dict]:
     """복용 예정 약물을 사용자별로 그룹화."""
-    from app.models.medicine import Medicine
-    from app.models.user_medication import UserMedication
-
     all_meds = await UserMedication.filter(status="ACTIVE")
+    user_ids = list({med.user_id for med in all_meds})
+    user_settings = await UserSettings.filter(user_id__in=user_ids).all() if user_ids else []
+    settings_by_user = {s.user_id: s for s in user_settings}
+
     user_slots: dict[int, dict] = {}
 
     for med in all_meds:
@@ -189,17 +255,16 @@ async def _build_user_slots(current_hour: int, current_minute: int) -> dict[int,
             continue
 
         for slot in med.time_slots:
-            if _is_within_time_range(slot, current_hour, current_minute):
+            scheduled_time = _resolve_slot_time(str(slot), settings_by_user.get(med.user_id))
+            if scheduled_time and _is_within_time_range(scheduled_time, current_hour, current_minute):
                 user_id = med.user_id
-                user_slots.setdefault(user_id, {}).setdefault(slot, []).append(medicine.item_name)
+                user_slots.setdefault(user_id, {}).setdefault(scheduled_time, []).append(medicine.item_name)
 
     return user_slots
 
 
 async def get_active_medication_users(redis_client: Redis) -> list[dict]:
     """현재 시간 기준 복용 예정 사용자 조회."""
-    from app.models.users import User
-
     now = datetime.now(UTC) + timedelta(hours=9)
     user_slots = await _build_user_slots(now.hour, now.minute)
 
