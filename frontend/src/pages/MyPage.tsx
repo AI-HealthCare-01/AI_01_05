@@ -55,8 +55,8 @@ function TimeRangeSettings() {
       await updateTimeSlots({
         morning: slotMap.morning,
         lunch: slotMap.lunch,
-        dinner: slotMap.dinner,
-        night: slotMap.night,
+        evening: slotMap.evening,
+        bedtime: slotMap.bedtime,
       });
     } catch {
       // API 실패해도 무시 (로컬 저장은 성공)

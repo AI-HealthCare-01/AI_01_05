@@ -8,9 +8,15 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 logger = logging.getLogger("dodaktalk.schedule")
+DEFAULT_SLOT_TIMES = {
+    "MORNING": "06:00",
+    "LUNCH": "11:00",
+    "EVENING": "17:00",
+    "BEDTIME": "21:00",
+}
 
 
 @dataclass
@@ -42,6 +48,57 @@ def _parse_time(time_str: str) -> tuple[int, int]:
         return int(parts[0]), int(parts[1])
     except (ValueError, IndexError):
         return 0, 0
+
+
+def _normalize_slot_name(slot: str) -> str | None:
+    normalized = slot.strip().upper()
+    if normalized in DEFAULT_SLOT_TIMES:
+        return normalized
+    if normalized == "DINNER":
+        return "EVENING"
+    if normalized == "NIGHT":
+        return "BEDTIME"
+    return None
+
+
+def _format_time_value(value: object) -> str | None:
+    if isinstance(value, time):
+        return value.strftime("%H:%M")
+    if isinstance(value, timedelta):
+        total_seconds = int(value.total_seconds()) % (24 * 60 * 60)
+        hour = total_seconds // 3600
+        minute = (total_seconds % 3600) // 60
+        return f"{hour:02d}:{minute:02d}"
+    if isinstance(value, str):
+        parts = value.split(":")
+        if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
+            hour = int(parts[0])
+            minute = int(parts[1])
+            if 0 <= hour <= 23 and 0 <= minute <= 59:
+                return f"{hour:02d}:{minute:02d}"
+    return None
+
+
+def _resolve_slot_time(slot: str, settings: object | None) -> str | None:
+    if ":" in slot:
+        return _format_time_value(slot)
+
+    slot_name = _normalize_slot_name(slot)
+    if slot_name is None:
+        return None
+
+    if settings:
+        field_name = {
+            "MORNING": "morning_time",
+            "LUNCH": "lunch_time",
+            "EVENING": "evening_time",
+            "BEDTIME": "bedtime_time",
+        }[slot_name]
+        formatted = _format_time_value(getattr(settings, field_name, None))
+        if formatted:
+            return formatted
+
+    return DEFAULT_SLOT_TIMES[slot_name]
 
 
 def _format_korean_time(dt: datetime) -> str:
@@ -81,6 +138,16 @@ def _minutes_until(target_time: str, now: datetime) -> int:
     return int(diff)
 
 
+def _classify_slot_status(minutes_diff: int) -> str:
+    if -30 <= minutes_diff < 0:
+        return "overdue"
+    if 0 <= minutes_diff <= 30:
+        return "due"
+    if minutes_diff > 30:
+        return "upcoming"
+    return "completed"
+
+
 async def get_user_schedule(user_id: int) -> ScheduleSummary:
     """사용자의 오늘 복용 스케줄 분석.
 
@@ -92,12 +159,14 @@ async def get_user_schedule(user_id: int) -> ScheduleSummary:
     """
     from app.models.medicine import Medicine
     from app.models.user_medication import UserMedication
+    from app.models.user_settings import UserSettings
 
     # KST 기준 현재 시간 (UTC+9)
     now = datetime.now(UTC) + timedelta(hours=9)
     now = now.replace(tzinfo=None)  # naive datetime으로 변환
 
     meds = await UserMedication.filter(user_id=user_id, status="ACTIVE")
+    settings = await UserSettings.get_or_none(user_id=user_id)
 
     all_slots: list[MedicationSlot] = []
     due_meds: list[MedicationSlot] = []
@@ -114,21 +183,15 @@ async def get_user_schedule(user_id: int) -> ScheduleSummary:
         medicine_name = medicine.item_name
 
         for slot_time in time_slots:
-            minutes_diff = _minutes_until(slot_time, now)
-
-            # 상태 판단
-            if -30 <= minutes_diff < 0:
-                status = "overdue"  # 30분 이내 지남
-            elif 0 <= minutes_diff <= 30:
-                status = "due"  # 30분 이내 예정
-            elif minutes_diff > 30:
-                status = "upcoming"  # 아직 여유 있음
-            else:
-                status = "completed"  # 30분 넘게 지남 (이미 복용 가정)
+            scheduled_time = _resolve_slot_time(str(slot_time), settings)
+            if not scheduled_time:
+                continue
+            minutes_diff = _minutes_until(scheduled_time, now)
+            status = _classify_slot_status(minutes_diff)
 
             slot = MedicationSlot(
                 medicine_name=medicine_name,
-                scheduled_time=slot_time,
+                scheduled_time=scheduled_time,
                 dose=dose,
                 status=status,
                 minutes_diff=minutes_diff,

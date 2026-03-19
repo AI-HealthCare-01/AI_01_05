@@ -48,7 +48,7 @@ type NextAppointmentUi = {
 };
 
 // 슬롯 키 목록 (순서 고정 — 레이블은 timeRange 유틸에서 동적으로 가져옴)
-const SLOT_KEYS: UiSlot[] = ["morning", "lunch", "dinner", "night"];
+const SLOT_KEYS: UiSlot[] = ["morning", "lunch", "evening", "bedtime"];
 
 const MOOD_EMOJI: Record<number, string> = {
   1: "😡",
@@ -81,7 +81,7 @@ const GREETING_MESSAGES = [
 ];
 
 function getCompletionMessage(slot: UiSlot, label: string): string {
-  if (slot === "night") return "오늘 하루 약을 모두 챙겼어요!\n최고예요 🐾";
+  if (slot === "bedtime") return "오늘 하루 약을 모두 챙겼어요!\n최고예요 🐾";
   return `${label} 약을 다 드셨네요!\n대단해요! 💊`;
 }
 
@@ -261,15 +261,15 @@ const EMOJI_ANIMATIONS: Record<number, string> = {
 function uiToApiSlot(uiSlot: UiSlot): ApiSlot {
   if (uiSlot === "morning") return "MORNING";
   if (uiSlot === "lunch") return "LUNCH";
-  if (uiSlot === "dinner") return "EVENING";
+  if (uiSlot === "evening") return "EVENING";
   return "BEDTIME";
 }
 
 function apiToUiSlot(apiSlot: string): UiSlot {
   if (apiSlot === "MORNING" || apiSlot === "morning") return "morning";
   if (apiSlot === "LUNCH" || apiSlot === "lunch") return "lunch";
-  if (apiSlot === "EVENING" || apiSlot === "DINNER" || apiSlot === "dinner") return "dinner";
-  return "night";
+  if (apiSlot === "EVENING" || apiSlot === "evening" || apiSlot === "DINNER" || apiSlot === "dinner") return "evening";
+  return "bedtime";
 }
 
 function getEmojiButtonStyle(level: number, selected: boolean): CSSProperties {
@@ -407,8 +407,8 @@ export default function MainPage() {
   const [todayMoods, setTodayMoods] = useState<MoodBySlot>({
     morning: null,
     lunch: null,
-    dinner: null,
-    night: null,
+    evening: null,
+    bedtime: null,
   });
   const [latestMood, setLatestMood] = useState<number | null>(null);
   const [greetingMessage] = useState(() => {
@@ -423,8 +423,8 @@ export default function MainPage() {
   const [pawStampTokenBySlot, setPawStampTokenBySlot] = useState<Record<UiSlot, number>>({
     morning: 0,
     lunch: 0,
-    dinner: 0,
-    night: 0,
+    evening: 0,
+    bedtime: 0,
   });
   const [expandedMedicationId, setExpandedMedicationId] = useState<number | null>(null);
   const [detailByMedicationId, setDetailByMedicationId] = useState<Record<number, MedicineDetailItem | null>>({});
@@ -450,8 +450,8 @@ export default function MainPage() {
     const nextMoods: MoodBySlot = {
       morning: null,
       lunch: null,
-      dinner: null,
-      night: null,
+      evening: null,
+      bedtime: null,
     };
 
     const list = res?.moods ?? [];
@@ -509,7 +509,7 @@ export default function MainPage() {
       const message = fetchError instanceof Error ? fetchError.message : "홈 데이터를 불러오지 못했습니다.";
       setError(message);
       setNextAppointment(null);
-      setTodayMoods({ morning: null, lunch: null, dinner: null, night: null });
+      setTodayMoods({ morning: null, lunch: null, evening: null, bedtime: null });
       setLatestMood(null);
       setTodayMedications([]);
     } finally {
@@ -640,8 +640,8 @@ export default function MainPage() {
     return {
       morning: todayMedications.filter((med) => med.timeSlot === "morning"),
       lunch: todayMedications.filter((med) => med.timeSlot === "lunch"),
-      dinner: todayMedications.filter((med) => med.timeSlot === "dinner"),
-      night: todayMedications.filter((med) => med.timeSlot === "night"),
+      evening: todayMedications.filter((med) => med.timeSlot === "evening"),
+      bedtime: todayMedications.filter((med) => med.timeSlot === "bedtime"),
     };
   }, [todayMedications]);
 
@@ -655,16 +655,16 @@ export default function MainPage() {
     () => ({
       morning: medsBySlot.morning.length > 0 && medsBySlot.morning.every((med) => med.checked),
       lunch: medsBySlot.lunch.length > 0 && medsBySlot.lunch.every((med) => med.checked),
-      dinner: medsBySlot.dinner.length > 0 && medsBySlot.dinner.every((med) => med.checked),
-      night: medsBySlot.night.length > 0 && medsBySlot.night.every((med) => med.checked),
+      evening: medsBySlot.evening.length > 0 && medsBySlot.evening.every((med) => med.checked),
+      bedtime: medsBySlot.bedtime.length > 0 && medsBySlot.bedtime.every((med) => med.checked),
     }),
     [medsBySlot]
   );
   const [prevAllDoneBySlot, setPrevAllDoneBySlot] = useState<Record<UiSlot, boolean>>({
     morning: false,
     lunch: false,
-    dinner: false,
-    night: false,
+    evening: false,
+    bedtime: false,
   });
 
   useEffect(() => {
