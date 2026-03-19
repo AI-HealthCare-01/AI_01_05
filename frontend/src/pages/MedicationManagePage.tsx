@@ -5,7 +5,7 @@ import {
   deleteUserMedication,
   getUserMedications,
   type UserMedicationItem,
-} from "../api/userMedications";
+} from "../apis/userMedications";
 import { COLORS } from "../constants/theme";
 
 // ── 유틸 ────────────────────────────────────────────────────────────────────

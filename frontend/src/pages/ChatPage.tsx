@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
-import { sendMessage, sendMessageStream, getChatLog } from "../api/chatApi";
+import { sendMessage, sendMessageStream, getChatLog } from "../apis/chatApi";
 import ChatBubble from "../components/ChatBubble";
 import ChatInput from "../components/ChatInput";
 import ChipMenu from "../components/ChipMenu";

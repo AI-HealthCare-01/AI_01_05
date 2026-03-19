@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { useRef, useState } from "react";
 import ocrSample from "../assets/images/ocr_sample/ocr_sample.png";
 import { useNavigate } from "react-router-dom";
-import { parsePrescription } from "../api/medicines";
+import { parsePrescription } from "../apis/medicines";
 import { COLORS } from "../constants/theme";
 import { useMedicationFlow } from "../store/MedicationFlowContext";
 import type { MedicineDraftItem } from "../types/medicine";

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { getReportDetail, type ReportDetail } from "../api/report";
+import { getReportDetail, type ReportDetail } from "../apis/report";
 import { EmptyState, ErrorMessage, Loading } from "../components/CommonUI";
 import { COLORS } from "../constants/theme";
 

@@ -5,7 +5,7 @@ import Button from "../components/Button";
 import { ReportCard } from "../components/Cards";
 import { EmptyState, ErrorMessage, Loading } from "../components/CommonUI";
 import { COLORS } from "../constants/theme";
-import { createReport, deleteReport, getReports, type ReportListItem } from "../api/report";
+import { createReport, deleteReport, getReports, type ReportListItem } from "../apis/report";
 
 interface DeleteModalProps {
   isOpen: boolean;

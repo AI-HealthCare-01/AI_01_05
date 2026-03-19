@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getChatHistory } from "../api/chatApi";
+import { getChatHistory } from "../apis/chatApi";
 import { useAuthStore } from "../store/authStore";
 
 

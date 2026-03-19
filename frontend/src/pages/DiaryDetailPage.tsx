@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-import { createDiaryText, getDiaryByDate, updateDiaryEntry } from "../api/diary";
+import { createDiaryText, getDiaryByDate, updateDiaryEntry } from "../apis/diary";
 import Button from "../components/Button";
 import { EmptyState, ErrorMessage, Loading } from "../components/CommonUI";
 import { COLORS, MOOD_COLORS, TIME_SLOT_LABELS } from "../constants/theme";

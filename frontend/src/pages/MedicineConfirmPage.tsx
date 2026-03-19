@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { addUserMedication } from "../api/medicines";
+import { addUserMedication } from "../apis/medicines";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/CommonUI";
 import { COLORS } from "../constants/theme";
