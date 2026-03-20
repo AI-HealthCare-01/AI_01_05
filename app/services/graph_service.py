@@ -216,13 +216,13 @@ class GraphService:
             result = await session.run(
                 """
                 MATCH (d:Drug)-[:HAS_COMPONENT]->(c:Component)
-                WHERE d.name CONTAINS $query OR
-                      d.generic_name CONTAINS $query OR
-                      c.name CONTAINS $query OR
-                      c.generic_name CONTAINS $query
+                WHERE d.name CONTAINS $search_term OR
+                      d.generic_name CONTAINS $search_term OR
+                      c.name CONTAINS $search_term OR
+                      c.generic_name CONTAINS $search_term
                 RETURN collect(DISTINCT c.name) AS query_components
                 """,
-                query=query_drug,
+                search_term=query_drug,
             )
             query_record = await result.single()
             query_components = query_record["query_components"] if query_record else []

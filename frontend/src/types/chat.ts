@@ -33,6 +33,7 @@ export interface ChatState {
   redAlertMessage: string | null;
   isMenuOpen: boolean;
   medicationList: string[];
+  statusMessage: string | null;
 }
 
 export type ChatAction =
@@ -42,6 +43,7 @@ export type ChatAction =
   | { type: "STREAM_AI_TOKEN"; payload: string }
   | { type: "FINALIZE_AI_STREAM"; payload: { warning_level: string; red_alert: boolean; alert_type: string | null } }
   | { type: "SET_LOADING"; payload: boolean }
+  | { type: "SET_STATUS"; payload: string | null }
   | { type: "SHOW_RED_ALERT"; payload: string }
   | { type: "HIDE_RED_ALERT" }
   | { type: "TOGGLE_MENU" }
