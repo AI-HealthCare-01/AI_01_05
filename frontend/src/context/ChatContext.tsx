@@ -1,11 +1,14 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useReducer,
   type Dispatch,
   type ReactNode,
 } from "react";
 
+import { getMyInfo } from "../apis/users";
+import { useAuthStore } from "../store/authStore";
 import type { ChatAction, ChatState } from "../types/chat";
 
 const initialState: ChatState = {
@@ -131,6 +134,15 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
     case "SET_MEDICATIONS":
       return { ...state, medicationList: action.payload };
 
+    case "UPDATE_WELCOME": {
+      const msgs = state.messages.map((m) =>
+        m.id === "welcome"
+          ? { ...m, content: `안녕하세요! ${action.payload}님, \n약에 대해 궁금한 점이 있으시면 편하게 물어보세요.` }
+          : m
+      );
+      return { ...state, messages: msgs };
+    }
+
     default:
       return state;
   }
@@ -141,6 +153,22 @@ const ChatDispatchContext = createContext<Dispatch<ChatAction> | null>(null);
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(chatReducer, initialState);
+
+  useEffect(() => {
+    const cached = useAuthStore.getState().nickname;
+    if (cached) {
+      dispatch({ type: "UPDATE_WELCOME", payload: cached });
+      return;
+    }
+    getMyInfo()
+      .then((u) => {
+        if (u.nickname) {
+          useAuthStore.getState().setNickname(u.nickname);
+          dispatch({ type: "UPDATE_WELCOME", payload: u.nickname });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <ChatStateContext.Provider value={state}>

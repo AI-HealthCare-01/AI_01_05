@@ -49,4 +49,5 @@ export type ChatAction =
   | { type: "TOGGLE_MENU" }
   | { type: "CLOSE_MENU" }
   | { type: "SET_MEDICATIONS"; payload: string[] }
-  | { type: "LOAD_HISTORY"; payload: Message[] };
+  | { type: "LOAD_HISTORY"; payload: Message[] }
+  | { type: "UPDATE_WELCOME"; payload: string };
