@@ -21,7 +21,7 @@ class Config(BaseSettings):
     - 코드에서는 `from app.core import config`로 싱글톤처럼 사용한다.
     """
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow", json=True)
 
     ENV: Env = Env.LOCAL
     SECRET_KEY: str = f"default-secret-key{uuid.uuid4().hex}"
@@ -40,7 +40,7 @@ class Config(BaseSettings):
 
     # 브라우저 쿠키/보안 설정
     COOKIE_DOMAIN: str = "localhost"
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:5173"]
+    ALLOWED_ORIGINS: str = "https://api.dodactalk.site, https://dodactalk.site"
     FRONTEND_URL: str = "http://localhost:5173"
 
     # JWT 수명 및 검증 옵션

@@ -1,24 +1,4 @@
-import { useAuthStore } from '../store/authStore'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ""
-
-async function authRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = useAuthStore.getState().accessToken
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers as Record<string, string>),
-    },
-    credentials: 'include',
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: '오류가 발생했습니다.' }))
-    throw { status: res.status, detail: err.detail }
-  }
-  return res.json()
-}
+import { apiRequest } from './client'
 
 export interface CharacterItem {
   character_id: number
@@ -35,17 +15,17 @@ export interface CharacterSelectResponse {
 }
 
 export function getCharacters(): Promise<{ characters: CharacterItem[] }> {
-  return authRequest('/characters')
+  return apiRequest('/characters')
 }
 
 export function selectCharacter(character_id: number): Promise<CharacterSelectResponse> {
-  return authRequest('/characters/me', { method: 'POST', body: JSON.stringify({ character_id }) })
+  return apiRequest('/characters/me', { method: 'POST', body: JSON.stringify({ character_id }) })
 }
 
 export function getMyCharacter(): Promise<CharacterSelectResponse> {
-  return authRequest('/characters/me')
+  return apiRequest('/characters/me')
 }
 
 export function changeCharacter(character_id: number): Promise<CharacterSelectResponse> {
-  return authRequest('/characters/me', { method: 'PATCH', body: JSON.stringify({ character_id }) })
+  return apiRequest('/characters/me', { method: 'PATCH', body: JSON.stringify({ character_id }) })
 }
