@@ -36,7 +36,6 @@ frontend/.env.production
 .bkit/
 .bkit-memory.json
 docs/data/faiss/
-data/dur/
 *.index
 *.pkl
 adverse_lookup.pkl
