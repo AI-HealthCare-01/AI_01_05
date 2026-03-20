@@ -22,13 +22,11 @@ dependencies = [
 ]
 
 [dependency-groups]
-ai = [
-    "apscheduler>=3.10",
-    "sentence-transformers>=5.2.0"
-]
 app = [
     "aerich>=0.9.2",
     "apscheduler>=3.10",
+    "torch>=2.10.0",
+    "sentence-transformers>=5.2.0",
     "asyncmy>=0.2.11",
     "bcrypt<=4.0.1",
     "faiss-cpu>=1.13.2",
@@ -53,6 +51,11 @@ dev = [
     "ruff>=0.14.14",
     "types-passlib>=1.7.7.20250602",
     "types-python-dateutil>=2.9.0.20260124",
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu" },
 ]
 
 [[tool.uv.index]]

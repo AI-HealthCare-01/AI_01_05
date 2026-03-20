@@ -50,7 +50,7 @@ app = FastAPI(
 # allow_origins는 환경변수 기반(config.ALLOWED_ORIGINS)으로 관리한다.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=config.ALLOWED_ORIGINS,
+    allow_origins=config.ALLOWED_ORIGINS.split(", "),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
