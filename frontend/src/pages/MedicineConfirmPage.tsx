@@ -30,7 +30,6 @@ const TIME_SLOT_OPTIONS = [
   { value: "LUNCH", label: "점심" },
   { value: "EVENING", label: "저녁" },
   { value: "BEDTIME", label: "자기전" },
-  { value: "OTHER", label: "기타" },
 ];
 
 const DEFAULT_TIME_SLOTS: Record<number, string[]> = {
