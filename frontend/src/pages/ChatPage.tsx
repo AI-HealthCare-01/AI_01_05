@@ -246,6 +246,7 @@ export default function ChatPage() {
       <ChipMenu
         onChipClick={handleSend}
         disabled={state.isLoading || state.showRedAlert}
+        forceClose={state.messages.some((m) => m.role === "user")}
       />
       <ChatInput
         onSend={handleSend}
