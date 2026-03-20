@@ -24,8 +24,7 @@ PSYCH_KEYWORDS = [
     "쿠에티아핀",
     "아리피프라졸",
     "할로페리돌",
-    "클로자핀"
-    "팔리페리돈",
+    "클로자핀팔리페리돈",
     "졸피뎀",
     "에스조피클론",
     "트리아졸람",
@@ -59,17 +58,17 @@ PSYCH_KEYWORDS = [
 ]
 
 # 새 CSV 컬럼 인덱스
-COL_DUR_TYPE = 1       # DUR유형
-COL_INGREDIENT = 5     # DUR성분명
-COL_EFFICACY = 9       # 효능군
-COL_CONTENT = 11       # 금기내용
-COL_AGE = 13           # 연령기준
-COL_MAX_PERIOD = 14    # 최대투여기간
-COL_MAX_DOSE = 15      # 1일최대용량
-COL_GRADE = 16         # 등급
+COL_DUR_TYPE = 1  # DUR유형
+COL_INGREDIENT = 5  # DUR성분명
+COL_EFFICACY = 9  # 효능군
+COL_CONTENT = 11  # 금기내용
+COL_AGE = 13  # 연령기준
+COL_MAX_PERIOD = 14  # 최대투여기간
+COL_MAX_DOSE = 15  # 1일최대용량
+COL_GRADE = 16  # 등급
 COL_COMBO_INGREDIENT = 20  # 병용금기DUR성분명
-COL_STATUS = 25        # 상태
-COL_SERIES = 26        # 계열명
+COL_STATUS = 25  # 상태
+COL_SERIES = 26  # 계열명
 
 
 def read_csv(filepath: str) -> list[list[str]]:
@@ -129,15 +128,17 @@ def process_pregnancy_csv() -> list[dict]:
         if content:
             text += f" {content}"
 
-        results.append({
-            "text": text,
-            "metadata": {
-                "source": "식약처_임부금기",
-                "type": "임부금기",
-                "성분명": ingredient,
-                "등급": grade,
-            },
-        })
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "식약처_임부금기",
+                    "type": "임부금기",
+                    "성분명": ingredient,
+                    "등급": grade,
+                },
+            }
+        )
 
     return results
 
@@ -170,14 +171,16 @@ def process_elderly_csv() -> list[dict]:
         if content:
             text += f" {content}"
 
-        results.append({
-            "text": text,
-            "metadata": {
-                "source": "식약처_노인주의",
-                "type": "노인주의",
-                "성분명": ingredient,
-            },
-        })
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "식약처_노인주의",
+                    "type": "노인주의",
+                    "성분명": ingredient,
+                },
+            }
+        )
 
     return results
 
@@ -216,14 +219,16 @@ def process_age_csv() -> list[dict]:
         if content:
             text += f" {content}"
 
-        results.append({
-            "text": text,
-            "metadata": {
-                "source": "식약처_특정연령대금기",
-                "type": "연령금기",
-                "성분명": ingredient,
-            },
-        })
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "식약처_특정연령대금기",
+                    "type": "연령금기",
+                    "성분명": ingredient,
+                },
+            }
+        )
 
     return results
 
@@ -265,14 +270,16 @@ def process_combination_csv() -> list[dict]:
         if content:
             text += f" {content}"
 
-        results.append({
-            "text": text,
-            "metadata": {
-                "source": "식약처_병용금기",
-                "type": "병용금기",
-                "성분명": f"{ingredient_a}, {ingredient_b}",
-            },
-        })
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "식약처_병용금기",
+                    "type": "병용금기",
+                    "성분명": f"{ingredient_a}, {ingredient_b}",
+                },
+            }
+        )
 
     return results
 
@@ -308,15 +315,17 @@ def process_dose_csv() -> list[dict]:
         if content:
             text += f" {content}"
 
-        results.append({
-            "text": text,
-            "metadata": {
-                "source": "식약처_용량주의",
-                "type": "용량주의",
-                "성분명": ingredient,
-                "1일최대용량": max_dose,
-            },
-        })
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "식약처_용량주의",
+                    "type": "용량주의",
+                    "성분명": ingredient,
+                    "1일최대용량": max_dose,
+                },
+            }
+        )
 
     return results
 
@@ -352,15 +361,17 @@ def process_period_csv() -> list[dict]:
         if content:
             text += f" {content}"
 
-        results.append({
-            "text": text,
-            "metadata": {
-                "source": "식약처_투여기간주의",
-                "type": "투여기간주의",
-                "성분명": ingredient,
-                "최대투여기간": max_period,
-            },
-        })
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "식약처_투여기간주의",
+                    "type": "투여기간주의",
+                    "성분명": ingredient,
+                    "최대투여기간": max_period,
+                },
+            }
+        )
 
     return results
 
@@ -393,14 +404,16 @@ def process_additive_csv() -> list[dict]:
         if content:
             text += f" {content}"
 
-        results.append({
-            "text": text,
-            "metadata": {
-                "source": "식약처_첨가제주의",
-                "type": "첨가제주의",
-                "성분명": ingredient,
-            },
-        })
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "식약처_첨가제주의",
+                    "type": "첨가제주의",
+                    "성분명": ingredient,
+                },
+            }
+        )
 
     return results
 
@@ -439,15 +452,17 @@ def process_efficacy_csv() -> list[dict]:
         if content:
             text += f" {content}"
 
-        results.append({
-            "text": text,
-            "metadata": {
-                "source": "식약처_효능군중복주의",
-                "type": "효능군중복주의",
-                "성분명": ingredient,
-                "계열명": series,
-            },
-        })
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "식약처_효능군중복주의",
+                    "type": "효능군중복주의",
+                    "성분명": ingredient,
+                    "계열명": series,
+                },
+            }
+        )
 
     return results
 
@@ -499,13 +514,13 @@ def main():
     print("=" * 60)
 
     tasks = [
-        ("임부금기",       process_pregnancy_csv),
-        ("노인주의",       process_elderly_csv),
+        ("임부금기", process_pregnancy_csv),
+        ("노인주의", process_elderly_csv),
         ("특정연령대금기", process_age_csv),
-        ("병용금기",       process_combination_csv),
-        ("용량주의",       process_dose_csv),
-        ("투여기간주의",   process_period_csv),
-        ("첨가제주의",     process_additive_csv),
+        ("병용금기", process_combination_csv),
+        ("용량주의", process_dose_csv),
+        ("투여기간주의", process_period_csv),
+        ("첨가제주의", process_additive_csv),
         ("효능군중복주의", process_efficacy_csv),
     ]
 
