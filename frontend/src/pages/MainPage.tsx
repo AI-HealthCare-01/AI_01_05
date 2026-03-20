@@ -452,6 +452,13 @@ export default function MainPage() {
 
   const moodSwipeRef = useRef<HTMLDivElement | null>(null);
   const medSwipeRef = useRef<HTMLDivElement | null>(null);
+  const medPageRefs = useRef<Record<UiSlot, HTMLDivElement | null>>({
+    morning: null,
+    lunch: null,
+    evening: null,
+    bedtime: null,
+  });
+  const [medSwipeHeight, setMedSwipeHeight] = useState<number | null>(null);
 
   const fetchTodayMoods = async () => {
     const res = await getHomeMoodsToday();
@@ -736,6 +743,29 @@ export default function MainPage() {
     container.scrollTo({ left: pageWidth * index, behavior: "smooth" });
     setMedSwipeIndex(index);
   };
+
+  useEffect(() => {
+    const activeSlot = TIME_SLOTS[medSwipeIndex]?.key;
+    if (!activeSlot) return;
+    const target = medPageRefs.current[activeSlot];
+    if (!target) return;
+
+    const nextHeight = Math.ceil(target.scrollHeight);
+    setMedSwipeHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+  }, [medSwipeIndex, TIME_SLOTS, todayMedications, expandedMedicationId, detailByMedicationId, loadingDetailByMedicationId]);
+
+  useEffect(() => {
+    const onResize = () => {
+      const activeSlot = TIME_SLOTS[medSwipeIndex]?.key;
+      if (!activeSlot) return;
+      const target = medPageRefs.current[activeSlot];
+      if (!target) return;
+      const nextHeight = Math.ceil(target.scrollHeight);
+      setMedSwipeHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [medSwipeIndex, TIME_SLOTS]);
 
   // ── 토스트 상태 ──
   const [toast, setToast] = useState("");
@@ -1057,7 +1087,12 @@ export default function MainPage() {
           <div
             ref={medSwipeRef}
             className="swipeContainer"
-            style={swipeContainerStyle}
+            style={{
+              ...swipeContainerStyle,
+              alignItems: "flex-start",
+              height: medSwipeHeight ? `${medSwipeHeight}px` : "220px",
+              transition: "height 0.2s ease",
+            }}
             onScroll={updateMedIndicator}
           >
             {TIME_SLOTS.map((slot, index) => {
@@ -1069,11 +1104,13 @@ export default function MainPage() {
               return (
                 <div
                   key={slot.key}
+                  ref={(el) => { medPageRefs.current[slot.key] = el; }}
                   style={{
                     ...swipePageStyle,
                     position: "relative",
                     display: "flex",
                     flexDirection: "column",
+                    minHeight: "220px",
                     opacity: allDone && slot.key !== lastActiveSlot ? 0.5 : 1,
                     filter: allDone && slot.key !== lastActiveSlot ? "grayscale(40%)" : "none",
                   }}
@@ -1122,7 +1159,7 @@ export default function MainPage() {
                   )}
 
                 {/* 복약 아이템 목록 — height auto, flex column */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, height: "auto", overflowY: "visible" }}>
                     {medications.map((med) => {
                       const { line1, line2 } = formatMedicationDisplay(med.name, med.dosage);
                       return (
