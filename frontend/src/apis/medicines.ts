@@ -14,9 +14,14 @@ export interface UserMedicationResponse {
   status: string;
 }
 
-export async function searchMedicines(keyword: string, limit = 20): Promise<MedicineSearchItem[]> {
-  return apiRequest<MedicineSearchItem[]>(
-    `/medicines/search?keyword=${encodeURIComponent(keyword)}&limit=${limit}`
+export interface MedicineSearchPaginatedResponse {
+  items: MedicineSearchItem[];
+  total_count: number;
+}
+
+export async function searchMedicines(keyword: string, limit = 20, offset = 0): Promise<MedicineSearchPaginatedResponse> {
+  return apiRequest<MedicineSearchPaginatedResponse>(
+    `/medicines/search?keyword=${encodeURIComponent(keyword)}&limit=${limit}&offset=${offset}`
   );
 }
 

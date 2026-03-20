@@ -8,12 +8,14 @@ import { COLORS } from "../constants/theme";
 import { useMedicationFlow } from "../store/MedicationFlowContext";
 import type { MedicineDraftItem, MedicineSearchItem } from "../types/medicine";
 
+const LIMIT = 20;
+
 const cardStyle: CSSProperties = {
   background: COLORS.cardBg,
   borderRadius: 20,
   border: `1px solid ${COLORS.border}`,
   padding: 20,
-  marginBottom: 16,
+  marginBottom: 5,
 };
 
 const fadeSlideUpKeyframes = `
@@ -43,15 +45,20 @@ export default function MedicineSearchPage() {
 
   const [keyword, setKeyword] = useState("");
   const [results, setResults] = useState<MedicineSearchItem[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [selectedItems, setSelectedItems] = useState<MedicineSearchItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const totalPages = Math.max(1, Math.ceil(totalCount / LIMIT));
 
   useEffect(() => {
     if (!keyword.trim()) {
       setResults([]);
+      setTotalCount(0);
+      setPage(1);
       setError("");
       return;
     }
@@ -60,8 +67,9 @@ export default function MedicineSearchPage() {
       setLoading(true);
       setError("");
       try {
-        const data = await searchMedicines(keyword.trim());
-        setResults(data ?? []);
+        const data = await searchMedicines(keyword.trim(), LIMIT, (page - 1) * LIMIT);
+        setResults(data.items ?? []);
+        setTotalCount(data.total_count ?? 0);
       } catch {
         setError("검색 중 오류가 발생했습니다.");
       } finally {
@@ -71,7 +79,12 @@ export default function MedicineSearchPage() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [keyword]);
+  }, [keyword, page]);
+
+  const goToPage = (p: number) => {
+    if (p < 1 || p > totalPages) return;
+    setPage(p);
+  };
 
   const toggleItem = (item: MedicineSearchItem) => {
     setSelectedItems((prev) =>
@@ -95,6 +108,14 @@ export default function MedicineSearchPage() {
       } satisfies MedicineDraftItem);
     });
     navigate("/medications/confirm");
+  };
+
+  const pageButtons = () => {
+    const buttons: number[] = [];
+    const start = Math.max(1, page - 2);
+    const end = Math.min(totalPages, page + 2);
+    for (let i = start; i <= end; i++) buttons.push(i);
+    return buttons;
   };
 
   return (
@@ -153,8 +174,8 @@ export default function MedicineSearchPage() {
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <input
             value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            placeholder="약 이름을 입력하세요"
+            onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
+            placeholder="약 이름 또는 성분명을 입력하세요"
             aria-busy={loading}
             style={{
               flex: 1,
@@ -185,7 +206,7 @@ export default function MedicineSearchPage() {
               onClick={() => toggleItem(item)}
               style={{
                 ...cardStyle,
-                padding: "12px 16px",
+                padding: "10px 16px",
                 cursor: "pointer",
                 background: isSelected ? COLORS.selectedCellBg : COLORS.cardBg,
                 border: isSelected
@@ -214,13 +235,66 @@ export default function MedicineSearchPage() {
                 </div>
               </div>
               {item.entp_name && (
-                <div style={{ fontSize: 12, color: COLORS.subText, marginTop: 2, paddingLeft: 24 }}>
+                <div style={{ fontSize: 12, color: COLORS.subText, marginTop: 2, paddingLeft: 25 }}>
                   {item.entp_name}
                 </div>
               )}
             </div>
           );
         })}
+
+        {/* Pagination */}
+        {!loading && !error && totalCount > LIMIT && (
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 4, padding: "12px 0" }}>
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
+              style={{
+                border: "none",
+                background: "none",
+                cursor: page <= 1 ? "default" : "pointer",
+                fontSize: 14,
+                color: page <= 1 ? COLORS.border : COLORS.text,
+                padding: "4px 8px",
+              }}
+            >
+              ◀
+            </button>
+            {pageButtons().map((p) => (
+              <button
+                key={p}
+                onClick={() => goToPage(p)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  border: p === page ? `2px solid ${COLORS.button}` : `1px solid ${COLORS.border}`,
+                  background: p === page ? COLORS.button : COLORS.cardBg,
+                  color: p === page ? "#fff" : COLORS.text,
+                  fontWeight: p === page ? 700 : 400,
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+              >
+                {p}
+              </button>
+            ))}
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= totalPages}
+              style={{
+                border: "none",
+                background: "none",
+                cursor: page >= totalPages ? "default" : "pointer",
+                fontSize: 14,
+                color: page >= totalPages ? COLORS.border : COLORS.text,
+                padding: "4px 8px",
+              }}
+            >
+              ▶
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Sticky bottom panel */}

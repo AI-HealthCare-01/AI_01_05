@@ -4,22 +4,26 @@ from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import ORJSONResponse as Response
 
 from app.dependencies.security import get_request_user
-from app.dtos.medicine_dto import MedicineDetailResponse, MedicineSearchResponse
+from app.dtos.medicine_dto import MedicineDetailResponse, MedicineSearchPaginatedResponse, MedicineSearchResponse
 from app.models.users import User
 from app.services.medicine_service import MedicineService
 
 router = APIRouter(prefix="/medicines", tags=["medicines"])
 
 
-@router.get("/search", response_model=list[MedicineSearchResponse], status_code=status.HTTP_200_OK)
+@router.get("/search", response_model=MedicineSearchPaginatedResponse, status_code=status.HTTP_200_OK)
 async def search_medicines(
     user: Annotated[User, Depends(get_request_user)],
     service: Annotated[MedicineService, Depends(MedicineService)],
     keyword: Annotated[str, Query(min_length=1)],
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> Response:
-    results = await service.search(keyword, limit)
-    return Response([MedicineSearchResponse(**r).model_dump() for r in results])
+    result = await service.search(keyword, limit, offset)
+    return Response(MedicineSearchPaginatedResponse(
+        items=[MedicineSearchResponse(**r) for r in result["items"]],
+        total_count=result["total_count"],
+    ).model_dump())
 
 
 @router.get("/{item_seq}", response_model=MedicineDetailResponse, status_code=status.HTTP_200_OK)
