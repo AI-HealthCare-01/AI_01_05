@@ -19,7 +19,7 @@ import { getNextAppointment } from "../apis/appointments";
 import { getMedicineDetail, type MedicineDetailItem } from "../apis/medicines";
 import { getMyCharacter } from "../apis/characterApi";
 import CoachMarkOverlay from "../components/CoachMarkOverlay";
-import { CHARACTER_IMAGE_BY_ID, DEFAULT_CHARACTER_IMAGE } from "../constants/characters";
+import { DEFAULT_CHARACTER_IMAGE, getCharacterImageByMood } from "../constants/characters";
 import { COLORS } from "../constants/theme";
 import { useCoachMark, type CoachMarkStep } from "../hooks/useCoachMark";
 import { useAuthStore } from "../store/authStore";
@@ -539,13 +539,13 @@ export default function MainPage() {
 
   useEffect(() => {
     if (!selectedCharacter?.id) return;
-    setCharacterImage(CHARACTER_IMAGE_BY_ID[selectedCharacter.id] ?? DEFAULT_CHARACTER_IMAGE);
-  }, [selectedCharacter]);
+    setCharacterImage(getCharacterImageByMood(selectedCharacter.id, latestMood));
+  }, [selectedCharacter, latestMood]);
 
   useEffect(() => {
     getMyCharacter()
       .then((data) => {
-        const nextImage = CHARACTER_IMAGE_BY_ID[data.character_id] ?? DEFAULT_CHARACTER_IMAGE;
+        const nextImage = getCharacterImageByMood(data.character_id, null);
         setCharacterImage(nextImage);
         setSelectedCharacter({
           id: data.character_id,
@@ -997,23 +997,32 @@ export default function MainPage() {
           </div>
 
           <div style={{ marginBottom: 16, textAlign: "center" }}>
-            <img
+            <div
               id="coach-chatbot-dog"
-              src={characterImage}
-              alt="선택 캐릭터"
               onClick={() => navigateWithFade("/chat")}
               style={{
                 width: 180,
-                maxWidth: "70%",
-                objectFit: "contain",
+                height: 180,
+                maxWidth: "70vw",
                 margin: "0 auto",
-                display: "block",
                 cursor: "pointer",
                 transition: "transform 0.2s ease",
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLImageElement).style.transform = "scale(1.04) translateY(-4px)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLImageElement).style.transform = "scale(1) translateY(0)"; }}
-            />
+              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "scale(1.04) translateY(-4px)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "scale(1) translateY(0)"; }}
+            >
+              <img
+                src={characterImage}
+                alt="선택 캐릭터"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  objectPosition: "center",
+                  display: "block",
+                }}
+              />
+            </div>
           </div>
 
           <div
