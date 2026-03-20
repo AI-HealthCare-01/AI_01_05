@@ -119,7 +119,8 @@ export default function SignupPage() {
         tempToken,
       )
       useAuthStore.getState().setAccessToken(res.access_token)
-      const meRes = await fetch('/api/v1/users/me', {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ""
+      const meRes = await fetch(`${API_BASE_URL}/users/me`, {
         headers: { Authorization: `Bearer ${res.access_token}` },
         credentials: 'include',
       })
