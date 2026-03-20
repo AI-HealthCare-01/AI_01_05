@@ -92,12 +92,16 @@ function EditCard({
 
   const toggleSlot = (slot: string) => {
     setManualSlots(true);
-    setDraft((prev) => ({
-      ...prev,
-      time_slots: prev.time_slots.includes(slot)
+    setDraft((prev) => {
+      const newSlots = prev.time_slots.includes(slot)
         ? prev.time_slots.filter((s) => s !== slot)
-        : [...prev.time_slots, slot],
-    }));
+        : [...prev.time_slots, slot];
+      return {
+        ...prev,
+        time_slots: newSlots,
+        daily_frequency: newSlots.length,
+      };
+    });
   };
 
   return (
