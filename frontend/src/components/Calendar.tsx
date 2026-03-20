@@ -84,7 +84,7 @@ const PETAL_COLORS: Record<string, string> = {
   BEDTIME: "rgba(80, 130, 210, 0.75)",
 };
 // 임시 롤백 스위치: false로 바꾸면 기존 getMoodGradient 스타일로 즉시 복귀
-const USE_SLOT_PETAL_COLOR = true;
+const USE_SLOT_PETAL_COLOR = false;
 // 상(아침), 우(점심), 하(저녁), 좌(취침) — 클로버 배치
 const CLOVER_OFFSETS: Record<string, CSSProperties> = {
   MORNING: { top: 1.3, left: "50%", transform: "translateX(-50%)" },
@@ -133,11 +133,7 @@ function MoodClover({
               width: petalSize,
               height: petalSize,
               borderRadius: "50%",
-              background: USE_SLOT_PETAL_COLOR
-                ? level
-                  ? PETAL_COLORS[slot]
-                  : "rgba(200,200,200,0.15)"
-                : getMoodGradient(level),
+              background: level ? `${MOOD_COLORS[level]}BB` : "rgba(200,200,200,0.15)",
               mixBlendMode: "multiply",
               boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
               ...CLOVER_OFFSETS[slot],
