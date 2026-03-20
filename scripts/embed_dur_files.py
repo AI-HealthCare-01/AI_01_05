@@ -24,8 +24,7 @@ PSYCH_KEYWORDS = [
     "쿠에티아핀",
     "아리피프라졸",
     "할로페리돌",
-    "클로자핀",
-    "팔리페리돈",
+    "클로자핀팔리페리돈",
     "졸피뎀",
     "에스조피클론",
     "트리아졸람",
@@ -58,10 +57,26 @@ PSYCH_KEYWORDS = [
     "나프록센",
 ]
 
+# 새 CSV 컬럼 인덱스
+COL_DUR_TYPE = 1  # DUR유형
+COL_INGREDIENT = 5  # DUR성분명
+COL_EFFICACY = 9  # 효능군
+COL_CONTENT = 11  # 금기내용
+COL_AGE = 13  # 연령기준
+COL_MAX_PERIOD = 14  # 최대투여기간
+COL_MAX_DOSE = 15  # 1일최대용량
+COL_GRADE = 16  # 등급
+COL_COMBO_INGREDIENT = 20  # 병용금기DUR성분명
+COL_STATUS = 25  # 상태
+COL_SERIES = 26  # 계열명
+
 
 def read_csv(filepath: str) -> list[list[str]]:
-    """CSV 파일을 cp949 → utf-8-sig 순서로 읽기 시도."""
-    for enc in ("cp949", "utf-8-sig", "utf-8"):
+    """CSV 파일을 utf-8-bom → cp949 → utf-8 순서로 읽기 시도."""
+    # 필드 크기 제한 확장 (병용금기 등 대용량 필드 대응)
+    csv.field_size_limit(10 * 1024 * 1024)  # 10MB
+
+    for enc in ("utf-8-sig", "cp949", "utf-8"):
         try:
             with open(filepath, encoding=enc) as f:
                 return list(csv.reader(f))
@@ -75,111 +90,49 @@ def make_id(text: str) -> str:
     return hashlib.md5(text.encode()).hexdigest()
 
 
-def _parse_pregnancy_grade(grade_raw: str) -> str:
-    """임부금기 등급 파싱."""
-    if "1등급" in grade_raw:
-        return "1등급"
-    if "2등급" in grade_raw:
-        return "2등급"
-    return ""
+def _safe_get(row: list[str], idx: int) -> str:
+    """인덱스 범위 초과 방지."""
+    return row[idx].strip() if idx < len(row) else ""
 
 
-def _build_pregnancy_text(ingredient: str, grade: str, grade_raw: str, detail: str, note: str) -> str:
-    """임부금기 텍스트 생성."""
-    text = f"{ingredient}은(는) 임부금기 {grade} 성분입니다."
-    if grade == "1등급":
-        text += " 사람에서 태아에 대한 위해성이 명확하여 원칙적으로 사용이 금지됩니다."
-    elif grade == "2등급":
-        text += " 태아에 대한 위해성이 나타날 수 있어 원칙적으로 사용이 금지됩니다."
-    if grade_raw and grade_raw != grade:
-        text += f" 세부사항: {grade_raw}"
-    if detail:
-        text += f" {detail}"
-    if note:
-        text += f" 비고: {note}"
-    return text
-
-
-def process_pregnancy_xlsx() -> list[dict]:
-    """임부금기 성분리스트 xlsx 처리 (skiprows=1, 실제 데이터는 row 2부터)."""
-    import openpyxl
-
-    filepath = os.path.join(DUR_DIR, "임부금기 성분리스트_251223.xlsx")
+def process_pregnancy_csv() -> list[dict]:
+    """임부금기 CSV 처리."""
+    filepath = os.path.join(DUR_DIR, "DUR_임부금기.csv")
     if not os.path.exists(filepath):
         print(f"  [SKIP] 파일 없음: {filepath}")
         return []
 
-    wb = openpyxl.load_workbook(filepath, read_only=True)
-    ws = wb.active
-    rows = list(ws.iter_rows(min_row=3, values_only=True))
-    wb.close()
-
+    rows = read_csv(filepath)[1:]  # 헤더 제외
+    seen = set()
     results = []
-    for row in rows:
-        if not row or not row[1]:
-            continue
-        ingredient = str(row[1]).strip()
-        grade_raw = str(row[2]).strip() if row[2] else ""
-        note = str(row[3]).strip() if row[3] else ""
-        detail = str(row[4]).strip() if row[4] else ""
 
-        grade = _parse_pregnancy_grade(grade_raw)
-        text = _build_pregnancy_text(ingredient, grade, grade_raw, detail, note)
+    for row in rows:
+        if len(row) < 27:
+            continue
+        ingredient = _safe_get(row, COL_INGREDIENT)
+        grade = _safe_get(row, COL_GRADE)
+        content = _safe_get(row, COL_CONTENT)
+        status = _safe_get(row, COL_STATUS)
+
+        if not ingredient or status != "정상":
+            continue
+        if ingredient in seen:
+            continue
+        seen.add(ingredient)
+
+        text = f"{ingredient}은(는) 임부금기 {grade} 성분입니다."
+        if grade == "1등급":
+            text += " 사람에서 태아에 대한 위해성이 명확하여 원칙적으로 사용이 금지됩니다."
+        elif grade == "2등급":
+            text += " 태아에 대한 위해성이 나타날 수 있어 원칙적으로 사용이 금지됩니다."
+        if content:
+            text += f" {content}"
 
         results.append(
             {
                 "text": text,
                 "metadata": {
                     "source": "식약처_임부금기",
-                    "type": "임부금기",
-                    "성분명": ingredient,
-                    "등급": grade or grade_raw,
-                },
-            }
-        )
-
-    return results
-
-
-def process_pregnancy_csv() -> list[dict]:
-    """임부금기 품목리스트 csv 처리 — 성분명 기준 중복 제거."""
-    filepath = os.path.join(DUR_DIR, "의약품안전사용서비스(DUR)_임부금기 품목리스트 2025.6.csv")
-    if not os.path.exists(filepath):
-        print(f"  [SKIP] 파일 없음: {filepath}")
-        return []
-
-    rows = read_csv(filepath)
-    # 컬럼: 성분명, 성분코드, 제품코드, 제품명, 업체명, 고시일자, 고시번호, 금기등급, 상세정보, 급여여부
-    data = rows[1:]
-
-    seen_ingredients = set()
-    results = []
-    for row in data:
-        if len(row) < 9:
-            continue
-        ingredient = row[0].strip()
-        if not ingredient or ingredient in seen_ingredients:
-            continue
-        seen_ingredients.add(ingredient)
-
-        grade_raw = row[7].strip()
-        detail = row[8].strip()
-
-        grade = f"{grade_raw}등급" if grade_raw in ("1", "2") else grade_raw
-
-        text = f"{ingredient}은(는) 임부금기 {grade} 성분입니다."
-        if grade_raw == "1":
-            text += " 사람에서 태아에 대한 위해성이 명확하여 원칙적으로 사용이 금지됩니다."
-        elif grade_raw == "2":
-            text += " 태아에 대한 위해성이 나타날 수 있어 원칙적으로 사용이 금지됩니다."
-        if detail:
-            text += f" {detail}"
-
-        results.append(
-            {
-                "text": text,
-                "metadata": {
-                    "source": "심평원_임부금기",
                     "type": "임부금기",
                     "성분명": ingredient,
                     "등급": grade,
@@ -191,82 +144,38 @@ def process_pregnancy_csv() -> list[dict]:
 
 
 def process_elderly_csv() -> list[dict]:
-    """노인주의 품목리스트 csv 처리."""
-    filepath = os.path.join(DUR_DIR, "의약품안전사용서비스(DUR)_노인주의 품목리스트 2025.6.csv")
+    """노인주의 CSV 처리."""
+    filepath = os.path.join(DUR_DIR, "DUR_노인주의.csv")
     if not os.path.exists(filepath):
         print(f"  [SKIP] 파일 없음: {filepath}")
         return []
 
-    rows = read_csv(filepath)
-    # 컬럼: 성분명, 성분코드, 제품코드, 제품명, 업소명, 공고일자, 공고번호, 약품상세정보, 비고, 급여여부
-    data = rows[1:]
-
+    rows = read_csv(filepath)[1:]
     seen = set()
     results = []
-    for row in data:
-        if len(row) < 8:
-            continue
-        ingredient = row[0].strip()
-        product = row[3].strip()
-        detail = row[7].strip()
 
-        key = f"{ingredient}|{product}"
-        if not ingredient or key in seen:
+    for row in rows:
+        if len(row) < 27:
             continue
-        seen.add(key)
+        ingredient = _safe_get(row, COL_INGREDIENT)
+        content = _safe_get(row, COL_CONTENT)
+        status = _safe_get(row, COL_STATUS)
 
-        text = f"{ingredient}({product})은(는) 노인 투여 시 주의가 필요한 의약품입니다."
-        if detail:
-            text += f" {detail}"
+        if not ingredient or status != "정상":
+            continue
+        if ingredient in seen:
+            continue
+        seen.add(ingredient)
+
+        text = f"{ingredient}은(는) 노인 투여 시 주의가 필요한 의약품입니다."
+        if content:
+            text += f" {content}"
 
         results.append(
             {
                 "text": text,
                 "metadata": {
-                    "source": "심평원_노인주의",
-                    "type": "노인주의",
-                    "성분명": ingredient,
-                },
-            }
-        )
-
-    return results
-
-
-def process_elderly_nsaid_csv() -> list[dict]:
-    """노인주의(해열진통소염제) 품목리스트 csv 처리."""
-    filepath = os.path.join(DUR_DIR, "의약품안전사용서비스(DUR)_노인주의(해열진통소염제) 품목리스트 2025.6.csv")
-    if not os.path.exists(filepath):
-        print(f"  [SKIP] 파일 없음: {filepath}")
-        return []
-
-    rows = read_csv(filepath)
-    # 컬럼: 성분코드, 성분명, 제품코드, 제품명, 업소명, 약품상세정보, 급여여부
-    data = rows[1:]
-
-    seen = set()
-    results = []
-    for row in data:
-        if len(row) < 6:
-            continue
-        ingredient = row[1].strip()
-        product = row[3].strip()
-        detail = row[5].strip()
-
-        key = f"{ingredient}|{product}"
-        if not ingredient or key in seen:
-            continue
-        seen.add(key)
-
-        text = f"{ingredient}({product})은(는) 노인에게 투여 시 주의가 필요한 해열진통소염제입니다."
-        if detail:
-            text += f" {detail}"
-
-        results.append(
-            {
-                "text": text,
-                "metadata": {
-                    "source": "심평원_노인주의",
+                    "source": "식약처_노인주의",
                     "type": "노인주의",
                     "성분명": ingredient,
                 },
@@ -277,47 +186,44 @@ def process_elderly_nsaid_csv() -> list[dict]:
 
 
 def process_age_csv() -> list[dict]:
-    """연령금기 품목리스트 csv 처리."""
-    filepath = os.path.join(DUR_DIR, "의약품안전사용서비스(DUR)_연령금기 품목리스트 2025.6.csv")
+    """특정연령대금기 CSV 처리."""
+    filepath = os.path.join(DUR_DIR, "DUR_특정연령대금기.csv")
     if not os.path.exists(filepath):
         print(f"  [SKIP] 파일 없음: {filepath}")
         return []
 
-    rows = read_csv(filepath)
-    # 컬럼: 성분명, 성분코드, 제품코드, 제품명, 업체명, 특정연령, 특정연령단위, 연령처리조건, 고시번호, 고시일자, 상세정보, 급여여부
-    data = rows[1:]
-
+    rows = read_csv(filepath)[1:]
     seen = set()
     results = []
-    for row in data:
-        if len(row) < 11:
-            continue
-        ingredient = row[0].strip()
-        product = row[3].strip()
-        age = row[5].strip()
-        age_unit = row[6].strip()
-        condition = row[7].strip()
-        detail = row[10].strip()
 
-        key = f"{ingredient}|{product}"
-        if not ingredient or key in seen:
+    for row in rows:
+        if len(row) < 27:
+            continue
+        ingredient = _safe_get(row, COL_INGREDIENT)
+        age = _safe_get(row, COL_AGE)
+        content = _safe_get(row, COL_CONTENT)
+        status = _safe_get(row, COL_STATUS)
+
+        if not ingredient or status != "정상":
+            continue
+        key = f"{ingredient}|{age}"
+        if key in seen:
             continue
         seen.add(key)
 
-        # 연령 조건 텍스트 구성
-        age_text = f"{age}{age_unit}"
-        cond_map = {"미만 (1)": "미만", "이하 (2)": "이하", "초과 (3)": "초과", "이상 (4)": "이상"}
-        cond_text = cond_map.get(condition, condition.split("(")[0].strip() if condition else "")
-
-        text = f"{ingredient}({product})은(는) {age_text} {cond_text} 환자에게 투여 금기입니다."
-        if detail:
-            text += f" {detail}"
+        text = f"{ingredient}은(는)"
+        if age:
+            text += f" {age} 환자에게 투여 금기입니다."
+        else:
+            text += " 특정 연령대에 투여 금기입니다."
+        if content:
+            text += f" {content}"
 
         results.append(
             {
                 "text": text,
                 "metadata": {
-                    "source": "심평원_연령금기",
+                    "source": "식약처_특정연령대금기",
                     "type": "연령금기",
                     "성분명": ingredient,
                 },
@@ -328,31 +234,29 @@ def process_age_csv() -> list[dict]:
 
 
 def process_combination_csv() -> list[dict]:
-    """병용금기 품목리스트 csv 처리 — 정신과 관련 키워드만 필터링."""
-    filepath = os.path.join(DUR_DIR, "의약품안전사용서비스(DUR)_병용금기 품목리스트 2025.6.csv")
+    """병용금기 CSV 처리 — 정신과 관련 키워드만 필터링."""
+    filepath = os.path.join(DUR_DIR, "DUR_병용금기.csv")
     if not os.path.exists(filepath):
         print(f"  [SKIP] 파일 없음: {filepath}")
         return []
 
-    rows = read_csv(filepath)
-    # 컬럼: 성분명A, 성분코드A, 제품코드A, 제품명A, 업체명A, 급여여부A,
-    #       성분명B, 성분코드B, 제품코드B, 제품명B, 업체명B, 급여여부B,
-    #       고시번호, 고시일자, 상세정보, 비고
-    data = rows[1:]
-
+    rows = read_csv(filepath)[1:]
     seen = set()
     results = []
-    for row in data:
-        if len(row) < 15:
-            continue
-        ingredient_a = row[0].strip()
-        product_a = row[3].strip()
-        ingredient_b = row[6].strip()
-        product_b = row[9].strip()
-        detail = row[14].strip()
 
-        # 정신과 키워드 필터링 (제품명A/B에서 검색)
-        combined = f"{product_a} {product_b} {ingredient_a} {ingredient_b}"
+    for row in rows:
+        if len(row) < 27:
+            continue
+        ingredient_a = _safe_get(row, COL_INGREDIENT)
+        ingredient_b = _safe_get(row, COL_COMBO_INGREDIENT)
+        content = _safe_get(row, COL_CONTENT)
+        status = _safe_get(row, COL_STATUS)
+
+        if not ingredient_a or not ingredient_b or status != "정상":
+            continue
+
+        # 정신과 키워드 필터링
+        combined = f"{ingredient_a} {ingredient_b}"
         if not any(kw in combined for kw in PSYCH_KEYWORDS):
             continue
 
@@ -363,16 +267,199 @@ def process_combination_csv() -> list[dict]:
         seen.add(pair)
 
         text = f"{ingredient_a}과(와) {ingredient_b}은(는) 병용 금기입니다."
-        if detail:
-            text += f" {detail}"
+        if content:
+            text += f" {content}"
 
         results.append(
             {
                 "text": text,
                 "metadata": {
-                    "source": "심평원_병용금기",
+                    "source": "식약처_병용금기",
                     "type": "병용금기",
                     "성분명": f"{ingredient_a}, {ingredient_b}",
+                },
+            }
+        )
+
+    return results
+
+
+def process_dose_csv() -> list[dict]:
+    """용량주의 CSV 처리."""
+    filepath = os.path.join(DUR_DIR, "DUR_용량주의.csv")
+    if not os.path.exists(filepath):
+        print(f"  [SKIP] 파일 없음: {filepath}")
+        return []
+
+    rows = read_csv(filepath)[1:]
+    seen = set()
+    results = []
+
+    for row in rows:
+        if len(row) < 27:
+            continue
+        ingredient = _safe_get(row, COL_INGREDIENT)
+        content = _safe_get(row, COL_CONTENT)
+        max_dose = _safe_get(row, COL_MAX_DOSE)
+        status = _safe_get(row, COL_STATUS)
+
+        if not ingredient or status != "정상":
+            continue
+        if ingredient in seen:
+            continue
+        seen.add(ingredient)
+
+        text = f"{ingredient}은(는) 용량 주의 의약품입니다."
+        if max_dose:
+            text += f" 1일 최대 용량: {max_dose}."
+        if content:
+            text += f" {content}"
+
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "식약처_용량주의",
+                    "type": "용량주의",
+                    "성분명": ingredient,
+                    "1일최대용량": max_dose,
+                },
+            }
+        )
+
+    return results
+
+
+def process_period_csv() -> list[dict]:
+    """투여기간주의 CSV 처리."""
+    filepath = os.path.join(DUR_DIR, "DUR_투여기간주의.csv")
+    if not os.path.exists(filepath):
+        print(f"  [SKIP] 파일 없음: {filepath}")
+        return []
+
+    rows = read_csv(filepath)[1:]
+    seen = set()
+    results = []
+
+    for row in rows:
+        if len(row) < 27:
+            continue
+        ingredient = _safe_get(row, COL_INGREDIENT)
+        content = _safe_get(row, COL_CONTENT)
+        max_period = _safe_get(row, COL_MAX_PERIOD)
+        status = _safe_get(row, COL_STATUS)
+
+        if not ingredient or status != "정상":
+            continue
+        if ingredient in seen:
+            continue
+        seen.add(ingredient)
+
+        text = f"{ingredient}은(는) 투여기간 주의 의약품입니다."
+        if max_period:
+            text += f" 최대 투여 기간: {max_period}."
+        if content:
+            text += f" {content}"
+
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "식약처_투여기간주의",
+                    "type": "투여기간주의",
+                    "성분명": ingredient,
+                    "최대투여기간": max_period,
+                },
+            }
+        )
+
+    return results
+
+
+def process_additive_csv() -> list[dict]:
+    """첨가제주의 CSV 처리."""
+    filepath = os.path.join(DUR_DIR, "DUR_첨가제주의.csv")
+    if not os.path.exists(filepath):
+        print(f"  [SKIP] 파일 없음: {filepath}")
+        return []
+
+    rows = read_csv(filepath)[1:]
+    seen = set()
+    results = []
+
+    for row in rows:
+        if len(row) < 27:
+            continue
+        ingredient = _safe_get(row, COL_INGREDIENT)
+        content = _safe_get(row, COL_CONTENT)
+        status = _safe_get(row, COL_STATUS)
+
+        if not ingredient or status != "정상":
+            continue
+        if ingredient in seen:
+            continue
+        seen.add(ingredient)
+
+        text = f"{ingredient}은(는) 첨가제 주의 성분입니다."
+        if content:
+            text += f" {content}"
+
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "식약처_첨가제주의",
+                    "type": "첨가제주의",
+                    "성분명": ingredient,
+                },
+            }
+        )
+
+    return results
+
+
+def process_efficacy_csv() -> list[dict]:
+    """효능군중복주의 CSV 처리."""
+    filepath = os.path.join(DUR_DIR, "DUR_효능군중복주의.csv")
+    if not os.path.exists(filepath):
+        print(f"  [SKIP] 파일 없음: {filepath}")
+        return []
+
+    rows = read_csv(filepath)[1:]
+    seen = set()
+    results = []
+
+    for row in rows:
+        if len(row) < 27:
+            continue
+        ingredient = _safe_get(row, COL_INGREDIENT)
+        efficacy = _safe_get(row, COL_EFFICACY)
+        series = _safe_get(row, COL_SERIES)
+        content = _safe_get(row, COL_CONTENT)
+        status = _safe_get(row, COL_STATUS)
+
+        if not ingredient or status != "정상":
+            continue
+        if ingredient in seen:
+            continue
+        seen.add(ingredient)
+
+        text = f"{ingredient}은(는) 효능군 중복 주의 의약품입니다."
+        if series:
+            text += f" 계열: {series}."
+        if efficacy:
+            text += f" 효능군: {efficacy}."
+        if content:
+            text += f" {content}"
+
+        results.append(
+            {
+                "text": text,
+                "metadata": {
+                    "source": "식약처_효능군중복주의",
+                    "type": "효능군중복주의",
+                    "성분명": ingredient,
+                    "계열명": series,
                 },
             }
         )
@@ -426,45 +513,24 @@ def main():
     print(f"임베딩 모델: {EMBEDDING_MODEL}")
     print("=" * 60)
 
+    tasks = [
+        ("임부금기", process_pregnancy_csv),
+        ("노인주의", process_elderly_csv),
+        ("특정연령대금기", process_age_csv),
+        ("병용금기", process_combination_csv),
+        ("용량주의", process_dose_csv),
+        ("투여기간주의", process_period_csv),
+        ("첨가제주의", process_additive_csv),
+        ("효능군중복주의", process_efficacy_csv),
+    ]
+
     stats = {}
+    for i, (label, func) in enumerate(tasks, 1):
+        print(f"\n[{i}/{len(tasks)}] {label} 처리 중...")
+        docs = func()
+        print(f"  파싱 완료: {len(docs)}건")
+        stats[label] = embed_to_chromadb(docs, label)
 
-    # 1. 임부금기 xlsx
-    print("\n[1/6] 임부금기 성분리스트 (xlsx)...")
-    docs = process_pregnancy_xlsx()
-    print(f"  파싱 완료: {len(docs)}건")
-    stats["임부금기_xlsx"] = embed_to_chromadb(docs, "임부금기_xlsx")
-
-    # 2. 임부금기 csv
-    print("\n[2/6] 임부금기 품목리스트 (csv, 성분 중복제거)...")
-    docs = process_pregnancy_csv()
-    print(f"  파싱 완료: {len(docs)}건")
-    stats["임부금기_csv"] = embed_to_chromadb(docs, "임부금기_csv")
-
-    # 3. 노인주의
-    print("\n[3/6] 노인주의 품목리스트...")
-    docs = process_elderly_csv()
-    print(f"  파싱 완료: {len(docs)}건")
-    stats["노인주의"] = embed_to_chromadb(docs, "노인주의")
-
-    # 4. 노인주의 해열진통소염제
-    print("\n[4/6] 노인주의(해열진통소염제) 품목리스트...")
-    docs = process_elderly_nsaid_csv()
-    print(f"  파싱 완료: {len(docs)}건")
-    stats["노인주의_해열"] = embed_to_chromadb(docs, "노인주의_해열")
-
-    # 5. 연령금기
-    print("\n[5/6] 연령금기 품목리스트...")
-    docs = process_age_csv()
-    print(f"  파싱 완료: {len(docs)}건")
-    stats["연령금기"] = embed_to_chromadb(docs, "연령금기")
-
-    # 6. 병용금기 (정신과 키워드 필터링)
-    print("\n[6/6] 병용금기 품목리스트 (정신과 키워드 필터링)...")
-    docs = process_combination_csv()
-    print(f"  파싱 완료: {len(docs)}건")
-    stats["병용금기"] = embed_to_chromadb(docs, "병용금기")
-
-    # 결과 출력
     print("\n" + "=" * 60)
     print("임베딩 완료 결과")
     print("=" * 60)
