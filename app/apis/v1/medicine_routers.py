@@ -20,10 +20,12 @@ async def search_medicines(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> Response:
     result = await service.search(keyword, limit, offset)
-    return Response(MedicineSearchPaginatedResponse(
-        items=[MedicineSearchResponse(**r) for r in result["items"]],
-        total_count=result["total_count"],
-    ).model_dump())
+    return Response(
+        MedicineSearchPaginatedResponse(
+            items=[MedicineSearchResponse(**r) for r in result["items"]],
+            total_count=result["total_count"],
+        ).model_dump()
+    )
 
 
 @router.get("/{item_seq}", response_model=MedicineDetailResponse, status_code=status.HTTP_200_OK)
