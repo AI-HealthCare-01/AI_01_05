@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 
 import { sendMessage, sendMessageStream, getChatLog } from "../apis/chatApi";
+import { getMyCharacter } from "../apis/characterApi";
 import ChatBubble from "../components/ChatBubble";
 import ChatInput from "../components/ChatInput";
 import ChipMenu from "../components/ChipMenu";
@@ -41,9 +42,23 @@ export default function ChatPage() {
   const dispatch = useChatDispatch();
   const userId = useAuthStore((s) => s.userId);
   const selectedCharacter = useAuthStore((s) => s.selectedCharacter);
+  const setSelectedCharacter = useAuthStore((s) => s.setSelectedCharacter);
   const characterImage = CHARACTER_IMAGE_BY_ID[selectedCharacter?.id ?? 0] ?? DEFAULT_CHARACTER_IMAGE;
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isHistory, setIsHistory] = React.useState(false);
+
+  useEffect(() => {
+    if (selectedCharacter?.id) return;
+    getMyCharacter()
+      .then((data) => {
+        setSelectedCharacter({
+          id: data.character_id,
+          name: data.name,
+          imageUrl: CHARACTER_IMAGE_BY_ID[data.character_id] ?? DEFAULT_CHARACTER_IMAGE,
+        });
+      })
+      .catch(() => {});
+  }, [selectedCharacter?.id, setSelectedCharacter]);
 
   // Auto-scroll on new message or loading change
   useEffect(() => {
