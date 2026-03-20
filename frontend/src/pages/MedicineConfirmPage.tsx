@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { addUserMedication } from "../apis/medicines";
 import { Button } from "../components/Button";
@@ -58,12 +58,30 @@ function Stepper({
   min?: number;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <Button variant="secondary" onClick={() => onChange(Math.max(min, value - 1))} style={{ minWidth: 36, padding: "6px 10px" }}>
+    <div style={{ width: 220, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <Button
+        variant="secondary"
+        onClick={() => onChange(Math.max(min, value - 1))}
+        style={{ width: 72, padding: "8px 0", borderRadius: 16, fontWeight: 700 }}
+      >
         －
       </Button>
-      <span style={{ minWidth: 36, textAlign: "center", fontWeight: 700 }}>{value}</span>
-      <Button variant="secondary" onClick={() => onChange(value + 1)} style={{ minWidth: 36, padding: "6px 10px" }}>
+      <span
+        style={{
+          width: 56,
+          textAlign: "center",
+          fontWeight: 700,
+          fontSize: 18,
+          lineHeight: 1,
+        }}
+      >
+        {value}
+      </span>
+      <Button
+        variant="secondary"
+        onClick={() => onChange(value + 1)}
+        style={{ width: 72, padding: "8px 0", borderRadius: 16, fontWeight: 700 }}
+      >
         ＋
       </Button>
     </div>
@@ -81,6 +99,7 @@ function EditCard({
 }) {
   const [draft, setDraft] = useState<MedicineDraftItem>({ ...item });
   const [manualSlots, setManualSlots] = useState(false);
+  const [doseInput, setDoseInput] = useState(String(item.dose_per_intake));
 
   const setFrequency = (v: number) => {
     const next = { ...draft, daily_frequency: v };
@@ -103,6 +122,10 @@ function EditCard({
       };
     });
   };
+
+  useEffect(() => {
+    setDoseInput(String(draft.dose_per_intake));
+  }, [draft.dose_per_intake]);
 
   return (
     <div
@@ -131,9 +154,64 @@ function EditCard({
           />
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <span style={{ fontSize: 13, color: COLORS.subText }}>투약량(정)</span>
-          <Stepper value={draft.dose_per_intake} onChange={(v) => setDraft({ ...draft, dose_per_intake: v })} />
+          <div style={{ width: 220, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const next = Math.max(0.1, Math.round((draft.dose_per_intake - 0.1) * 100) / 100);
+                setDraft((prev) => ({ ...prev, dose_per_intake: next }));
+                setDoseInput(String(next));
+              }}
+              style={{ width: 72, padding: "8px 0", borderRadius: 16, fontWeight: 700 }}
+            >
+              －
+            </Button>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={doseInput}
+              onChange={(e) => {
+                const next = e.target.value;
+                setDoseInput(next);
+                const parsed = Number.parseFloat(next);
+                if (Number.isFinite(parsed) && parsed > 0) {
+                  setDraft((prev) => ({ ...prev, dose_per_intake: parsed }));
+                }
+              }}
+              onBlur={() => {
+                const parsed = Number.parseFloat(doseInput);
+                if (!Number.isFinite(parsed) || parsed <= 0) {
+                  setDoseInput(String(draft.dose_per_intake));
+                  return;
+                }
+                const normalized = Math.round(parsed * 100) / 100;
+                setDraft((prev) => ({ ...prev, dose_per_intake: normalized }));
+                setDoseInput(String(normalized));
+              }}
+              style={{
+                width: 56,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 12,
+                padding: "8px 4px",
+                fontSize: 18,
+                lineHeight: 1,
+                textAlign: "center",
+              }}
+            />
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const next = Math.round((draft.dose_per_intake + 0.1) * 100) / 100;
+                setDraft((prev) => ({ ...prev, dose_per_intake: next }));
+                setDoseInput(String(next));
+              }}
+              style={{ width: 72, padding: "8px 0", borderRadius: 16, fontWeight: 700 }}
+            >
+              ＋
+            </Button>
+          </div>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
