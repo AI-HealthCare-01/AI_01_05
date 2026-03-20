@@ -53,7 +53,7 @@ class MedicineService:
 
     async def search(self, keyword: str, limit: int = 20) -> list[dict]:
         results = (
-            await Medicine.filter(search_keyword__startswith=keyword, is_active=True)
+            await Medicine.filter(search_keyword__contains=keyword, is_active=True)
             .limit(limit)
             .values("item_seq", "item_name", "entp_name")
         )
@@ -69,7 +69,7 @@ class MedicineService:
         if merged:
             await self._cache_from_api(merged)
             results = (
-                await Medicine.filter(search_keyword__startswith=keyword, is_active=True)
+                await Medicine.filter(search_keyword__contains=keyword, is_active=True)
                 .limit(limit)
                 .values("item_seq", "item_name", "entp_name")
             )
