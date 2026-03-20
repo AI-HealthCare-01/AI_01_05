@@ -21,8 +21,20 @@ _scheduler: AsyncIOScheduler | None = None
 
 
 async def _medication_reminder_job(redis_client: Redis) -> None:
-    """복약 알림 작업 (1분마다 실행)."""
+    """복약 알림 작업 (1분마다 실행).
+
+    Redis 분산 락으로 여러 Worker 중 하나만 실행.
+    """
     from app.services.sms_notification_service import send_scheduled_reminders
+
+    lock_key = "scheduler:medication_reminder:lock"
+    lock_ttl = 55  # 스케줄러 주기(60초)보다 짧게
+
+    # 분산 락 획득 시도 (SET NX)
+    acquired = await redis_client.set(lock_key, "1", nx=True, ex=lock_ttl)
+    if not acquired:
+        logger.debug("다른 Worker가 복약 알림 작업 실행 중 - 스킵")
+        return
 
     try:
         sent_count = await send_scheduled_reminders(redis_client)
