@@ -38,7 +38,7 @@ class SMSNotificationService:
 
     def __init__(self, redis_client: Redis) -> None:
         self.redis = redis_client
-        self.dedup_ttl = 120  # 중복 방지 TTL (2분)
+        self.dedup_ttl = 660  # 중복 방지 TTL (11분) - 시간 윈도우(±5분=10분)보다 길게
 
     def _get_solapi_headers(self) -> dict:
         """Solapi HMAC-SHA256 인증 헤더 생성."""
@@ -102,6 +102,9 @@ class SMSNotificationService:
             logger.debug("이미 발송됨: user_id=%d, time_slot=%s", user_id, time_slot)
             return False
 
+        # 발송 시도 전에 먼저 마킹 (실패해도 재시도 방지)
+        await self._mark_as_sent(user_id, time_slot)
+
         # 약물 목록 포맷팅 (최대 3개까지만 표시)
         if len(medicine_names) > 3:
             meds_text = ", ".join(medicine_names[:3]) + f" 외 {len(medicine_names) - 3}개"
@@ -135,8 +138,6 @@ class SMSNotificationService:
                 )
                 response.raise_for_status()
 
-            # 발송 성공 → 중복 방지 마킹
-            await self._mark_as_sent(user_id, time_slot)
             logger.info(
                 "SMS 발송 성공: user_id=%d, time_slot=%s, medicines=%s",
                 user_id,

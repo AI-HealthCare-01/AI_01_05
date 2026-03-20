@@ -661,6 +661,12 @@ export default function MainPage() {
     };
   }, [todayMedications]);
 
+  // 약 개수만 추적 (체크 상태 변경 시 변하지 않음) - 높이 계산 dependency용
+  const medsCountKey = useMemo(
+    () => `${medsBySlot.morning.length}-${medsBySlot.lunch.length}-${medsBySlot.evening.length}-${medsBySlot.bedtime.length}`,
+    [medsBySlot.morning.length, medsBySlot.lunch.length, medsBySlot.evening.length, medsBySlot.bedtime.length]
+  );
+
   const totalCount = todayMedications.length;
   const completeCount = todayMedications.filter((med) => med.checked).length;
   const lastActiveSlot = useMemo(
@@ -744,6 +750,8 @@ export default function MainPage() {
     setMedSwipeIndex(index);
   };
 
+  // 높이 계산: 체크 상태 변경은 제외 - 레이아웃 점프 방지
+  // 재계산 조건: 슬롯 변경, 약 추가/삭제(medsCountKey), 더보기 펼침
   useEffect(() => {
     const activeSlot = TIME_SLOTS[medSwipeIndex]?.key;
     if (!activeSlot) return;
@@ -752,7 +760,7 @@ export default function MainPage() {
 
     const nextHeight = Math.ceil(target.scrollHeight);
     setMedSwipeHeight((prev) => (prev === nextHeight ? prev : nextHeight));
-  }, [medSwipeIndex, TIME_SLOTS, todayMedications, expandedMedicationId, detailByMedicationId, loadingDetailByMedicationId]);
+  }, [medSwipeIndex, TIME_SLOTS, medsCountKey, expandedMedicationId, detailByMedicationId, loadingDetailByMedicationId]);
 
   useEffect(() => {
     const onResize = () => {
@@ -1110,7 +1118,7 @@ export default function MainPage() {
                     position: "relative",
                     display: "flex",
                     flexDirection: "column",
-                    minHeight: "220px",
+                    minHeight: 220,
                     opacity: allDone && slot.key !== lastActiveSlot ? 0.5 : 1,
                     filter: allDone && slot.key !== lastActiveSlot ? "grayscale(40%)" : "none",
                   }}
@@ -1152,6 +1160,7 @@ export default function MainPage() {
                       style={{
                         ...pawStampStyle,
                         animation: `pawStamp 0.6s ease-out ${pawStampTokenBySlot[slot.key] > 0 ? "forwards" : "none"}`,
+                        visibility: medications.some(med => med.medicationId === expandedMedicationId) ? "hidden" : "visible",
                       }}
                     >
                       🐾
@@ -1271,6 +1280,8 @@ export default function MainPage() {
                               borderRadius: 8,
                               background: COLORS.cardBg,
                               padding: 10,
+                              maxHeight: 280,
+                              overflowY: "auto",
                             }}
                           >
                             {loadingDetailByMedicationId[med.medicationId] ? (
@@ -1339,7 +1350,8 @@ export default function MainPage() {
                     <div style={{ fontSize: 14, color: "#757575" }}>등록된 약이 없습니다.</div>
                   )}
                 </div>
-                {allDone && slot.key === lastActiveSlot && (
+                {/* 배너 placeholder - 항상 동일한 높이 차지 */}
+                <div style={{ height: 62, marginTop: 16, flexShrink: 0 }}>
                   <div
                     style={{
                       background: "#99A988",
@@ -1349,12 +1361,14 @@ export default function MainPage() {
                       fontWeight: 800,
                       fontSize: 16,
                       color: "#FFFFFF",
-                      marginTop: 16,
+                      opacity: allDone && slot.key === lastActiveSlot ? 1 : 0,
+                      transform: allDone && slot.key === lastActiveSlot ? "scale(1)" : "scale(0.95)",
+                      transition: "opacity 0.3s ease, transform 0.3s ease",
                     }}
                   >
                     🎉 복약 완료를 축하해요!
                   </div>
-                )}
+                </div>
                 </div>
               );
             })}

@@ -192,6 +192,11 @@ export function DiaryPage() {
     setSelectedDate(entryDate);
     void fetchSelectedDateDiary(entryDate);
     requestAnimationFrame(() => {
+      // 시트 열기 전 calendarBottom 재계산
+      if (calendarRef.current) {
+        const rect = calendarRef.current.getBoundingClientRect();
+        setCalendarBottom(rect.bottom);
+      }
       setSheetOpen(true);     // 다음 프레임에 열기
     });
   },
@@ -401,7 +406,7 @@ export function DiaryPage() {
                 transform: sheetOpen
                   ? "translateX(-50%)"
                   : "translateX(-50%) translateY(100%)",
-                top: sheetFull ? "8vh" : `${calendarBottom + 10}px`,
+                top: sheetFull ? "8vh" : `${calendarBottom > 0 ? calendarBottom + 16 : 396}px`,
                 bottom: 0,
                 zIndex: 40,
                 width: "100%",
@@ -418,13 +423,11 @@ export function DiaryPage() {
               }}
             >
               <div
-                onClick={() => setSheetFull((prev) => !prev)}
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   padding: "12px 0 8px",
-                  cursor: "pointer",
                   flexShrink: 0,
                 }}
               >
@@ -460,6 +463,26 @@ export function DiaryPage() {
                     {formatDateLabel(selectedDate)}
                   </h2>
                   <div style={{ display: "flex", gap: "6px" }}>
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSheetFull((prev) => !prev);
+                      }}
+                      style={{
+                        background: sheetFull ? COLORS.buttonBg : "transparent",
+                        color: sheetFull ? "#fff" : COLORS.text,
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: "999px",
+                        padding: "7px 12px",
+                        fontSize: "14px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                      }}
+                      title={sheetFull ? "축소" : "확대"}
+                    >
+                      {sheetFull ? "⛶" : "⛶"}
+                    </button>
                     {selectedEntry ? (
                       <>
                         <button
