@@ -1090,7 +1090,7 @@ export default function MainPage() {
             style={{
               ...swipeContainerStyle,
               alignItems: "flex-start",
-              height: medSwipeHeight ? `${medSwipeHeight}px` : "auto",
+              height: medSwipeHeight ? `${medSwipeHeight}px` : "220px",
               transition: "height 0.2s ease",
             }}
             onScroll={updateMedIndicator}
@@ -1110,7 +1110,7 @@ export default function MainPage() {
                     position: "relative",
                     display: "flex",
                     flexDirection: "column",
-                    minHeight: "auto",
+                    minHeight: "220px",
                     opacity: allDone && slot.key !== lastActiveSlot ? 0.5 : 1,
                     filter: allDone && slot.key !== lastActiveSlot ? "grayscale(40%)" : "none",
                   }}
