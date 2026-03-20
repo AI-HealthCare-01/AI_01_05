@@ -119,15 +119,10 @@ export default function SignupPage() {
         tempToken,
       )
       useAuthStore.getState().setAccessToken(res.access_token)
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ""
-      const meRes = await fetch(`${API_BASE_URL}/users/me`, {
-        headers: { Authorization: `Bearer ${res.access_token}` },
-        credentials: 'include',
-      })
-      if (meRes.ok) {
-        const me = await meRes.json()
-        if (me.user_id) useAuthStore.getState().setUserId(me.user_id)
-      }
+      try {
+        const payload = JSON.parse(atob(res.access_token.split('.')[1]))
+        if (payload.user_id) useAuthStore.getState().setUserId(payload.user_id)
+      } catch { /* token decode 실패해도 캐릭터 선택으로 이동 */ }
       navigate('/character-select', { replace: true })
     } catch (err: unknown) {
       const e = err as { status?: number; detail?: string }
