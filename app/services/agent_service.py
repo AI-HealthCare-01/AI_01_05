@@ -27,7 +27,7 @@ logger = logging.getLogger("dodaktalk.agent")
 
 # ── 설정 ────────────────────────────────────────────────────
 MAX_ITERATIONS = 10
-TIMEOUT_SECONDS = 30
+TIMEOUT_SECONDS = 60
 MODEL_NAME = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 
@@ -70,7 +70,7 @@ def _run_async(coro):
     """동기 컨텍스트에서 비동기 코루틴 실행 (Tortoise ORM 호환)."""
     if _main_loop is not None and _main_loop.is_running():
         future = asyncio.run_coroutine_threadsafe(coro, _main_loop)
-        return future.result(timeout=30)
+        return future.result(timeout=60)
     return asyncio.run(coro)
 
 
@@ -276,63 +276,26 @@ class AgentState(TypedDict):
 
 
 # ── System Prompt ─────────────────────────────────────────────
-AGENT_SYSTEM_PROMPT = """당신은 정신건강 관련 약물 상담을 제공하는 AI 약사 어시스턴트입니다.
-사용자는 정신질환을 가진 환자이므로, 안전 판단이 가장 중요합니다.
+AGENT_SYSTEM_PROMPT = """AI 약사 어시스턴트입니다. 안전 판단이 최우선입니다.
 
-## 도구 사용 가이드
-사용자 질문에 답하기 위해 제공된 도구를 적극 활용하세요:
-- query_knowledge_graph: Neo4j 지식그래프에서 약물 상호작용 검색 (★ 우선 사용)
-- check_all_drug_combinations: 사용자 복용약 전체 교차 검사
-- search_drug_info: 약물 효능, 용법, 주의사항, 이상반응 검색
-- search_safety: DUR 병용금기, 임부금기, 노인주의 검색
-- search_food_drug_sync: 음식-약물 상호작용 검색 (user_drugs_json은 JSON 배열 문자열)
-- search_rag_sync: 의학 가이드라인 검색
-- get_drug_interactions_sync: Neo4j 약물 상호작용 조회 (drug_names_json은 JSON 배열 문자열)
-- get_user_medicines_sync: 사용자 복용약 목록 + 복용 시간대 조회
-- get_medication_schedule_sync: 오늘 복용 스케줄 조회 (현재 시간 기준 복용 예정/지남 정보)
+## 도구 사용 (필요한 경우만)
+- 약물 조합/상호작용 질문 → query_knowledge_graph
+- 복용 시간 질문 → get_medication_schedule_sync
+- 약 효능/부작용 질문 → search_drug_info
+- 음식-약물 질문 → search_food_drug_sync
 
-## 복용 스케줄 질문 처리 규칙
-아래 키워드 감지 시 get_medication_schedule_sync를 호출하세요:
-- "약 먹을 시간", "언제 먹어", "몇 시에", "복용 시간", "지금 먹어도", "약 먹었어"
+⚡ 도구 없이 답변 가능하면 바로 답변하세요. 도구는 최대 1-2개만 호출.
 
-스케줄 응답 시:
-- 복용 예정인 약이 있으면 몇 분 후인지 명시
-- 복용 시간이 지난 약이 있으면 바로 복용 권고
-- 다음 복용 시간도 함께 안내
-
-## Neo4j 지식그래프 사용 규칙 (필수)
-1. "~랑 ~같이 먹어도 돼?", "~먹고 술 마셔도 돼?" 등 약물 조합 질문 시:
-   → 반드시 query_knowledge_graph를 먼저 호출하세요
-2. "술" = "알코올"로 자동 변환됩니다
-3. 검색 결과에서 DANGER 상호작용이 발견되면:
-   → 반드시 red_alert=True로 설정하세요
-   → answer에 구체적인 위험 내용(호흡억제, 과진정, 세로토닌 증후군 등)을 포함하세요
-4. CAUTION 상호작용 발견 시:
-   → red_alert=False, 하지만 주의사항 명시
-
-## 안전 판단 기준
-- 위기 감지 (is_flagged=true): 자살, 자해, 죽고싶다, 사라지고싶다 등 위기 표현
-- 위험 약물 조합 (red_alert=true):
-  - Neo4j에서 DANGER 상호작용 발견 시 (호흡억제, 과진정, 세로토닌 증후군 등)
-  - 병용금기 약물 조합
-  - 알코올 + 진정제/수면제/벤조디아제핀/오피오이드
-
-## 응답 규칙
-1. 반드시 아래 JSON 형식으로만 응답하세요
-2. 검색 결과가 불확실하면 의사/약사 상담 권장
-3. 의학적 진단이나 처방은 하지 마세요
-4. 따뜻하고 공감적인 어조를 유지하세요
+## 안전 기준
+- 위기 표현(자살, 자해) → is_flagged=true
+- DANGER 상호작용 → red_alert=true
+- 알코올+진정제 조합 → red_alert=true
 
 {persona_prompt}
 
-## 응답 형식 (도구 호출 완료 후 반드시 이 JSON 형식만 사용)
+## 응답 형식 (JSON만)
 ```json
-{{
-  "answer": "사용자에게 전달할 따뜻한 답변",
-  "is_flagged": false,
-  "red_alert": false,
-  "reasoning": "판단 근거"
-}}
+{{"answer": "답변", "is_flagged": false, "red_alert": false, "reasoning": "근거"}}
 ```"""
 
 
@@ -530,6 +493,22 @@ async def run_agent(
         return LLMChatResponse.safe_default()
 
 
+def _get_tool_status_message(tool_name: str) -> str:
+    """도구 이름에 따른 상태 메시지 반환."""
+    status_map = {
+        "search_drug_info": "약 정보 검색 중...",
+        "search_safety": "안전성 정보 확인 중...",
+        "search_food_drug_sync": "음식-약물 상호작용 확인 중...",
+        "search_rag_sync": "의학 가이드라인 검색 중...",
+        "get_drug_interactions_sync": "약물 상호작용 확인 중...",
+        "query_knowledge_graph": "지식그래프 검색 중...",
+        "check_all_drug_combinations": "약물 조합 검사 중...",
+        "get_user_medicines_sync": "복용약 정보 조회 중...",
+        "get_medication_schedule_sync": "복용 스케줄 조회 중...",
+    }
+    return status_map.get(tool_name, "정보 검색 중...")
+
+
 async def run_agent_stream(
     user_message: str,
     user_drugs: list[str],
@@ -542,9 +521,12 @@ async def run_agent_stream(
 ):
     """Agent 스트리밍 실행 - SSE용 async generator.
 
-    도구 호출 결과를 기다린 후 최종 응답만 스트리밍.
-    (LangGraph의 도구 호출은 내부에서 처리)
+    도구 호출 시 상태 메시지 전송 후 응답 스트리밍.
     """
+    # 상태 메시지 먼저 전송 (도구 호출 예상)
+    yield json.dumps({"status": "정보 검색 중..."}, ensure_ascii=False)
+
+    # Agent 실행 (기존 안정적인 방식 사용)
     response = await run_agent(
         user_message=user_message,
         user_drugs=user_drugs,
@@ -556,13 +538,26 @@ async def run_agent_stream(
         intimacy=intimacy,
     )
 
-    # 답변을 청크로 분할하여 스트리밍 효과
+    # 답변을 청크로 분할하여 스트리밍
     answer = response.answer
-    chunk_size = 10  # 10자씩 전송
+    chunk_size = 5  # 더 작은 청크로 자연스러운 타이핑
 
     for i in range(0, len(answer), chunk_size):
         chunk = answer[i : i + chunk_size]
         yield json.dumps({"token": chunk}, ensure_ascii=False)
+
+        # 진행률에 따른 타이핑 속도 조절 (천천히)
+        progress = i / len(answer) if answer else 0
+        if progress < 0.1:
+            delay = 0.02  # 시작 (처음 10%)
+        elif progress < 0.4:
+            delay = 0.05  # 천천히 타이핑 (10~40%)
+        elif progress < 0.7:
+            delay = 0.03  # 중간 속도 (40~70%)
+        else:
+            delay = 0.05  # 마무리 천천히 (70~100%)
+
+        await asyncio.sleep(delay)
 
     # 최종 메타데이터 전송
     yield json.dumps(

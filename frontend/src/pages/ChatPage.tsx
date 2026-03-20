@@ -113,8 +113,15 @@ export default function ChatPage() {
 
       await sendMessageStream(
         requestPayload,
-        (token) => dispatch({ type: "STREAM_AI_TOKEN", payload: token }),
-        (meta) => dispatch({ type: "FINALIZE_AI_STREAM", payload: meta }),
+        (token) => {
+          dispatch({ type: "SET_STATUS", payload: null }); // 토큰 수신 시 상태 메시지 제거
+          dispatch({ type: "STREAM_AI_TOKEN", payload: token });
+        },
+        (meta) => {
+          dispatch({ type: "SET_STATUS", payload: null });
+          dispatch({ type: "FINALIZE_AI_STREAM", payload: meta });
+        },
+        (status) => dispatch({ type: "SET_STATUS", payload: status }),
       );
     } catch {
       // 스트리밍 실패 시 기존 방식 폴백
@@ -193,7 +200,22 @@ export default function ChatPage() {
               </React.Fragment>
             );
           })}
-          <TypingIndicator visible={state.isLoading} />
+          {state.statusMessage && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px" }}>
+              <div
+                style={{
+                  width: 16,
+                  height: 16,
+                  border: "2px solid #D1D5DB",
+                  borderTopColor: "#6B7F5E",
+                  borderRadius: "50%",
+                  animation: "spin 0.8s linear infinite",
+                }}
+              />
+              <span style={{ fontSize: 13, color: "#6B7F5E" }}>{state.statusMessage}</span>
+            </div>
+          )}
+          <TypingIndicator visible={state.isLoading && !state.statusMessage} />
           <div ref={bottomRef} />
         </div>
       </div>

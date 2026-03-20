@@ -24,6 +24,7 @@ const initialState: ChatState = {
   redAlertMessage: null,
   isMenuOpen: false,
   medicationList: [],
+  statusMessage: null,
 };
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
@@ -112,6 +113,8 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return { ...state, messages: action.payload, isLoading: false };
     case "SET_LOADING":
       return { ...state, isLoading: action.payload };
+    case "SET_STATUS":
+      return { ...state, statusMessage: action.payload };
 
     case "SHOW_RED_ALERT":
       return { ...state, showRedAlert: true, redAlertMessage: action.payload };

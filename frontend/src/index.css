@@ -210,6 +210,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── 스피너 회전 ── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 /* ── 스켈레톤 shimmer ── */
 @keyframes shimmer {
   0%   { background-position: -400px 0; }

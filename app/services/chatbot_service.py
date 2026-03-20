@@ -121,7 +121,7 @@ class MedicationChatbot:
                 user_id=user_id,
             )
 
-            # ── 4단계: LLM의 is_flagged 판단 확인 (2중 안전장치) ──
+            # ── 5단계: LLM의 is_flagged 판단 확인 (2중 안전장치) ──
             if llm_response.is_flagged:
                 logger.warning("위기 감지 (2단계 LLM 판단): reasoning=%s", llm_response.reasoning)
                 return {

@@ -1,7 +1,9 @@
 import asyncio
+import logging
+import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
@@ -53,6 +55,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# P95 Latency 측정 미들웨어 (스트리밍 API 제외)
+latency_logger = logging.getLogger("dodaktalk.latency")
+
+
+@app.middleware("http")
+async def latency_middleware(request: Request, call_next):
+    if "/stream" in request.url.path:
+        return await call_next(request)
+
+    start = time.perf_counter()
+    response = await call_next(request)
+    latency = time.perf_counter() - start
+
+    latency_logger.info(f"LATENCY: {request.method} {request.url.path} {latency:.3f}s")
+    return response
+
 
 # 앱 시작/종료 이벤트에 맞춰 Tortoise ORM 연결을 등록한다.
 initialize_tortoise(app)
