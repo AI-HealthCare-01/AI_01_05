@@ -9,7 +9,6 @@ import { MyPage } from "../pages/MyPage";
 import { ReportDetailPage } from "../pages/ReportDetailPage";
 import { ReportPage } from "../pages/ReportPage";
 import LoginPage from "../pages/LoginPage.tsx";
-import KakaoCallbackPage from "../pages/KakaoCallbackPage.tsx";
 import {AuthRequired, SignupRequired} from "../components/ProtectedRoute.tsx";
 import SignupPage from "../pages/SignupPage.tsx";
 import MainPage from "../pages/MainPage.tsx";
@@ -45,7 +44,6 @@ export const router = createBrowserRouter([
   { path: "/appointments/:appointmentId/edit", element: <AppointmentPage /> },
   { path: "/mypage", element: <AuthRequired><MyPage /></AuthRequired>},
   { path: "/medications", element: <AuthRequired><MedicationManagePage /></AuthRequired>},
-  { path: "/auth/kakao/callback", element: <KakaoCallbackPage /> },
   { path: "/signup", element : <SignupRequired><SignupPage /></SignupRequired>},
   { path: "/main", element: <AuthRequired><MainPage /></AuthRequired>},
   { path: "/character-select", element: <AuthRequired><CharacterSelectPage /></AuthRequired>},

@@ -91,3 +91,49 @@ class TestKakaoLoginAPI(TestCase):
                 response = await client.post("/api/v1/auth/kakao", json={"code": "invalid_code"})
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+class TestKakaoCallbackAPI(TestCase):
+    async def test_existing_user_redirects_to_main_with_token(self):
+        """GET /kakao/callback — 기존 회원은 /main?access_token=... 으로 리다이렉트한다."""
+        user = await User.create(
+            kakao_id="callback_kakao_001",
+            nickname=NICKNAME,
+            phone_number="01033334444",
+            gender=Gender.UNKNOWN,
+            terms_agreed=True,
+            privacy_agreed=True,
+            sensitive_agreed=True,
+        )
+
+        with patch(PATCH_TARGET, return_value=_make_kakao_mock(kakao_id="callback_kakao_001")):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                follow_redirects=False,
+            ) as client:
+                response = await client.get("/api/v1/auth/kakao/callback", params={"code": "valid_code"})
+
+        assert response.status_code == status.HTTP_302_FOUND
+        location = response.headers["location"]
+        assert "/main" in location
+        assert "access_token=" in location
+        assert any("refresh_token" in h for h in response.headers.get_list("set-cookie"))
+
+        await user.delete()
+
+    async def test_new_user_redirects_to_signup_with_temp_token(self):
+        """GET /kakao/callback — 신규 회원은 /signup?temp_token=...&nickname=... 으로 리다이렉트한다."""
+        with patch(PATCH_TARGET, return_value=_make_kakao_mock(kakao_id="callback_new_002")):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                follow_redirects=False,
+            ) as client:
+                response = await client.get("/api/v1/auth/kakao/callback", params={"code": "valid_code"})
+
+        assert response.status_code == status.HTTP_302_FOUND
+        location = response.headers["location"]
+        assert "/signup" in location
+        assert "temp_token=" in location
+        assert "nickname=" in location

@@ -41,6 +41,7 @@ class Config(BaseSettings):
     # 브라우저 쿠키/보안 설정
     COOKIE_DOMAIN: str = "localhost"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:5173"]
+    FRONTEND_URL: str = "http://localhost:5173"
 
     # JWT 수명 및 검증 옵션
     JWT_ALGORITHM: str = "HS256"

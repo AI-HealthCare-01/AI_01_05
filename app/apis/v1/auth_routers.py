@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, status
 from fastapi.responses import JSONResponse as Response
+from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core import config
@@ -47,7 +48,38 @@ async def token_refresh(
     )
 
 
-# 2. 카카오 로그인 (인가코드 수신)
+# 2. 카카오 OAuth 콜백 (redirect_uri 수신 — 브라우저 리다이렉트)
+@auth_router.get("/kakao/callback")
+async def kakao_callback(
+    code: str,
+    auth_service: Annotated[AuthService, Depends(AuthService)],
+) -> RedirectResponse:
+    result_data = await auth_service.process_kakao_login(code)
+
+    if not result_data.is_new_user and result_data.access_token and result_data.refresh_token:
+        resp = RedirectResponse(
+            url=f"{config.FRONTEND_URL}/main?access_token={result_data.access_token}",
+            status_code=status.HTTP_302_FOUND,
+        )
+        resp.set_cookie(
+            key="refresh_token",
+            value=result_data.refresh_token,
+            httponly=True,
+            secure=config.ENV == Env.PROD,
+            domain=config.COOKIE_DOMAIN if config.ENV == Env.PROD else None,
+            samesite="lax",
+            max_age=14 * 24 * 60 * 60,
+        )
+        return resp
+
+    nickname = result_data.kakao_info.nickname if result_data.kakao_info else ""
+    return RedirectResponse(
+        url=f"{config.FRONTEND_URL}/signup?temp_token={result_data.temp_token}&nickname={nickname or ''}",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+# 3. 카카오 로그인 (인가코드 수신 — API 직접 호출용, 하위호환 유지)
 @auth_router.post("/kakao", response_model=KakaoLoginResponse, status_code=status.HTTP_200_OK)
 async def kakao_login(
     request: KakaoLoginRequest,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { sendPhoneCode, verifyPhoneCode, kakaoSignup } from '../apis/authApi'
 import { useAuthStore } from '../store/authStore'
 import AgreementModal from '../components/AgreementModal'
@@ -7,8 +7,9 @@ import type { AgreementState } from '../types/auth'
 
 export default function SignupPage() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const initialNickname = (location.state as { nickname?: string })?.nickname ?? ''
+  const [searchParams] = useSearchParams()
+  const tempToken = searchParams.get('temp_token') ?? ''
+  const initialNickname = searchParams.get('nickname') ?? ''
 
   const [form, setForm] = useState({
     nickname: initialNickname,
@@ -100,7 +101,6 @@ export default function SignupPage() {
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
 
-    const tempToken = sessionStorage.getItem('temp_token')
     if (!tempToken) { setSubmitError('인증 정보가 만료되었습니다. 다시 로그인해주세요.'); return }
 
     setLoading(true)
@@ -118,8 +118,6 @@ export default function SignupPage() {
         },
         tempToken,
       )
-      sessionStorage.removeItem('temp_token')
-      localStorage.setItem('access_token', res.access_token)
       useAuthStore.getState().setAccessToken(res.access_token)
       const meRes = await fetch('/api/v1/users/me', {
         headers: { Authorization: `Bearer ${res.access_token}` },

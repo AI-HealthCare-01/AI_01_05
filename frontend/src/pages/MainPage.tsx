@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getCurrentSlot,
   getCurrentLabel,
@@ -361,7 +361,16 @@ function MainPageSkeleton() {
 
 export default function MainPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [pageLeaving, setPageLeaving] = useState(false);
+
+  // BE OAuth 콜백에서 전달된 access_token 처리
+  useEffect(() => {
+    const token = searchParams.get('access_token')
+    if (!token) return
+    useAuthStore.getState().setAccessToken(token)
+    setSearchParams({}, { replace: true })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const navigateWithFade = useCallback((to: string) => {
     setPageLeaving(true);
