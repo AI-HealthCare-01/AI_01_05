@@ -71,7 +71,9 @@ class MedicineService:
 
         startswith_items: list[dict] = []
         if offset < startswith_count:
-            startswith_items = await startswith_qs.offset(offset).limit(limit).values("item_seq", "item_name", "entp_name")
+            startswith_items = (
+                await startswith_qs.offset(offset).limit(limit).values("item_seq", "item_name", "entp_name")
+            )
 
         remaining_limit = max(0, limit - len(startswith_items))
         contains_offset = max(0, offset - startswith_count)
