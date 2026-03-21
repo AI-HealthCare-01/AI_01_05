@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   getCurrentSlot,
   getCurrentLabel,
@@ -361,6 +361,7 @@ function MainPageSkeleton() {
 
 export default function MainPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [pageLeaving, setPageLeaving] = useState(false);
 
@@ -536,6 +537,10 @@ export default function MainPage() {
   useEffect(() => {
     fetchHome();
   }, []);
+
+  useEffect(() => {
+    fetchTodayMedications();
+  }, [location.key]);
 
   useEffect(() => {
     if (!selectedCharacter?.id) return;
