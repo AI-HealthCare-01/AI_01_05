@@ -1140,21 +1140,27 @@ export default function MainPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "baseline" }}>
                       <span style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                        <span style={{ fontSize: 22, fontWeight: 700, color: "#222222" }}>
-                          {completeCount}
-                        </span>
-                        <span style={{ fontSize: 13, fontWeight: 400, color: "#989898" }}>
-                          / {totalCount}
-                        </span>
+                        {totalCount === 0 ? (
+                          <span style={{ fontSize: 22, fontWeight: 700, color: "#222222" }}>-</span>
+                        ) : (
+                          <>
+                            <span style={{ fontSize: 22, fontWeight: 700, color: "#222222" }}>
+                              {completeCount}
+                            </span>
+                            <span style={{ fontSize: 13, fontWeight: 400, color: "#989898" }}>
+                              / {totalCount}
+                            </span>
+                          </>
+                        )}
                       </span>
                       <span style={{ fontSize: 13, color: "#989898" }}>
-                        완료 {total === 0 ? 0 : Math.round((completed / total) * 100)}%
+                        {total === 0 ? "-" : `완료 ${Math.round((completed / total) * 100)}%`}
                       </span>
                     </div>
                     <div style={{ height: 8, borderRadius: 999, background: "#E8E8E8", overflow: "hidden" }}>
                       <div
                         style={{
-                          width: total === 0 ? "0%" : `${(completed / total) * 100}%`,
+                          width: total === 0 ? "100%" : `${(completed / total) * 100}%`,
                           height: "100%",
                           background: "#99A988",
                           transition: "width 0.4s ease",
