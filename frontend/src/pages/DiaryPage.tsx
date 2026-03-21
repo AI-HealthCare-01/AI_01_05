@@ -16,7 +16,7 @@ import {
   COLORS,
   WRITE_METHOD_LABELS,
 } from "../constants/theme";
-import { formatDateLabel } from "../utils/date";
+import { formatDateLabel, getTodayKey } from "../utils/date";
 
 function shiftMonth(year: number, month: number, delta: number) {
   const base = new Date(year, month - 1 + delta, 1);
@@ -218,7 +218,7 @@ export function DiaryPage() {
         )[0] ?? null
     );
   }, [appointments, selectedDate]);
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = getTodayKey();
   const isFuture = selectedDate ? selectedDate > todayStr : false;
 
   return (
@@ -374,7 +374,7 @@ export function DiaryPage() {
             }}
             onSelectDate={handleDateClick}
             appointmentDates={appointmentDates}
-            selectedDate={selectedDate ?? today.toISOString().slice(0, 10)}
+            selectedDate={selectedDate ?? getTodayKey()}
           />
           </div>
         ) : null}
