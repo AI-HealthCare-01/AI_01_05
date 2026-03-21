@@ -38,6 +38,7 @@ class AgreementStatus(BaseModel):
     terms_of_service: bool = Field(..., description="(필수) 이용약관 동의 여부")
     privacy_policy: bool = Field(..., description="(필수) 개인정보 수집 동의 여부")
     sensitive_policy: bool = Field(..., description="(필수) 민감정보 처리 동의 여부")
+    sms_agreed: bool = Field(False, description="(선택) 문자 알림 수신 동의 여부")
     terms_of_marketing: bool = Field(False, description="(선택) 마케팅 수신 동의 여부")
 
 

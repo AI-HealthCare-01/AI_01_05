@@ -191,6 +191,7 @@ class AuthService:
             "privacy_agreed": request.agreements.privacy_policy,
             "sensitive_agreed": request.agreements.sensitive_policy,
             "marketing_agreed": request.agreements.terms_of_marketing,
+            "sms_agreed": request.agreements.sms_agreed,
         }
 
         # 8. DB INSERT 및 로그인 토큰 발급
