@@ -9,6 +9,11 @@ class MedicineSearchResponse(BaseModel):
     entp_name: str | None = None
 
 
+class MedicineSearchPaginatedResponse(BaseModel):
+    items: list[MedicineSearchResponse]
+    total_count: int
+
+
 class MedicineDetailResponse(BaseSerializerModel):
     item_seq: str
     item_name: str

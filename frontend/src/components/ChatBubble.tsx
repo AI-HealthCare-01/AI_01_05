@@ -83,11 +83,22 @@ export default function ChatBubble({ message, petImage, isHistory, onWord }: Cha
 
   let bubbleStyle: React.CSSProperties;
   if (isUser) {
-    bubbleStyle = { ...bubbleBase, background: "#6B7F5E", color: "#FFFFFF" };
+    bubbleStyle = {
+      ...bubbleBase,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 4,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
+      background: "#6B7F5E",
+      color: "#FFFFFF",
+    };
   } else if (message.warningLevel === "Critical") {
     bubbleStyle = {
       ...bubbleBase,
       borderTopLeftRadius: 4,
+      borderTopRightRadius: 16,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
       background: "#FEF2F2",
       border: "2px solid #F87171",
       color: "#2C2C2C",
@@ -96,6 +107,9 @@ export default function ChatBubble({ message, petImage, isHistory, onWord }: Cha
     bubbleStyle = {
       ...bubbleBase,
       borderTopLeftRadius: 4,
+      borderTopRightRadius: 16,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
       background: "#FFF7ED",
       border: "2px solid #FB923C",
       color: "#2C2C2C",
@@ -104,6 +118,9 @@ export default function ChatBubble({ message, petImage, isHistory, onWord }: Cha
     bubbleStyle = {
       ...bubbleBase,
       borderTopLeftRadius: 4,
+      borderTopRightRadius: 16,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
       background: "#FFFFFF",
       border: "1px solid #E0E0E0",
       color: "#2C2C2C",

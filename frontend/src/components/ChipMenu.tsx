@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const QUICK_QUESTIONS = [
   "부작용이 걱정돼요",
@@ -10,10 +10,15 @@ const QUICK_QUESTIONS = [
 interface ChipMenuProps {
   onChipClick: (text: string) => void;
   disabled: boolean;
+  forceClose?: boolean;
 }
 
-export default function ChipMenu({ onChipClick, disabled }: ChipMenuProps) {
+export default function ChipMenu({ onChipClick, disabled, forceClose }: ChipMenuProps) {
   const [isOpen, setIsOpen] = useState(true);
+
+  useEffect(() => {
+    if (forceClose) setIsOpen(false);
+  }, [forceClose]);
 
   const buttonStyle = {
     borderRadius: 20,

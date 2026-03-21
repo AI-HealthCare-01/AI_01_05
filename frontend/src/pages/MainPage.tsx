@@ -191,18 +191,18 @@ const cardStyle: CSSProperties = {
   borderRadius: "20px",
   border: "1px solid #E0E0E0",
   padding: "20px",
-  marginBottom: "20px",
+  marginBottom: "8px",
 };
 
 const topButtonStyle: CSSProperties = {
-  background: "#99A988",
+  background: "#92a67d",
   color: "#FFFFFF",
   border: "none",
   borderRadius: "14px",
-  padding: "10px 18px",
+  padding: "10px 16px",
   fontWeight: 700,
   fontSize: 14,
-  boxShadow: "0 4px 12px rgba(153,169,136,0.35)",
+  boxShadow: "0 2px 20px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.1)",
   cursor: "pointer",
 };
 
@@ -275,7 +275,7 @@ function apiToUiSlot(apiSlot: string): UiSlot {
 function getEmojiButtonStyle(level: number, selected: boolean): CSSProperties {
   return {
     ...emojiButtonBaseStyle,
-    border: selected ? "3px solid #99A988" : "2px solid transparent",
+    border: selected ? "1px solid #ededed" : "2px solid transparent",
     background: selected ? MOOD_COLORS[level] : `${MOOD_COLORS[level]}22`,
     transform: selected ? "scale(1.2)" : "scale(1)",
     boxShadow: selected ? "0 4px 10px rgba(0,0,0,0.15)" : "none",
@@ -874,13 +874,14 @@ export default function MainPage() {
         {/* ── 헤더 카드 ── */}
         <div style={{
           ...cardStyle,
+          padding: "14px 20px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           animation: "fadeSlideUp 0.4s ease-out both",
           animationDelay: "0ms",
         }}>
-          <button id="coach-diary-button" style={topButtonStyle} onClick={() => navigateWithFade("/diary")}
+          <button id="coach-diary-button" style={{ background: "#ffffff", border: "none", borderRadius: 14, paddingTop: 9, paddingBottom: 9, paddingLeft: 18, paddingRight: 18, fontSize: 15, fontWeight: 500, color: "#4A7C59", boxShadow: "0 2px 20px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.1)", cursor: "pointer" }} onClick={() => navigateWithFade("/diary")}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 16px rgba(153,169,136,0.45)"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 12px rgba(153,169,136,0.35)"; }}
             onMouseDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.96)"; }}
@@ -929,7 +930,7 @@ export default function MainPage() {
               "진료 없음"
             )}
           </button>
-          <button style={topButtonStyle} onClick={() => navigateWithFade("/mypage")}
+          <button style={{ background: "#FFFFFF", border: "none", borderRadius: 14, paddingTop: 9, paddingBottom: 9, paddingLeft: 18, paddingRight: 18, fontSize: 15, fontWeight: 500, color: "#4A7C59", boxShadow: "0 2px 20px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.1)", cursor: "pointer" }} onClick={() => navigateWithFade("/mypage")}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 16px rgba(153,169,136,0.45)"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 12px rgba(153,169,136,0.35)"; }}
             onMouseDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.96)"; }}
@@ -941,8 +942,7 @@ export default function MainPage() {
         <div style={{
           ...cardStyle,
           overflow: "hidden",
-          paddingTop: 32,
-          paddingBottom: 32,
+          padding: "25px",
           animation: "fadeSlideUp 0.4s ease-out both",
           animationDelay: "80ms",
         }}>
@@ -951,48 +951,33 @@ export default function MainPage() {
               style={{
                 position: "relative",
                 background: bubbleColor,
-                border: `1px solid ${bubbleBorderColor}`,
-                borderRadius: 16,
-                padding: "10px 18px",
-                maxWidth: "88%",
+                borderRadius: "18px",
+                padding: "13px 18px",
+                maxWidth: 240,
                 textAlign: "center",
-                fontWeight: 600,
-                fontSize: 14,
-                lineHeight: 1.5,
-                color: bubbleTextColor,
-                boxShadow: "0 6px 16px rgba(137,175,207,0.18)",
-                zIndex: 1,
+                alignSelf: "center",
               }}
             >
-              {renderMultiLine(characterMessage)}
-              <span
-                style={{
-                  position: "absolute",
-                  left: "52%",
-                  bottom: -15,
-                  width: 18,
-                  height: 12,
-                  borderRadius: 999,
-                  border: `1px solid ${bubbleBorderColor}`,
-                  background: bubbleColor,
-                  transform: "translateX(-50%)",
-                  pointerEvents: "none",
-                }}
-              />
-              <span
-                style={{
-                  position: "absolute",
-                  left: "58%",
-                  bottom: -29,
-                  width: 10,
-                  height: 8,
-                  borderRadius: 999,
-                  border: `1px solid ${bubbleBorderColor}`,
-                  background: bubbleColor,
-                  transform: "translateX(-50%)",
-                  pointerEvents: "none",
-                }}
-              />
+              <span style={{
+                fontSize: 16,
+                fontWeight: 500,
+                color: "#3A3A3C",
+                lineHeight: 1.55,
+                letterSpacing: -0.3,
+              }}>
+                {renderMultiLine(characterMessage)}
+              </span>
+              <div style={{
+                position: "absolute",
+                bottom: -8,
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 0,
+                height: 0,
+                borderLeft: "8px solid transparent",
+                borderRight: "8px solid transparent",
+                borderTop: `8px solid ${bubbleColor}`,
+              }} />
             </div>
           </div>
 
@@ -1040,7 +1025,7 @@ export default function MainPage() {
           >
             {TIME_SLOTS.map((slot) => (
               <div key={slot.key} style={swipePageStyle}>
-                <h3 style={{ margin: "0 0 8px", fontSize: 14, lineHeight: 1.3, paddingTop: 2 }}>
+                <h3 style={{ margin: "0 0 8px 60px", fontSize: 14, lineHeight: 1.3, padding: 2 }}>
                   오늘의 <span>{slot.label}</span> 기분
                 </h3>
 
@@ -1133,25 +1118,35 @@ export default function MainPage() {
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#3a3228" }}>
+                    <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#3a3228" }}>
                       오늘의 <span>{slot.label}</span> 약
                     </h3>
                     <button
                       id={index === medSwipeIndex ? "coach-add-med-button" : undefined}
                       style={topButtonStyle}
                       onClick={() => navigateWithFade("/medications/add")}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 16px rgba(153,169,136,0.45)"; }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 16px rgba(153,169,136,0.45)"; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 12px rgba(153,169,136,0.35)"; }}
                       onMouseDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.96)"; }}
-                      onMouseUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; }}
-                    >약 추가</button>
+                      onMouseUp={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)"; }}
+                    >+ 약 추가</button>
                   </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                    <div style={{ minWidth: 30, fontSize: 13, color: "#a09070" }}>
-                      {completeCount} / {totalCount}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "baseline" }}>
+                      <span style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                        <span style={{ fontSize: 22, fontWeight: 700, color: "#222222" }}>
+                          {completeCount}
+                        </span>
+                        <span style={{ fontSize: 13, fontWeight: 400, color: "#989898" }}>
+                          / {totalCount}
+                        </span>
+                      </span>
+                      <span style={{ fontSize: 13, color: "#989898" }}>
+                        완료 {total === 0 ? 0 : Math.round((completed / total) * 100)}%
+                      </span>
                     </div>
-                    <div style={{ flex: 1, height: 8, borderRadius: 999, background: "#E8E8E8", overflow: "hidden" }}>
+                    <div style={{ height: 8, borderRadius: 999, background: "#E8E8E8", overflow: "hidden" }}>
                       <div
                         style={{
                           width: total === 0 ? "0%" : `${(completed / total) * 100}%`,
@@ -1316,18 +1311,18 @@ export default function MainPage() {
                                   <img
                                     src={detailByMedicationId[med.medicationId]?.item_image ?? med.itemImage ?? ""}
                                     alt={med.name}
-                                    style={{ width: "100%", maxHeight: 200, objectFit: "contain", borderRadius: 8 }}
+                                    style={{ width: "100%", maxHeight: 150, objectFit: "contain", borderRadius: 8 }}
                                   />
                                 ) : (
                                   <div
                                     style={{
                                       width: "100%",
-                                      maxHeight: 200,
-                                      minHeight: 120,
+                                      maxHeight: 80,
+                                      minHeight: 50,
                                       display: "flex",
                                       alignItems: "center",
                                       justifyContent: "center",
-                                      fontSize: 64,
+                                      fontSize: 50,
                                     }}
                                   >
                                     💊
@@ -1336,15 +1331,31 @@ export default function MainPage() {
 
                                 <div style={{ marginTop: 10 }}>
                                   <div style={{ fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>효능/효과</div>
-                                  <div style={{ color: COLORS.subText, fontSize: 13, lineHeight: 1.5 }}>
-                                    {detailByMedicationId[med.medicationId]?.efcy_qesitm ?? "정보가 없습니다."}
+                                  <div style={{ color: "#4A4A4A", fontSize: 14, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
+                                    {(() => {
+                                      const text = detailByMedicationId[med.medicationId]?.efcy_qesitm ?? "정보가 없습니다.";
+                                      return text.split("|").map((item, index, arr) => (
+                                        <span key={index}>
+                                          {item.trim()}
+                                          {index < arr.length - 1 && <br />}
+                                        </span>
+                                      ));
+                                    })()}
                                   </div>
                                 </div>
 
                                 <div style={{ marginTop: 10 }}>
                                   <div style={{ fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>복용법</div>
-                                  <div style={{ color: COLORS.subText, fontSize: 13, lineHeight: 1.5 }}>
-                                    {detailByMedicationId[med.medicationId]?.use_method_qesitm ?? "정보가 없습니다."}
+                                  <div style={{ color: "#4A4A4A", fontSize: 14, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
+                                    {(() => {
+                                      const text = detailByMedicationId[med.medicationId]?.use_method_qesitm ?? "정보가 없습니다.";
+                                      return text.split("|").map((item, index, arr) => (
+                                        <span key={index}>
+                                          {item.trim()}
+                                          {index < arr.length - 1 && <br />}
+                                        </span>
+                                      ));
+                                    })()}
                                   </div>
                                 </div>
                               </>
@@ -1363,11 +1374,11 @@ export default function MainPage() {
                 <div style={{ height: 62, marginTop: 16, flexShrink: 0 }}>
                   <div
                     style={{
-                      background: "#99A988",
+                      background: "#222222",
                       borderRadius: 14,
                       padding: "14px 16px",
                       textAlign: "center",
-                      fontWeight: 800,
+                      fontWeight: 600,
                       fontSize: 16,
                       color: "#FFFFFF",
                       opacity: allDone && slot.key === lastActiveSlot ? 1 : 0,
@@ -1375,7 +1386,7 @@ export default function MainPage() {
                       transition: "opacity 0.3s ease, transform 0.3s ease",
                     }}
                   >
-                    🎉 복약 완료를 축하해요!
+                    🎉 오늘 복약을 모두 완료했어요!
                   </div>
                 </div>
                 </div>

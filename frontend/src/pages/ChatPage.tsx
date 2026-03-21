@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { sendMessage, sendMessageStream, getChatLog } from "../apis/chatApi";
+import { getMyCharacter } from "../apis/characterApi";
 import ChatBubble from "../components/ChatBubble";
 import ChatInput from "../components/ChatInput";
 import ChipMenu from "../components/ChipMenu";
@@ -41,9 +42,32 @@ export default function ChatPage() {
   const dispatch = useChatDispatch();
   const userId = useAuthStore((s) => s.userId);
   const selectedCharacter = useAuthStore((s) => s.selectedCharacter);
+  const setSelectedCharacter = useAuthStore((s) => s.setSelectedCharacter);
   const characterImage = CHARACTER_IMAGE_BY_ID[selectedCharacter?.id ?? 0] ?? DEFAULT_CHARACTER_IMAGE;
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isHistory, setIsHistory] = React.useState(false);
+  const [showScrollDown, setShowScrollDown] = useState(false);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    setShowScrollDown(!isNearBottom);
+  }, []);
+
+  useEffect(() => {
+    if (selectedCharacter?.id) return;
+    getMyCharacter()
+      .then((data) => {
+        setSelectedCharacter({
+          id: data.character_id,
+          name: data.name,
+          imageUrl: CHARACTER_IMAGE_BY_ID[data.character_id] ?? DEFAULT_CHARACTER_IMAGE,
+        });
+      })
+      .catch(() => {});
+  }, [selectedCharacter?.id, setSelectedCharacter]);
 
   // Auto-scroll on new message or loading change
   useEffect(() => {
@@ -158,6 +182,7 @@ export default function ChatPage() {
         width: "100%",
         maxWidth: 460,
         background: "#F5F5F5",
+        position: "relative",
       }}
     >
       <Header
@@ -172,7 +197,7 @@ export default function ChatPage() {
       />
 
       {/* Message list */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div ref={scrollContainerRef} onScroll={handleScroll} style={{ flex: 1, overflowY: "auto" }}>
         <div
           style={{
             maxWidth: 672,
@@ -221,31 +246,36 @@ export default function ChatPage() {
       </div>
 
       {/* 맨 아래 버튼 */}
-      <button
-        onClick={() => bottomRef.current?.scrollIntoView({ behavior: "smooth" })}
-        style={{
-          position: "fixed",
-          bottom: 100,
-          right: state.isMenuOpen ? 340 : 20,
-          width: 40,
-          height: 40,
-          borderRadius: "50%",
-          background: "#6B7F5E",
-          color: "#fff",
-          border: "none",
-          cursor: "pointer",
-          fontSize: 18,
-          zIndex: 100,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-        }}
-      >
+      {showScrollDown && (
+        <button
+          onClick={() => bottomRef.current?.scrollIntoView({ behavior: "smooth" })}
+          style={{
+            position: "absolute",
+            bottom: 140,
+            left: "90%",
+            transform: "translateX(-50%)",
+            width: 40,
+            height: 40,
+            borderRadius: "50%",
+            background: "#ffffff",
+            color: "#6B7F5E",
+            border: "none",
+            cursor: "pointer",
+            fontSize: 22,
+            zIndex: 100,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+            transition: "opacity 0.2s ease",
+          }}
+        >
         ↓
-      </button>
+        </button>
+      )}
 
       {/* Chip menu + Input */}
       <ChipMenu
         onChipClick={handleSend}
         disabled={state.isLoading || state.showRedAlert}
+        forceClose={state.messages.some((m) => m.role === "user")}
       />
       <ChatInput
         onSend={handleSend}

@@ -51,30 +51,23 @@ class MedicineService:
     def __init__(self) -> None:
         self._client = MfdsClient()
 
-    async def search(self, keyword: str, limit: int = 20) -> list[dict]:
-        results = (
-            await Medicine.filter(search_keyword__startswith=keyword, is_active=True)
-            .limit(limit)
-            .values("item_seq", "item_name", "entp_name")
-        )
+    async def search(self, keyword: str, limit: int = 20, offset: int = 0) -> dict:
+        qs = Medicine.filter(search_keyword__contains=keyword, is_active=True)
+        total_count = await qs.count()
 
-        if results:
-            return list(results)
-
-        easy, pill = await asyncio.gather(
-            self._client.search_easy_drug(keyword, limit),
-            self._client.search_pill(keyword, limit),
-        )
-        merged = self._merge(easy, pill)
-        if merged:
-            await self._cache_from_api(merged)
-            results = (
-                await Medicine.filter(search_keyword__startswith=keyword, is_active=True)
-                .limit(limit)
-                .values("item_seq", "item_name", "entp_name")
+        if total_count == 0:
+            easy, pill = await asyncio.gather(
+                self._client.search_easy_drug(keyword, limit),
+                self._client.search_pill(keyword, limit),
             )
+            merged = self._merge(easy, pill)
+            if merged:
+                await self._cache_from_api(merged)
+                qs = Medicine.filter(search_keyword__contains=keyword, is_active=True)
+                total_count = await qs.count()
 
-        return list(results)
+        results = await qs.offset(offset).limit(limit).values("item_seq", "item_name", "entp_name")
+        return {"items": list(results), "total_count": total_count}
 
     async def get_detail(self, item_seq: str) -> Medicine | None:
         return await Medicine.get_or_none(item_seq=item_seq, is_active=True)

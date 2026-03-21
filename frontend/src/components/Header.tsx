@@ -51,14 +51,13 @@ export default function Header({ onMenuToggle }: HeaderProps) {
       <button
         onClick={onMenuToggle}
         style={{
-          background: "#99A988",
-          color: "#FFFFFF",
+          color: "#99A988",
           border: "none",
           borderRadius: 12,
           padding: "8px 14px",
-          fontWeight: 700,
+          fontWeight: 400,
           cursor: "pointer",
-          fontSize: 18,
+          fontSize: 30,
           lineHeight: 1,
         }}
         aria-label="메뉴 열기"
