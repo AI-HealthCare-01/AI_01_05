@@ -568,8 +568,17 @@ export default function MainPage() {
     if (loading) return;
     const index = SLOT_KEYS.indexOf(currentSlot);
     const target = index < 0 ? 0 : index;
-    scrollMoodToIndex(target);
-    scrollMedToIndex(target);
+    scrollMoodToIndex(target, "auto");
+    scrollMedToIndex(target, "auto");
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const activeSlot = SLOT_KEYS[target];
+        const activePage = medPageRefs.current[activeSlot];
+        if (!activePage) return;
+        const nextHeight = Math.ceil(activePage.scrollHeight);
+        setMedSwipeHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+      });
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
@@ -674,6 +683,7 @@ export default function MainPage() {
 
   const totalCount = todayMedications.length;
   const completeCount = todayMedications.filter((med) => med.checked).length;
+  const overallDone = totalCount > 0 && completeCount === totalCount;
   const lastActiveSlot = useMemo(
     () => [...TIME_SLOTS].reverse().find((slot) => medsBySlot[slot.key].length > 0)?.key ?? null,
     [medsBySlot]
@@ -737,21 +747,21 @@ export default function MainPage() {
     setMedSwipeIndex(Math.max(0, Math.min(TIME_SLOTS.length - 1, index)));
   };
 
-  const scrollMoodToIndex = (index: number) => {
+  const scrollMoodToIndex = (index: number, behavior: ScrollBehavior = "smooth") => {
     if (!moodSwipeRef.current) return;
     const container = moodSwipeRef.current;
     const firstPage = container.firstElementChild as HTMLElement | null;
     const pageWidth = firstPage?.clientWidth ?? container.clientWidth;
-    container.scrollTo({ left: pageWidth * index, behavior: "smooth" });
+    container.scrollTo({ left: pageWidth * index, behavior });
     setMoodSwipeIndex(index);
   };
 
-  const scrollMedToIndex = (index: number) => {
+  const scrollMedToIndex = (index: number, behavior: ScrollBehavior = "smooth") => {
     if (!medSwipeRef.current) return;
     const container = medSwipeRef.current;
     const firstPage = container.firstElementChild as HTMLElement | null;
     const pageWidth = firstPage?.clientWidth ?? container.clientWidth;
-    container.scrollTo({ left: pageWidth * index, behavior: "smooth" });
+    container.scrollTo({ left: pageWidth * index, behavior });
     setMedSwipeIndex(index);
   };
 
@@ -763,8 +773,14 @@ export default function MainPage() {
     const target = medPageRefs.current[activeSlot];
     if (!target) return;
 
-    const nextHeight = Math.ceil(target.scrollHeight);
-    setMedSwipeHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+    const measure = () => {
+      const nextHeight = Math.ceil(target.scrollHeight);
+      setMedSwipeHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+    };
+
+    measure();
+    const rafId = requestAnimationFrame(measure);
+    return () => cancelAnimationFrame(rafId);
   }, [medSwipeIndex, TIME_SLOTS, medsCountKey, expandedMedicationId, detailByMedicationId, loadingDetailByMedicationId]);
 
   useEffect(() => {
@@ -778,6 +794,20 @@ export default function MainPage() {
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
+  }, [medSwipeIndex, TIME_SLOTS]);
+
+  useEffect(() => {
+    const activeSlot = TIME_SLOTS[medSwipeIndex]?.key;
+    if (!activeSlot) return;
+    const target = medPageRefs.current[activeSlot];
+    if (!target) return;
+
+    const observer = new ResizeObserver(() => {
+      const nextHeight = Math.ceil(target.scrollHeight);
+      setMedSwipeHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+    });
+    observer.observe(target);
+    return () => observer.disconnect();
   }, [medSwipeIndex, TIME_SLOTS]);
 
   // ── 토스트 상태 ──
@@ -1118,8 +1148,16 @@ export default function MainPage() {
                     display: "flex",
                     flexDirection: "column",
                     minHeight: 220,
-                    opacity: (allDone && slot.key !== lastActiveSlot) || total === 0 ? 0.5 : 1,
-                    filter: (allDone && slot.key !== lastActiveSlot) || total === 0 ? "grayscale(40%)" : "none",
+                    opacity:
+                      (allDone && slot.key !== lastActiveSlot) ||
+                      (total === 0 && totalCount > 0)
+                        ? 0.5
+                        : 1,
+                    filter:
+                      (allDone && slot.key !== lastActiveSlot) ||
+                      (total === 0 && totalCount > 0)
+                        ? "grayscale(40%)"
+                        : "none",
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -1141,7 +1179,7 @@ export default function MainPage() {
                     <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "baseline" }}>
                       <span style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
                         {totalCount === 0 ? (
-                          <span style={{ fontSize: 22, fontWeight: 700, color: "#222222" }}>-</span>
+                          <span style={{ fontSize: 22, fontWeight: 700, color: "#222222" }}>0 / 0</span>
                         ) : (
                           <>
                             <span style={{ fontSize: 22, fontWeight: 700, color: "#222222" }}>
@@ -1154,15 +1192,15 @@ export default function MainPage() {
                         )}
                       </span>
                       <span style={{ fontSize: 13, color: "#989898" }}>
-                        {total === 0 ? "-" : `완료 ${Math.round((completed / total) * 100)}%`}
+                        {totalCount === 0 ? "완료 0%" : total === 0 ? "-" : `완료 ${Math.round((completed / total) * 100)}%`}
                       </span>
                     </div>
                     <div style={{ height: 8, borderRadius: 999, background: "#E8E8E8", overflow: "hidden" }}>
                       <div
                         style={{
-                          width: total === 0 ? "100%" : `${(completed / total) * 100}%`,
+                          width: totalCount === 0 ? "100%" : total === 0 ? "0%" : `${(completed / total) * 100}%`,
                           height: "100%",
-                          background: "#99A988",
+                          background: totalCount === 0 ? "#E8E8E8" : "#99A988",
                           transition: "width 0.4s ease",
                         }}
                       />
@@ -1379,9 +1417,11 @@ export default function MainPage() {
 
                   {medications.length === 0 && (
                     <>
-                      <div style={{ ...pawStampStyle }}>
-                        🐾
-                      </div>
+                      {totalCount > 0 && (
+                        <div style={{ ...pawStampStyle }}>
+                          🐾
+                        </div>
+                      )}
                       <div style={{ fontSize: 14, color: "#757575", position: "relative", zIndex: 6 }}>
                         등록된 약이 없습니다.
                       </div>
@@ -1399,8 +1439,8 @@ export default function MainPage() {
                       fontWeight: 600,
                       fontSize: 16,
                       color: "#FFFFFF",
-                      opacity: allDone && slot.key === lastActiveSlot ? 1 : 0,
-                      transform: allDone && slot.key === lastActiveSlot ? "scale(1)" : "scale(0.95)",
+                      opacity: overallDone && slot.key === lastActiveSlot ? 1 : 0,
+                      transform: overallDone && slot.key === lastActiveSlot ? "scale(1)" : "scale(0.95)",
                       transition: "opacity 0.3s ease, transform 0.3s ease",
                     }}
                   >
