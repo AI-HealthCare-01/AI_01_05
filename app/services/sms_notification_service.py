@@ -280,7 +280,7 @@ async def get_active_medication_users(redis_client: Redis) -> list[dict]:
 
     for user_id, slots in user_slots.items():
         user = user_map.get(user_id)
-        if not user or not user.phone_number:
+        if not user or not user.phone_number or not user.sms_agreed:
             continue
 
         for time_slot, medicines in slots.items():

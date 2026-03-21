@@ -158,6 +158,7 @@ type FieldErrors = Partial<Record<keyof FormFields, string>>;
 type ProfileFormValues = FormFields & {
   gender: UserMe["gender"];
   marketing_agreed: boolean;
+  sms_agreed: boolean;
 };
 
 function validateField(field: keyof FormFields, value: string | null): string | null {
@@ -344,6 +345,7 @@ export function MyPage() {
     birthday: null,
     gender: "UNKNOWN",
     marketing_agreed: false,
+    sms_agreed: false,
   });
   const [initialValues, setInitialValues] = useState(formValues);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -363,7 +365,8 @@ export function MyPage() {
     formValues.email !== initialValues.email ||
     formValues.birthday !== initialValues.birthday ||
     formValues.gender !== initialValues.gender ||
-    formValues.marketing_agreed !== initialValues.marketing_agreed;
+    formValues.marketing_agreed !== initialValues.marketing_agreed ||
+    formValues.sms_agreed !== initialValues.sms_agreed;
 
   useEffect(() => {
     const load = async () => {
@@ -380,6 +383,7 @@ export function MyPage() {
             birthday: u.birthday,
             gender: u.gender,
             marketing_agreed: u.marketing_agreed,
+            sms_agreed: u.sms_agreed,
           };
           setFormValues(vals);
           setInitialValues(vals);
@@ -418,6 +422,7 @@ export function MyPage() {
         birthday: formValues.birthday || null,
         gender: formValues.gender,
         marketing_agreed: formValues.marketing_agreed,
+        sms_agreed: formValues.sms_agreed,
       });
       setUserInfo(updated);
       setInitialValues(formValues);
@@ -610,6 +615,67 @@ export function MyPage() {
                 style={{ ...inputStyle, borderColor: fieldErrors.birthday ? COLORS.error : COLORS.border }}
               />
               {fieldErrors.birthday && <span style={{ fontSize: 12, color: COLORS.error }}>{fieldErrors.birthday}</span>}
+            </div>
+
+            <div style={fieldWrapStyle}>
+              <span style={labelStyle}>복약 알림 문자 수신 동의</span>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  border: `1px solid ${COLORS.border}`,
+                  background: "#fff",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 14, color: COLORS.text }}>상태</span>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: formValues.sms_agreed ? "#166534" : COLORS.subText,
+                      background: formValues.sms_agreed ? "#dcfce7" : "#f3f4f6",
+                      borderRadius: 999,
+                      padding: "4px 8px",
+                    }}
+                  >
+                    {formValues.sms_agreed ? "동의" : "미동의"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormValues((p) => ({ ...p, sms_agreed: !p.sms_agreed }))
+                  }
+                  aria-pressed={formValues.sms_agreed}
+                  aria-label="복약 알림 문자 수신 동의"
+                  style={{
+                    width: 46,
+                    height: 28,
+                    border: "none",
+                    borderRadius: 999,
+                    padding: 2,
+                    cursor: "pointer",
+                    background: formValues.sms_agreed ? COLORS.buttonBg : "#d1d5db",
+                    transition: "background 0.2s ease",
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "block",
+                      width: 24,
+                      height: 24,
+                      borderRadius: "50%",
+                      background: "#fff",
+                      transform: formValues.sms_agreed ? "translateX(18px)" : "translateX(0)",
+                      transition: "transform 0.2s ease",
+                    }}
+                  />
+                </button>
+              </div>
             </div>
 
             <div style={fieldWrapStyle}>
