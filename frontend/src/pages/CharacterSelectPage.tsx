@@ -18,6 +18,7 @@ const CHARACTERS = [
 export default function CharacterSelectPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const from = (location.state as { from?: string } | null)?.from
   const setSelectedCharacter = useAuthStore((s) => s.setSelectedCharacter)
 
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -46,7 +47,6 @@ export default function CharacterSelectPage() {
         ? await selectCharacter(selectedId)
         : await changeCharacter(selectedId)
       setSelectedCharacter({ id: result.character_id, name: result.name, imageUrl: selectedChar.image })
-      const from = (location.state as { from?: string } | null)?.from
       navigate(from === 'mypage' ? '/mypage' : '/main', { replace: true })
     } catch (e: unknown) {
       const err = e as { detail?: string }
@@ -58,7 +58,16 @@ export default function CharacterSelectPage() {
 
   return (
     <div className="character-select-page">
-      <header className="cs-header">
+      <header className="cs-header" style={{ position: 'relative' }}>
+        {from === 'mypage' && (
+          <button
+            type="button"
+            onClick={() => navigate('/mypage')}
+            style={{ position: 'absolute', top: 16, left: 16, zIndex: 1 }}
+          >
+            ← 뒤로
+          </button>
+        )}
         <p className="cs-main-copy">
           오늘부터 마음을 나눌<br />다정한 친구를 골라주세요
         </p>
