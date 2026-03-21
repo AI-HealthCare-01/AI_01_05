@@ -1118,8 +1118,8 @@ export default function MainPage() {
                     display: "flex",
                     flexDirection: "column",
                     minHeight: 220,
-                    opacity: allDone && slot.key !== lastActiveSlot ? 0.5 : 1,
-                    filter: allDone && slot.key !== lastActiveSlot ? "grayscale(40%)" : "none",
+                    opacity: (allDone && slot.key !== lastActiveSlot) || total === 0 ? 0.5 : 1,
+                    filter: (allDone && slot.key !== lastActiveSlot) || total === 0 ? "grayscale(40%)" : "none",
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -1378,7 +1378,14 @@ export default function MainPage() {
                     })}
 
                   {medications.length === 0 && (
-                    <div style={{ fontSize: 14, color: "#757575" }}>등록된 약이 없습니다.</div>
+                    <>
+                      <div style={{ ...pawStampStyle }}>
+                        🐾
+                      </div>
+                      <div style={{ fontSize: 14, color: "#757575", position: "relative", zIndex: 6 }}>
+                        등록된 약이 없습니다.
+                      </div>
+                    </>
                   )}
                 </div>
                 {/* 배너 placeholder - 항상 동일한 높이 차지 */}
