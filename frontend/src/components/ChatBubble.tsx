@@ -166,19 +166,35 @@ export default function ChatBubble({ message, petImage, isHistory, onWord }: Cha
       {isUser && <span style={{ ...timeStyle, marginRight: 6 }}>{timeStr}</span>}
 
       <div style={bubbleStyle}>
-        <ReactMarkdown
-          components={{
-            p: ({ children }) => <span style={{ display: "block", marginBottom: 0 }}>{children}</span>,
-            ul: ({ children }) => <ul style={{ margin: "0", paddingLeft: 16, lineHeight: 1.6 }}>{children}</ul>,
-            ol: ({ children }) => <ol style={{ margin: "0", paddingLeft: 16, lineHeight: 1.6 }}>{children}</ol>,
-            li: ({ children }) => <li style={{ marginBottom: 1 }}>{children}</li>,
-            strong: ({ children }) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
-            h3: ({ children }) => <strong style={{ display: "block", fontSize: 14, fontWeight: 700, marginTop: 2 }}>{children}</strong>,
-            h2: ({ children }) => <strong style={{ display: "block", fontSize: 15, fontWeight: 700, marginTop: 2 }}>{children}</strong>,
-          }}
-        >
-          {addSpaceBeforeClosing(displayed.replace(/\n{2,}/g, '\n'))}
-        </ReactMarkdown>
+        {message.isStatusLoading ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div
+              style={{
+                width: 14,
+                height: 14,
+                border: "2px solid #D1D5DB",
+                borderTopColor: "#6B7F5E",
+                borderRadius: "50%",
+                animation: "spin 0.8s linear infinite",
+              }}
+            />
+            <span style={{ fontSize: 13, color: "#6B7F5E" }}>{displayed || "정보 검색 중..."}</span>
+          </div>
+        ) : (
+          <ReactMarkdown
+            components={{
+              p: ({ children }) => <p style={{ margin: 0, marginBottom: 8, lineHeight: 1.6 }}>{children}</p>,
+              ul: ({ children }) => <ul className="chat-list" style={{ margin: 0, marginTop: 2, marginBottom: 4, paddingLeft: "1.2em", listStyleType: "disc" }}>{children}</ul>,
+              ol: ({ children }) => <ol className="chat-list" style={{ margin: 0, marginTop: 2, marginBottom: 4, paddingLeft: "1.2em" }}>{children}</ol>,
+              li: ({ children }) => <li className="chat-li" style={{ margin: 0, padding: 0, lineHeight: 1.4 }}>{children}</li>,
+              strong: ({ children }) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
+              h3: ({ children }) => <strong style={{ display: "block", fontSize: 14, fontWeight: 700, marginTop: 8, marginBottom: 4 }}>{children}</strong>,
+              h2: ({ children }) => <strong style={{ display: "block", fontSize: 15, fontWeight: 700, marginTop: 8, marginBottom: 4 }}>{children}</strong>,
+            }}
+          >
+            {displayed}
+          </ReactMarkdown>
+        )}
       </div>
 
       {/* 봇 메시지: 시간 오른쪽 */}

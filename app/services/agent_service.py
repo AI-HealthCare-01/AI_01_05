@@ -318,31 +318,117 @@ class AgentState(TypedDict):
 # ── System Prompt ─────────────────────────────────────────────
 AGENT_SYSTEM_PROMPT = """AI 약사 어시스턴트입니다. 안전 판단이 최우선입니다.
 
-## 도구 사용 (필요한 경우만)
-- 약물 조합/상호작용 질문 → query_knowledge_graph
-- 복용 시간 질문 → get_medication_schedule_sync
-- 약 효능/부작용/용법 질문 → search_drug_info
-- 브랜드명↔성분명, "XX 주성분", ATC분류 → search_drug_meta
-- 병용금기/임부금기/노인주의 → search_safety
-- 질환명/상병코드 질문 → search_disease
-- 음식-약물 질문 → search_food_drug_sync
-- 성분 부작용 통계 → lookup_adverse
+## 🚨 절대 규칙: 반드시 Tool을 먼저 호출하라
+- 약물 관련 질문에는 **자체 지식만으로 답변 절대 금지**
+- 반드시 아래 도구를 먼저 호출한 후, **Tool 결과 데이터만** 사용하여 답변할 것
+- Tool 호출 없이 "~입니다", "~알려드릴게요" 같은 답변 금지
+- Tool 결과에 없는 정보를 지어내지 마라. 결과가 부족하면 "확인되지 않았습니다"라고 답해라
 
-⚡ 도구 없이 답변 가능하면 바로 답변하세요. 도구는 최대 1-2개만 호출.
+## 도구 선택 가이드 (정확히 따를 것)
 
-## 주성분/성분 질문 응답 규칙
-"XX 주성분", "XX 성분이 뭐야" 질문 시 search_drug_meta 결과에서:
-- 같은 브랜드명으로 여러 제품이 있으면 최대 4개까지 각각 정리
-- 제품명과 주성분 목록을 번호로 나열
-- 예시:
-  1. 판피린티정: 아세트아미노펜, 카페인무수물, 클로르페니라민말레산염
-  2. 판피린큐액: 아세트아미노펜, dl-메틸에페드린염산염, ...
-  3. 판피린에이액: ...
+| 질문 패턴 | 사용할 Tool |
+|-----------|------------|
+| "XX 주성분", "XX 성분이 뭐야", "XX 뭐로 만들어" | **search_drug_meta** (필수) |
+| 약 외형/색상/각인/모양 ("흰색", "GM 각인", "동그란 약") | **search_drug_info** (필수! 낱알식별 데이터에 외형정보 있음) |
+| 브랜드명↔성분명 매핑, ATC 분류 | **search_drug_meta** |
+| 약물 효능/용법/용량/이상반응 일반 질문 | search_drug_info |
+| **임산부/임부/수유부** + 약물 | **search_safety** (필수! 최우선!) |
+| 병용금기/노인주의/용량주의 | search_safety |
+| 약물 조합/상호작용 | query_knowledge_graph |
+| 음식+약물 ("술", "자몽", "우유") | search_food_drug_sync |
+| 복용 시간/스케줄 | get_medication_schedule_sync |
+| 질환명/상병코드 | search_disease |
+
+## 음식-약물 상호작용 응답 규칙
+"XX랑 XX 같이 먹어도 돼?" 패턴에서 음식(자몽, 우유, 술 등)이 포함되면:
+1. search_food_drug_sync를 호출하고, 추가로 search_drug_info도 호출하여 해당 약물의 주의사항에서 음식 관련 정보를 찾아라
+2. Tool 결과를 바탕으로 **구체적인 상호작용 메커니즘**을 설명하라
+   - 예: "자몽주스는 CYP3A4 효소를 억제하여 약물 혈중 농도를 높일 수 있습니다"
+3. "주의가 필요합니다"로만 끝내지 말고, 어떤 위험이 있는지, 시간 간격을 두면 되는지 등 실질적 조언을 포함하라
+
+## 주성분/성분 질문 응답 규칙 (매우 중요)
+"XX 주성분", "XX 성분이 뭐야" 질문 시:
+1. 반드시 **search_drug_meta**를 호출하라 (search_drug_info 아님!)
+2. Tool 결과에서 같은 브랜드명으로 여러 제품이 있으면 **전부 나열** (최대 4~5개)
+3. 각 제품별로 제품명을 볼드로 쓰고, 성분은 **한 줄에 하나씩** - 기호로 나열
+4. 필수 형식:
+
+[브랜드]의 주성분은 다음과 같습니다:
+
+1. **판피린티정**:
+   - 아세트아미노펜
+   - 카페인무수물
+   - 클로르페니라민말레산염
+
+2. **판피린큐액**:
+   - 아세트아미노펜
+   - dl-메틸에페드린염산염
+   - 티페피딘시트르산염
+   - 구아이페네신
+   - 카페인무수물
+   - 클로르페니라민말레산염
+
+[마무리 문장]
+
+5. 성분을 쉼표(,)로 한 줄에 나열하지 마라. 반드시 줄바꿈하여 - 기호로 하나씩 나열
+
+## 약 외형/각인 질문 응답 규칙
+"흰색에 XX라고 적힌 약", "동그란 하얀 약" 등 외형 질문 시:
+1. 반드시 **search_drug_info**를 호출하라 (낱알식별 데이터에 색상/각인/모양 정보가 있음)
+2. 검색 쿼리에 색상+각인을 포함하라
+   - 예: 사용자가 "흰색에 GM 적힌 약"이라고 하면 → search_drug_info(query="하양색 GM", top_k=5)
+3. 주사제, 주사액, 앰플, 바이알 결과는 제외하고 정제/캡슐/연질캡슐만 답변에 포함
+4. Tool 결과에서 매칭되는 약물의 제품명, 약효분류, 제조사, 외형 특징을 구체적으로 나열
+5. 결과가 여러 개면 전부 번호 매겨서 나열
+6. 결과가 부정확하거나 부족하면, 사용자에게 추가 정보를 요청하라:
+   - "혹시 약의 모양(원형, 타원형, 장방형)도 알 수 있을까요?"
+   - "분할선이 있나요?"
+
+## 🚫 임부/임산부 관련 규칙 (절대 규칙)
+임산부/임부/수유부가 약물 복용을 물어보면:
+1. **반드시 search_safety를 호출**하여 임부금기 여부를 확인하라
+2. Tool 결과를 바탕으로 **구체적인 위험성**을 설명하라 (예: 태아 기형, 조산 위험 등)
+3. **절대로 "의사와 상담하세요"로만 끝내지 마라** — 먼저 위험성을 명확히 경고한 후 상담을 권유
+4. 임부금기 약물 응답 톤 예시:
+   "⚠️ 졸피뎀(스틸녹스)은 임산부 금기 약물입니다.
+   태반을 통과하여 태아에게 영향을 줄 수 있으며, 신생아에게 호흡 억제, 저체온, 근긴장 저하 등의
+   위험이 보고되어 있습니다.
+   임신 중에는 절대 복용하지 마시고, 반드시 담당 의사와 상의하여 안전한 대안을 찾으세요."
+5. **red_alert=true 필수 설정**
+6. "충분한 연구가 이루어지지 않았기 때문에" 같은 애매한 표현 금지 → 구체적 위험을 말하라
+
+## 답변 포맷팅 규칙 (최우선 - 절대 어기지 마라)
+
+### 핵심 규칙: 목록의 마지막 항목 다음에 반드시 빈 줄 2개(\\n\\n)를 넣어라
+
+모든 목록형 답변은 아래 구조를 정확히 따라라:
+---
+[도입 문장]\\n\\n
+[항목 1]\\n\\n
+[항목 2]\\n\\n
+...
+[마지막 항목]\\n\\n
+[요약/설명 문장]\\n\\n
+[마무리 인사]
+---
+
+### 금지 패턴 (이렇게 쓰면 안 됨):
+"4. 판피린에이액: 아세트아미노펜, ..., 클로르페니라민말레산염\\n각 제품마다 주성분이 다르니 참고하세요!"
+
+→ 마지막 항목에 마무리가 바로 붙어있음. 절대 금지!
+
+### 필수 패턴 (반드시 이렇게):
+"4. 판피린에이액: 아세트아미노펜, ..., 클로르페니라민말레산염\\n\\n각 제품마다 주성분이 다르므로, 필요에 따라 선택하시면 됩니다.\\n\\n더 궁금한 점이 있으면 언제든지 말씀해 주세요!"
+
+→ 항목 뒤 빈 줄, 설명 뒤 빈 줄, 인사 순서
+
+### answer 문자열에서 \\n\\n 사용을 두려워하지 마라. 빈 줄이 많아도 괜찮다.
 
 ## 안전 기준
 - 위기 표현(자살, 자해) → is_flagged=true
 - DANGER 상호작용 → red_alert=true
 - 알코올+진정제 조합 → red_alert=true
+- 임부금기 약물 → red_alert=true
 
 {persona_prompt}
 
@@ -379,7 +465,10 @@ def create_agent(character_id: int | None = None) -> StateGraph:
         temperature=0.7,
         api_key=os.getenv("OPENAI_API_KEY"),
     )
-    llm_with_tools = llm.bind_tools(ALL_TOOLS)
+    # 첫 번째 호출: Tool 사용 강제 (tool_choice="required")
+    llm_force_tools = llm.bind_tools(ALL_TOOLS, tool_choice="required")
+    # 후속 호출: Tool 선택적 (tool_choice="auto")
+    llm_with_tools = llm.bind_tools(ALL_TOOLS, tool_choice="auto")
 
     tool_node = ToolNode(ALL_TOOLS)
 
@@ -410,7 +499,9 @@ def create_agent(character_id: int | None = None) -> StateGraph:
         if not any(isinstance(m, SystemMessage) for m in messages):
             messages = [SystemMessage(content=system_prompt)] + list(messages)
 
-        response = llm_with_tools.invoke(messages)
+        # 첫 번째 호출은 Tool 강제, 이후는 선택적
+        llm_to_use = llm_force_tools if iteration == 0 else llm_with_tools
+        response = llm_to_use.invoke(messages)
         return {
             "messages": [response],
             "iteration_count": iteration + 1,
@@ -441,6 +532,85 @@ def create_agent(character_id: int | None = None) -> StateGraph:
     return graph.compile()
 
 
+def _fix_answer_formatting(answer: str) -> str:
+    """목록 마지막 항목 뒤에 빈 줄이 없으면 강제로 추가하는 후처리.
+
+    LLM이 "5. 판피린에이액: 성분들 각 제품마다 주성분이..." 처럼
+    같은 줄에 목록 항목과 마무리 문장을 붙여서 보내는 경우도 처리한다.
+    """
+    import re
+
+    if not answer:
+        return answer
+
+    # 1단계: 마무리 문장 패턴 앞에 빈 줄 삽입 (같은 줄에 붙어있는 경우)
+    # 이 패턴들이 목록 항목 텍스트 바로 뒤에 공백 하나로 붙어있는 경우를 잡음
+    closing_patterns = [
+        r'(?<=[다요죠임됨음]) (각 제품마다)',
+        r'(?<=[다요죠임됨음]) (이 정보가 도움)',
+        r'(?<=[다요죠임됨음]) (더 궁금한 점)',
+        r'(?<=[다요죠임됨음]) (궁금한 점이)',
+        r'(?<=[다요죠임됨음]) (혹시 약의 모양)',
+        r'(?<=[다요죠임됨음]) (추가로 궁금)',
+        r'(?<=[다요죠임됨음]) (필요한 정보가)',
+        r'(?<=[다요죠임됨음]) (이외에도)',
+        r'(?<=[다요죠임됨음]) (위 약물들은)',
+        r'(?<=[다요죠임됨음]) (아세트아미노펜은)',
+        r'(?<=[다요죠임됨음]) (따라서)',
+        r'(?<=[다요죠임됨음]) (이 약물)',
+        r'(?<=[다요죠임됨음]) (해당 약물)',
+    ]
+
+    for pattern in closing_patterns:
+        answer = re.sub(pattern, r'\n\n\1', answer)
+
+    # 2단계: 줄 단위로 처리 - 목록 항목 뒤에 일반 텍스트가 오면 빈 줄 삽입
+    lines = answer.split('\n')
+    result = []
+
+    for i, line in enumerate(lines):
+        result.append(line)
+
+        if i < len(lines) - 1:
+            current_stripped = line.strip()
+            next_stripped = lines[i + 1].strip()
+
+            # 현재 줄이 번호 목록 항목인지 (1. 2. 3. 등)
+            is_current_numbered = bool(re.match(r'^\d+[\.\)]\s', current_stripped))
+
+            # 현재 줄이 하위 항목(- 또는 *)인지
+            is_current_sub = bool(re.match(r'^[-*]\s', current_stripped))
+
+            # 다음 줄이 하위 항목(- 또는 *)인지
+            is_next_sub = bool(re.match(r'^[-*]\s', next_stripped))
+
+            # 다음 줄이 빈 줄이 아니고, 목록도 아닌 일반 텍스트인지
+            is_next_normal = (
+                next_stripped and
+                not re.match(r'^(\d+[\.\)]\s|[-*]\s)', next_stripped) and
+                not next_stripped.startswith('#')
+            )
+
+            # 하위 항목(-) 뒤에 다음 하위 항목(-)이 오면 → 빈 줄 넣지 않음
+            if is_current_sub and is_next_sub:
+                continue
+
+            # 번호 목록 항목 뒤에 일반 텍스트가 오면 빈 줄 삽입
+            if is_current_numbered and is_next_normal:
+                result.append('')
+
+            # 하위 항목(-) 뒤에 일반 텍스트(마무리 문장)가 오면 빈 줄 삽입
+            if is_current_sub and is_next_normal:
+                result.append('')
+
+    # 3단계: 하위 항목(-) 사이의 불필요한 빈 줄 제거
+    # LLM이 "- 아세트아미노펜\n\n- 카페인무수물" 처럼 빈 줄을 넣는 경우 정리
+    cleaned = '\n'.join(result)
+    # - 항목과 - 항목 사이의 빈 줄(들)을 단일 줄바꿈으로 축소
+    cleaned = re.sub(r'(\n\s*-\s[^\n]+)\n\n+(\s*-\s)', r'\1\n\2', cleaned)
+    return cleaned
+
+
 def parse_llm_response(content: str) -> LLMChatResponse:
     """LLM 응답에서 JSON 파싱하여 LLMChatResponse 반환."""
     try:
@@ -458,18 +628,20 @@ def parse_llm_response(content: str) -> LLMChatResponse:
         else:
             # JSON 형식이 아니면 answer로 사용
             return LLMChatResponse(
-                answer=content,
+                answer=_fix_answer_formatting(content),
                 is_flagged=False,
                 red_alert=False,
                 reasoning="비구조화 응답",
             )
 
         data = json.loads(json_str)
+        if "answer" in data:
+            data["answer"] = _fix_answer_formatting(data["answer"])
         return LLMChatResponse.model_validate(data)
 
     except (json.JSONDecodeError, ValueError) as e:
         logger.warning("LLM 응답 파싱 실패: %s", e)
-        return LLMChatResponse.safe_default(answer=content if content else "응답 생성 실패")
+        return LLMChatResponse.safe_default(answer=_fix_answer_formatting(content) if content else "응답 생성 실패")
 
 
 def _build_agent_context(
@@ -479,7 +651,9 @@ def _build_agent_context(
     intimacy: str,
     user_id: int | None,
 ) -> str:
-    """Agent용 컨텍스트 문자열 생성."""
+    """Agent용 컨텍스트 문자열 생성. 외형/각인 질문 시 선제 검색 결과 포함."""
+    import re
+
     context_parts = [f"[친밀도: {intimacy}]"]
     if user_id:
         context_parts.append(f"[사용자 ID: {user_id}]")
@@ -487,6 +661,100 @@ def _build_agent_context(
         context_parts.append(f"사용자 닉네임: {nickname}")
     if user_drugs:
         context_parts.append(f"복용 중인 약: {', '.join(user_drugs)}")
+
+    # 외형/각인 질문 감지 및 선제 검색
+    appearance_keywords = ["적힌", "각인", "적인", "새겨진", "찍힌", "써있는", "써져있는", "적혀있는"]
+    color_keywords = ["흰색", "하얀", "하양", "백색", "노란", "노랑", "분홍", "빨간", "파란", "초록", "갈색", "주황", "보라"]
+
+    has_appearance = any(kw in user_message for kw in appearance_keywords)
+    has_color = any(kw in user_message for kw in color_keywords)
+
+    if has_appearance or (has_color and any(c.isalpha() and c.isupper() for c in user_message)):
+        # 외형/각인 질문으로 판단 → 직접 검색
+        from app.services.drug_agent import search_drug_info as _search_drug_info
+
+        # 색상 한글화
+        color_map = {"흰색": "하양색", "하얀": "하양색", "백색": "하양색", "노란": "노랑색", "분홍": "분홍색"}
+        query_parts = []
+        for ck in color_keywords:
+            if ck in user_message:
+                query_parts.append(color_map.get(ck, ck))
+                break
+
+        # 영문 각인 추출 (대문자 연속)
+        eng_match = re.findall(r'[A-Z]{1,10}', user_message)
+        if eng_match:
+            query_parts.extend(eng_match)
+
+        # 숫자 각인 추출
+        num_match = re.findall(r'\d+', user_message)
+        if num_match:
+            query_parts.extend(num_match)
+
+        if query_parts and eng_match:
+            # 각인이 있는 경우: 전체 데이터에서 직접 정확 매칭 검색
+            import pickle as _pickle
+            import json as _json
+            import re as _re
+
+            search_query = ' '.join(query_parts)
+            logger.info(f"[외형 선제검색] query={search_query}")
+
+            # drug_info 인덱스에서 직접 검색
+            meta_path = os.path.join("data/faiss", "drug_info_meta.pkl")
+            if os.path.exists(meta_path):
+                with open(meta_path, "rb") as f:
+                    store = _pickle.load(f)
+
+                filtered = []
+                for i, sentence in enumerate(store["sentences"]):
+                    # 각 각인 문자가 독립적으로 존재하는지 확인
+                    has_all_eng = True
+                    for eng in eng_match:
+                        # 'GM' 단독 매칭 (GM12, WGM 등 제외)
+                        pattern = rf"(?<![A-Za-z0-9]){_re.escape(eng)}(?![A-Za-z0-9])"
+                        if not _re.search(pattern, sentence):
+                            has_all_eng = False
+                            break
+
+                    if has_all_eng:
+                        # 색상 매칭도 확인 (있으면)
+                        color_ok = True
+                        if query_parts and query_parts[0] != eng_match[0]:
+                            color_term = query_parts[0]  # "하양색" 등
+                            # 색상 부분만 추출 ("하양색" → "하양")
+                            color_base = color_term.replace("색", "")
+                            if color_base not in sentence:
+                                color_ok = False
+
+                        if color_ok:
+                            filtered.append({
+                                "score": 1.0,
+                                "type": store["metadata"][i].get("type", ""),
+                                "sentence": sentence[:300],
+                            })
+
+                if filtered:
+                    search_result = _json.dumps(filtered[:5], ensure_ascii=False, indent=2)
+                    logger.info(f"[외형 선제검색] 직접 검색 결과: {len(filtered)}건 (상위 5건 전달)")
+                    context_parts.append(f"\n[사전 검색 결과 - 외형/각인 검색 '{search_query}']\n{search_result}")
+                    context_parts.append(
+                        "위 검색 결과를 바탕으로 답변해주세요. 추가 Tool 호출 없이 위 결과만 사용해도 됩니다.\n"
+                        "중요: 사용자가 물어본 각인 문자가 앞면 또는 뒷면에 독립적으로 각인된 약물만 포함하세요.\n"
+                        "독립적이란: 각인 필드에 해당 문자만 단독으로 있는 경우.\n"
+                        "정확히 매칭되는 결과가 2개 이하여도 그것만 답변하면 됩니다."
+                    )
+                else:
+                    logger.info("[외형 선제검색] 정확 매칭 결과 없음")
+        elif query_parts:
+            # 각인 없이 색상/모양만 있는 경우: 기존 search_drug_info 사용
+            from app.services.drug_agent import search_drug_info as _search_drug_info
+            search_query = ' '.join(query_parts)
+            logger.info(f"[외형 선제검색] query={search_query} (색상/모양만)")
+            search_result = _search_drug_info(search_query, top_k=5)
+            context_parts.append(f"\n[사전 검색 결과 - 외형 검색 '{search_query}']\n{search_result}")
+            context_parts.append("위 검색 결과를 바탕으로 답변해주세요.")
+
     context_parts.append(f"\n질문: {user_message}")
     return "\n".join(context_parts)
 

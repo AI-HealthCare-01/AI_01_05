@@ -242,6 +242,21 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   }
 }
 
+/* ── 채팅 말풍선 리스트 간격 (ReactMarkdown) ── */
+.chat-list {
+  line-height: 1.4;
+}
+.chat-li {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.chat-li p,
+.chat-li span {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.4 !important;
+}
+
 /* ══════════════════════════════════════════════════════════════
    캘린더 — CSS 커스텀 프로퍼티 + 스타일
    ══════════════════════════════════════════════════════════════ */

@@ -24,6 +24,7 @@ export interface Message {
   content: string;
   timestamp: Date;
   warningLevel?: "Normal" | "Caution" | "Critical";
+  isStatusLoading?: boolean; // true면 로딩 중 상태 메시지
 }
 
 export interface ChatState {

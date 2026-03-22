@@ -30,7 +30,7 @@ type ApiSlot = "MORNING" | "LUNCH" | "EVENING" | "BEDTIME";
 type MoodBySlot = Record<UiSlot, number | null>;
 
 type MedicationUiItem = {
-  id: number;
+  id: string;  // medicationId_timeSlot 복합키 (고유성 보장)
   medicationId: number;
   itemSeq: string;
   name: string;
@@ -492,7 +492,7 @@ export default function MainPage() {
   const fetchTodayMedications = async () => {
     const res = await getHomeMedicationsToday();
     const mapped: MedicationUiItem[] = (res?.items ?? []).map((item: HomeMedicationItem) => ({
-      id: item.medicationId,
+      id: `${item.medicationId}_${item.timeSlot}`,  // 복합키로 고유성 보장
       medicationId: item.medicationId,
       itemSeq: item.itemSeq,
       name: item.name,

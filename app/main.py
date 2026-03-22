@@ -32,7 +32,7 @@ async def lifespan(app):
     yield
 
     # 앱 종료 시 정리
-    await stop_scheduler()
+    await stop_scheduler(redis_client)
     await redis_client.aclose()
 
 
