@@ -65,7 +65,7 @@ COLOR_ALIASES = {
 
 
 # ── 핵심 검색 함수 ────────────────────────────────────────
-def _keyword_search(query: str, index_name: str, top_k: int = 5) -> list[dict]:
+def _keyword_search(query: str, index_name: str, top_k: int = 5) -> list[dict]:  # noqa: C901
     """메타데이터의 품목명/제품명/브랜드명 + sentence에서 키워드 exact match 검색"""
     if index_name not in _stores:
         return []
