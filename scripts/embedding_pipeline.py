@@ -1,3 +1,4 @@
+# ruff: noqa: N802, N803, N806, C901, B007, E701, B905
 """
 약물 정보 임베딩 파이프라인 v2
 12개 CSV → 문장화 → OpenAI 임베딩 → FAISS .index 저장
@@ -27,12 +28,13 @@
 """
 
 import os
-import re
 import pickle
+import re
+
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 from openai import OpenAI
+from tqdm import tqdm
 
 # ── 설정 ──────────────────────────────────────────────
 DATA_DIR        = "./data"
@@ -588,7 +590,7 @@ def process_dur_동일성분중복() -> tuple:
 
     sentences, metadata = [], []
     # 성분코드 컬럼 목록
-    성분코드_cols = [c for c in df.columns if c.startswith("DUR성분코드")]
+    _성분코드_cols = [c for c in df.columns if c.startswith("DUR성분코드")]  # noqa: F841
     성분명_cols   = [c for c in df.columns if c.startswith("DUR성분명")]
 
     for _, row in df.iterrows():
@@ -677,7 +679,7 @@ def process_dur_수유부주의() -> tuple:
 
     for _, row in df.iterrows():
         성분명 = clean(str(row.get("성분명", "") or ""))
-        제품명 = clean(str(row.get("제품명", "") or ""))
+        _제품명 = clean(str(row.get("제품명", "") or ""))  # noqa: F841
         비고   = clean(str(row.get("비고", "") or ""))
 
         if not 성분명:
@@ -877,7 +879,8 @@ def build_safety_index():
     df_byg = read_csv("DUR_병용금기.csv")
     s, m = process_dur_병용금기(df_byg)
     print(f"  DUR_병용금기: {len(s):,}문장 (양방향)")
-    all_s += s; all_m += m
+    all_s += s
+    all_m += m
 
     for dur_type, fname in {
         "노인주의":      "DUR_노인주의.csv",
@@ -891,20 +894,24 @@ def build_safety_index():
         df = read_csv(fname)
         s, m = process_dur_단일성분(df, dur_type)
         print(f"  DUR_{dur_type}: {len(s):,}문장")
-        all_s += s; all_m += m
+        all_s += s
+        all_m += m
 
     # 신규 DUR 3종 (xlsx)
     s, m = process_dur_동일성분중복()
     print(f"  DUR_동일성분중복: {len(s):,}문장")
-    all_s += s; all_m += m
+    all_s += s
+    all_m += m
 
     s, m = process_dur_분할주의()
     print(f"  DUR_분할주의: {len(s):,}문장")
-    all_s += s; all_m += m
+    all_s += s
+    all_m += m
 
     s, m = process_dur_수유부주의()
     print(f"  DUR_수유부주의: {len(s):,}문장")
-    all_s += s; all_m += m
+    all_s += s
+    all_m += m
 
     print("\n  이상사례 성분 → adverse_lookup.pkl (FAISS 제외)")
     process_adverse_lookup()
@@ -1025,7 +1032,7 @@ def process_drug_meta() -> tuple:
     for _, row in tqdm(df.iterrows(), total=len(df), desc="의약품허가상세정보"):
         품목명   = clean(str(row.get("품목명", "") or ""))
         주성분명  = _parse_주성분명(row.get("주성분명", ""))
-        원료성분  = clean(str(row.get("원료성분", "") or ""))
+        _원료성분  = clean(str(row.get("원료성분", "") or ""))  # noqa: F841
         영문성분  = clean(str(row.get("영문성분명", "") or ""))
         atc     = clean(str(row.get("ATC코드", "") or ""))
         성상     = clean(str(row.get("성상", "") or ""))
@@ -1047,10 +1054,10 @@ def process_drug_meta() -> tuple:
         # ── 문장 1: 품목 식별 문장 (브랜드명 + 성분 + 분류) ──
         # 마약류·희귀의약품은 prefix로 분리해 검색 가중치 확보
         if 마약류 and 마약류 not in ("NaN", "N", ""):
-            tag_prefix = f"[의약품허가/마약류]"
+            tag_prefix = "[의약품허가/마약류]"
             parts = [tag_prefix, f"마약류분류: {마약류}", f"품목명: {품목명}"]
         elif 희귀 == "Y":
-            tag_prefix = f"[의약품허가/희귀의약품]"
+            tag_prefix = "[의약품허가/희귀의약품]"
             parts = [tag_prefix, "희귀의약품", f"품목명: {품목명}"]
         else:
             parts = ["[의약품허가]", f"품목명: {품목명}"]
@@ -1174,7 +1181,7 @@ def run_test_suite(top_k: int = 3):
         ("마약류 수면제",                                     "drug_meta",  "★v4 마약류 분류 검색"),
     ]
 
-    INDEX_ALL_V4 = ["drug_info", "safety", "disease", "drug_meta"]
+    _INDEX_ALL_V4 = ["drug_info", "safety", "disease", "drug_meta"]  # noqa: F841
     for query, index_name, desc in cases:
         idx_path = os.path.join(OUTPUT_DIR, f"{index_name}.index")
         if not os.path.exists(idx_path):
@@ -1190,7 +1197,6 @@ def run_test_suite(top_k: int = 3):
 
 if __name__ == "__main__":
     import argparse
-    import glob
 
     parser = argparse.ArgumentParser(
         description="약물 임베딩 파이프라인 v2",
