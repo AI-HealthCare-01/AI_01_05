@@ -255,11 +255,25 @@ class DiaryReportService:
         ).order_by("diary_date", "created_at")
         diary_texts = [diary.content for diary in diaries]
 
+        mood_rows = await Mood.filter(
+            user_id=user_id,
+            log_date__gte=start_date,
+            log_date__lte=end_date,
+        ).order_by("log_date", "time_slot")
+
+        slot_labels = {"MORNING": "아침", "LUNCH": "점심", "EVENING": "저녁", "BEDTIME": "취침전"}
+        mood_lines = [
+            f"{m.log_date} {slot_labels.get(m.time_slot, m.time_slot)}: {m.mood_level}/7"
+            for m in mood_rows
+        ]
+        mood_text = "\n".join(mood_lines)
+
         try:
             report_result = await self.llm_service.summarize_report(
                 diary_texts=diary_texts,
                 start_date=start_date.isoformat(),
                 end_date=end_date.isoformat(),
+                mood_text=mood_text,
             )
         except Exception:
             report_result = {

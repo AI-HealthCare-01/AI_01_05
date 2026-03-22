@@ -72,11 +72,22 @@ class Config(BaseSettings):
     CLOVA_OCR_INVOKE_URL: str = ""
 
     # LLM integration
-    # LLM_PROVIDER: "stub" | "openai"
-    LLM_PROVIDER: str = "stub"
-    LLM_API_KEY: str | None = None
-    LLM_MODEL: str = "gpt-4o-mini"
+    # OPENAI_API_KEY가 설정되어 있으면 openai, 없으면 stub
+    OPENAI_API_KEY: str | None = None
+    OPENAI_MODEL: str
     LLM_TIMEOUT_SECONDS: int = 60
+
+    @property
+    def LLM_PROVIDER(self) -> str:
+        return "openai" if self.OPENAI_API_KEY else "stub"
+
+    @property
+    def LLM_API_KEY(self) -> str | None:
+        return self.OPENAI_API_KEY
+
+    @property
+    def LLM_MODEL(self) -> str:
+        return self.OPENAI_MODEL
 
     # MFDS (식약처) e약은요 API
     # MFDS_API_KEY: "" → stub 모드 (빈 리스트 반환)
