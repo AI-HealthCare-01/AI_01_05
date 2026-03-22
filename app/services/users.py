@@ -5,6 +5,7 @@ from tortoise.transactions import in_transaction
 
 from app.dtos.users import UserUpdateRequest
 from app.models.character import UserCharacter
+from app.models.chat import ChatLog
 from app.models.user_medication import UserMedication
 from app.models.users import User
 from app.repositories.user_repository import UserRepository
@@ -34,6 +35,7 @@ class UserManageService:
         user_medications.medicine FK가 RESTRICT이므로 명시적 순서 필요.
         """
         async with in_transaction():
+            await ChatLog.filter(user_id=user.user_id).delete()
             await UserMedication.filter(user_id=user.user_id).delete()
             await UserCharacter.filter(user_id=user.user_id).delete()
             await user.delete()
