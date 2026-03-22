@@ -24,7 +24,7 @@ from app.models.users import User
 logger = logging.getLogger("dodaktalk.sms_notification")
 
 # SMS 메시지 템플릿
-SMS_TEMPLATE = "[도닥톡] {nickname}님, {time_label} 약 드실 시간이에요! {medicine_names}"
+SMS_TEMPLATE = "[도닥톡] {nickname}님, {time_label}약 드실 시간이에요! 복약 체크 하러 가기 → dodactalk.site"
 DEFAULT_SLOT_TIMES = {
     "MORNING": "06:00",
     "LUNCH": "11:00",

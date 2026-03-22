@@ -50,14 +50,23 @@ def _load_adverse():
 
 
 # 시작 시 전체 로드
-for n in ["drug_info", "safety", "disease"]:
+for n in ["drug_info", "safety", "disease", "drug_meta"]:
     _load(n)
 _adverse = _load_adverse()
 
 
+# ── 색상 동의어 매핑 ────────────────────────────────────────
+COLOR_ALIASES = {
+    "흰색": ["하양", "하얀", "백색", "흰"],
+    "하양": ["흰색", "하얀", "백색", "흰"],
+    "노란색": ["노랑", "황색"],
+    "분홍색": ["핑크", "분홍"],
+}
+
+
 # ── 핵심 검색 함수 ────────────────────────────────────────
-def _keyword_search(query: str, index_name: str, top_k: int = 5) -> list[dict]:
-    """메타데이터의 품목명/제품명/브랜드명에서 키워드 exact match 검색"""
+def _keyword_search(query: str, index_name: str, top_k: int = 5) -> list[dict]:  # noqa: C901
+    """메타데이터의 품목명/제품명/브랜드명 + sentence에서 키워드 exact match 검색"""
     if index_name not in _stores:
         return []
     store = _stores[index_name]
@@ -93,35 +102,76 @@ def _keyword_search(query: str, index_name: str, top_k: int = 5) -> list[dict]:
     if not keywords:
         return []
 
-    matched = []
+    # 색상 동의어 확장
+    expanded_keywords = list(keywords)
+    for kw in keywords:
+        for alias_key, aliases in COLOR_ALIASES.items():
+            if kw == alias_key or kw in aliases:
+                expanded_keywords.extend([alias_key] + aliases)
+    keywords = list(set(expanded_keywords))
+
+    # 매칭 점수 기반 검색: 더 많은 키워드가 매칭될수록 높은 점수
+    scored_matches = []
     for i, meta in enumerate(store["metadata"]):
         name = meta.get("품목명", "") or meta.get("제품명", "") or ""
         brand = meta.get("브랜드명", "") or ""
-        target = f"{name} {brand}"
-        if any(kw in target for kw in keywords):
-            matched.append(
+        sentence = store["sentences"][i] if i < len(store["sentences"]) else ""
+        target = f"{name} {brand} {sentence}"
+
+        # 각 키워드별 매칭 여부 확인
+        match_count = sum(1 for kw in keywords if kw in target)
+
+        if match_count > 0:
+            scored_matches.append(
                 {
-                    "score": 1.0,
+                    "score": match_count / len(keywords),  # 매칭 비율 (1.0 = 전부 매칭)
                     "type": meta.get("type", ""),
                     "sentence": store["sentences"][i][:300],
+                    "match_count": match_count,
                 }
             )
-            if len(matched) >= top_k:
-                break
-    return matched
+
+    # 매칭 점수 높은 순으로 정렬
+    scored_matches.sort(key=lambda x: x["match_count"], reverse=True)
+
+    # match_count 기반 필터: 키워드 2개 이상이면 최소 2개 매칭된 결과만 반환
+    if len(keywords) >= 2:
+        filtered = [m for m in scored_matches if m["match_count"] >= 2]
+        if filtered:
+            scored_matches = filtered
+
+    # match_count 필드 제거 후 반환
+    results = []
+    for m in scored_matches[:top_k]:
+        results.append(
+            {
+                "score": m["score"],
+                "type": m["type"],
+                "sentence": m["sentence"],
+            }
+        )
+
+    return results
 
 
 def _vector_search(query: str, index_name: str, top_k: int = 5) -> list[dict]:
     """키워드 사전 필터링 + 벡터 검색 하이브리드"""
+    import logging
+
+    logger = logging.getLogger("dodaktalk.drug_agent")
+    logger.info(f"[_vector_search] index={index_name}, query={query}, top_k={top_k}")
+
     if index_name not in _indexes:
         return []
 
     # 1단계: 키워드 exact match
     kw_results = _keyword_search(query, index_name, top_k)
     if kw_results:
+        logger.info(f"[_keyword_search] {index_name}: {len(kw_results)}건 매칭")
         return kw_results
 
     # 2단계: 벡터 검색 fallback
+    logger.info(f"[_vector_search] {index_name}: 키워드 매칭 없음, 벡터 검색 실행")
     resp = client.embeddings.create(model=MODEL_EMB, input=[query])
     q_vec = np.array([resp.data[0].embedding], dtype="float32")
     faiss.normalize_L2(q_vec)
@@ -140,6 +190,9 @@ def _vector_search(query: str, index_name: str, top_k: int = 5) -> list[dict]:
                 "sentence": store["sentences"][idx][:300],
             }
         )
+    logger.info(
+        f"[_vector_search] {index_name}: {len(results)}건 반환, top_score={results[0]['score'] if results else 'N/A'}"
+    )
     return results
 
 

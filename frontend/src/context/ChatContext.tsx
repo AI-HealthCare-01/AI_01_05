@@ -80,6 +80,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
             content: "",
             timestamp: new Date(),
             warningLevel: "Normal",
+            isStatusLoading: true, // 초기 상태: 로딩 표시
           },
         ],
       };
@@ -88,7 +89,13 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const msgs = [...state.messages];
       const last = msgs[msgs.length - 1];
       if (last && last.role === "ai") {
-        msgs[msgs.length - 1] = { ...last, content: last.content + action.payload };
+        // 첫 토큰: 상태 메시지를 토큰으로 교체
+        if (last.isStatusLoading) {
+          msgs[msgs.length - 1] = { ...last, content: action.payload, isStatusLoading: false };
+        } else {
+          // 이후 토큰: 기존 내용에 추가
+          msgs[msgs.length - 1] = { ...last, content: last.content + action.payload };
+        }
       }
       return { ...state, messages: msgs };
     }
@@ -116,8 +123,18 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return { ...state, messages: action.payload, isLoading: false };
     case "SET_LOADING":
       return { ...state, isLoading: action.payload };
-    case "SET_STATUS":
-      return { ...state, statusMessage: action.payload };
+    case "SET_STATUS": {
+      // status 메시지를 마지막 AI 버블에 표시
+      const statusMsgs = [...state.messages];
+      const lastStatusMsg = statusMsgs[statusMsgs.length - 1];
+      if (lastStatusMsg && lastStatusMsg.role === "ai" && lastStatusMsg.isStatusLoading && action.payload) {
+        statusMsgs[statusMsgs.length - 1] = {
+          ...lastStatusMsg,
+          content: action.payload,
+        };
+      }
+      return { ...state, messages: statusMsgs, statusMessage: action.payload };
+    }
 
     case "SHOW_RED_ALERT":
       return { ...state, showRedAlert: true, redAlertMessage: action.payload };

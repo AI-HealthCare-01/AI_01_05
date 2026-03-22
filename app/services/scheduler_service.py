@@ -57,12 +57,23 @@ async def start_scheduler(redis_client: Redis) -> None:
 
     Args:
         redis_client: Redis 클라이언트 (중복 발송 방지용)
+
+    다중 Worker/재시작 환경에서 단일 스케줄러만 실행되도록:
+    1. 로컬: scheduler.running 체크
+    2. 분산: Redis 락으로 최초 1개 Worker만 스케줄러 시작
     """
     scheduler = get_scheduler()
 
-    # 이미 실행 중이면 스킵
+    # 이미 실행 중이면 스킵 (로컬 체크)
     if scheduler.running:
         logger.warning("스케줄러가 이미 실행 중입니다.")
+        return
+
+    # 분산 환경에서 단일 스케줄러만 시작 (Redis 락)
+    scheduler_lock_key = "scheduler:instance:lock"
+    acquired = await redis_client.set(scheduler_lock_key, "1", nx=True, ex=120)
+    if not acquired:
+        logger.info("다른 Worker가 스케줄러를 실행 중 - 이 Worker는 스케줄러 스킵")
         return
 
     # 복약 알림 작업 등록 (60초마다)
@@ -80,9 +91,16 @@ async def start_scheduler(redis_client: Redis) -> None:
     logger.info("APScheduler 시작됨 (복약 알림 60초 주기)")
 
 
-async def stop_scheduler() -> None:
-    """스케줄러 정지."""
+async def stop_scheduler(redis_client: Redis | None = None) -> None:
+    """스케줄러 정지 및 락 해제."""
     scheduler = get_scheduler()
     if scheduler.running:
         scheduler.shutdown(wait=False)
         logger.info("APScheduler 정지됨")
+
+        # Redis 락 해제 (다른 Worker가 스케줄러 시작 가능하도록)
+        if redis_client:
+            try:
+                await redis_client.delete("scheduler:instance:lock")
+            except Exception:
+                pass  # 락 해제 실패해도 TTL로 자동 만료됨

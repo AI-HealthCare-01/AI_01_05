@@ -225,21 +225,6 @@ export default function ChatPage() {
               </React.Fragment>
             );
           })}
-          {state.statusMessage && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px" }}>
-              <div
-                style={{
-                  width: 16,
-                  height: 16,
-                  border: "2px solid #D1D5DB",
-                  borderTopColor: "#6B7F5E",
-                  borderRadius: "50%",
-                  animation: "spin 0.8s linear infinite",
-                }}
-              />
-              <span style={{ fontSize: 13, color: "#6B7F5E" }}>{state.statusMessage}</span>
-            </div>
-          )}
           <TypingIndicator visible={state.isLoading && !state.statusMessage} />
           <div ref={bottomRef} />
         </div>
