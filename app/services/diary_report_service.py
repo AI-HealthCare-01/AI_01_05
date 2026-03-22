@@ -262,10 +262,7 @@ class DiaryReportService:
         ).order_by("log_date", "time_slot")
 
         slot_labels = {"MORNING": "아침", "LUNCH": "점심", "EVENING": "저녁", "BEDTIME": "취침전"}
-        mood_lines = [
-            f"{m.log_date} {slot_labels.get(m.time_slot, m.time_slot)}: {m.mood_level}/7"
-            for m in mood_rows
-        ]
+        mood_lines = [f"{m.log_date} {slot_labels.get(m.time_slot, m.time_slot)}: {m.mood_level}/7" for m in mood_rows]
         mood_text = "\n".join(mood_lines)
 
         try:

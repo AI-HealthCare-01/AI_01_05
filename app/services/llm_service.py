@@ -14,7 +14,7 @@ class LlmService:
         if not text:
             return ""
 
-        provider = (config.LLM_PROVIDER or "stub").lower()
+        provider = "openai" if config.OPENAI_API_KEY else "stub"
         if provider == "stub":
             return self._stub_chat_summary(text=text, entry_date=entry_date)
         if provider == "openai":
@@ -44,7 +44,7 @@ class LlmService:
                 "clinician_note": "기록 부족으로 해석에 제한이 있습니다.",
             }
 
-        provider = (config.LLM_PROVIDER or "stub").lower()
+        provider = "openai" if config.OPENAI_API_KEY else "stub"
         if provider == "stub":
             return self._stub_report_summary(text=text, start_date=start_date, end_date=end_date)
         if provider == "openai":
@@ -86,7 +86,7 @@ class LlmService:
 
     async def summarize_chat_as_diary(self, conversation: str, entry_date: str) -> dict:
         """사용자가 직접 작성한 기록을 일기 형식(title + content)으로 정리한다."""
-        provider = (config.LLM_PROVIDER or "stub").lower()
+        provider = "openai" if config.OPENAI_API_KEY else "stub"
         if provider == "stub":
             return self._stub_diary_summary(conversation=conversation, entry_date=entry_date)
         if provider == "openai":
@@ -122,7 +122,7 @@ class LlmService:
         return {"title": f"{entry_date} 기록", "content": f"오늘 작성한 기록 요약: {preview}"}
 
     async def generate_title(self, content: str) -> str:
-        provider = (config.LLM_PROVIDER or "stub").lower()
+        provider = "openai" if config.OPENAI_API_KEY else "stub"
         if provider == "stub":
             return self._stub_title(content)
         if provider == "openai":
@@ -135,15 +135,15 @@ class LlmService:
         return self._stub_title(content)
 
     async def _openai_chat_completion(self, prompt: str) -> str:
-        if not config.LLM_API_KEY:
+        if not config.OPENAI_API_KEY:
             raise ValueError("LLM_NOT_CONFIGURED")
 
         headers = {
-            "Authorization": f"Bearer {config.LLM_API_KEY}",
+            "Authorization": f"Bearer {config.OPENAI_API_KEY}",
             "Content-Type": "application/json",
         }
         payload = {
-            "model": config.LLM_MODEL,
+            "model": config.OPENAI_MODEL,
             "messages": [
                 {
                     "role": "system",
