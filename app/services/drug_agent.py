@@ -122,12 +122,14 @@ def _keyword_search(query: str, index_name: str, top_k: int = 5) -> list[dict]: 
         match_count = sum(1 for kw in keywords if kw in target)
 
         if match_count > 0:
-            scored_matches.append({
-                "score": match_count / len(keywords),  # 매칭 비율 (1.0 = 전부 매칭)
-                "type": meta.get("type", ""),
-                "sentence": store["sentences"][i][:300],
-                "match_count": match_count,
-            })
+            scored_matches.append(
+                {
+                    "score": match_count / len(keywords),  # 매칭 비율 (1.0 = 전부 매칭)
+                    "type": meta.get("type", ""),
+                    "sentence": store["sentences"][i][:300],
+                    "match_count": match_count,
+                }
+            )
 
     # 매칭 점수 높은 순으로 정렬
     scored_matches.sort(key=lambda x: x["match_count"], reverse=True)
@@ -141,11 +143,13 @@ def _keyword_search(query: str, index_name: str, top_k: int = 5) -> list[dict]: 
     # match_count 필드 제거 후 반환
     results = []
     for m in scored_matches[:top_k]:
-        results.append({
-            "score": m["score"],
-            "type": m["type"],
-            "sentence": m["sentence"],
-        })
+        results.append(
+            {
+                "score": m["score"],
+                "type": m["type"],
+                "sentence": m["sentence"],
+            }
+        )
 
     return results
 
@@ -153,6 +157,7 @@ def _keyword_search(query: str, index_name: str, top_k: int = 5) -> list[dict]: 
 def _vector_search(query: str, index_name: str, top_k: int = 5) -> list[dict]:
     """키워드 사전 필터링 + 벡터 검색 하이브리드"""
     import logging
+
     logger = logging.getLogger("dodaktalk.drug_agent")
     logger.info(f"[_vector_search] index={index_name}, query={query}, top_k={top_k}")
 
@@ -185,7 +190,9 @@ def _vector_search(query: str, index_name: str, top_k: int = 5) -> list[dict]:
                 "sentence": store["sentences"][idx][:300],
             }
         )
-    logger.info(f"[_vector_search] {index_name}: {len(results)}건 반환, top_score={results[0]['score'] if results else 'N/A'}")
+    logger.info(
+        f"[_vector_search] {index_name}: {len(results)}건 반환, top_score={results[0]['score'] if results else 'N/A'}"
+    )
     return results
 
 

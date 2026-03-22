@@ -37,12 +37,12 @@ from openai import OpenAI
 from tqdm import tqdm
 
 # ── 설정 ──────────────────────────────────────────────
-DATA_DIR        = "./data"
-OUTPUT_DIR      = "./indexes"
-MODEL           = "text-embedding-3-small"   # large 권한 없을 경우 small 사용
-BATCH_SIZE      = 512          # 한 배치 최대 문장 수
-MAX_TOKENS_BATCH = 250_000     # OpenAI 한도 300K, 여유분 확보
-MAX_CHARS_PER_TEXT = 6_000     # 단일 문장 최대 글자 수 (약 1,500토큰)
+DATA_DIR = "./data"
+OUTPUT_DIR = "./indexes"
+MODEL = "text-embedding-3-small"  # large 권한 없을 경우 small 사용
+BATCH_SIZE = 512  # 한 배치 최대 문장 수
+MAX_TOKENS_BATCH = 250_000  # OpenAI 한도 300K, 여유분 확보
+MAX_CHARS_PER_TEXT = 6_000  # 단일 문장 최대 글자 수 (약 1,500토큰)
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
@@ -51,6 +51,7 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 # ══════════════════════════════════════════════════════
 # 공통 유틸
 # ══════════════════════════════════════════════════════
+
 
 def read_csv(filename: str) -> pd.DataFrame:
     path = os.path.join(DATA_DIR, filename)
@@ -78,7 +79,7 @@ def clean(val) -> str:
     if s in ("-", "nan", "NaN", "None"):
         return ""
     s = s.replace("|", ", ")
-    s = s.replace("&nbsp;", " ")   # nedrug HTML 엔티티 제거
+    s = s.replace("&nbsp;", " ")  # nedrug HTML 엔티티 제거
     s = re.sub(r"\s+", " ", s)
     return s
 
@@ -112,8 +113,8 @@ def embed_batch(texts: list) -> np.ndarray:
 
         # 단일 텍스트가 한도 초과 → 강제 자름 (이미 위에서 자름, 보험용)
         if tok > MAX_TOKENS_BATCH:
-            text = text[:MAX_CHARS_PER_TEXT // 2]
-            tok  = _estimate_tokens(text)
+            text = text[: MAX_CHARS_PER_TEXT // 2]
+            tok = _estimate_tokens(text)
 
         # 현재 배치에 추가하면 한도 초과 또는 문장 수 초과 → flush
         if batch and (batch_tokens + tok > MAX_TOKENS_BATCH or len(batch) >= BATCH_SIZE):
@@ -144,7 +145,7 @@ def save_index(sentences: list, metadata: list, index_name: str):
     index.add(vecs)
 
     index_path = os.path.join(OUTPUT_DIR, f"{index_name}.index")
-    meta_path  = os.path.join(OUTPUT_DIR, f"{index_name}_meta.pkl")
+    meta_path = os.path.join(OUTPUT_DIR, f"{index_name}_meta.pkl")
 
     faiss.write_index(index, index_path)
     with open(meta_path, "wb") as f:
@@ -200,6 +201,7 @@ _INGREDIENT_SUPPLEMENT: dict = {
     },
 }
 
+
 def _get_supplement(품목명: str) -> dict:
     """품목명에서 성분명을 추출해 보완 정보 반환"""
     for 성분키, info in _INGREDIENT_SUPPLEMENT.items():
@@ -214,23 +216,24 @@ def _get_supplement(품목명: str) -> dict:
 #    v3: 성분 보완 정보 삽입 → e약은요 미수록 약 검색 대응
 # ══════════════════════════════════════════════════════
 
+
 def process_nalgal() -> tuple:
     df = read_csv("낱알식별.csv")
     sentences, metadata = [], []
 
     for _, row in tqdm(df.iterrows(), total=len(df), desc="낱알식별"):
-        품목명   = clean(row.get("품목명", ""))
-        성상     = clean(row.get("성상", ""))
-        색상앞   = clean(row.get("색상앞", ""))
-        색상뒤   = clean(row.get("색상뒤", ""))
-        모양     = clean(row.get("의약품제형", ""))
-        표시앞   = clean(row.get("표시앞", "")) or clean(row.get("표기내용앞", ""))
-        표시뒤   = clean(row.get("표시뒤", "")) or clean(row.get("표기내용뒤", ""))
-        분류명   = clean(row.get("분류명", ""))
-        업소명   = clean(row.get("업소명", ""))
-        제형     = clean(row.get("제형코드명", ""))
-        보험코드  = clean(row.get("보험코드", ""))
-        분할선앞  = clean(row.get("분할선앞", ""))
+        품목명 = clean(row.get("품목명", ""))
+        성상 = clean(row.get("성상", ""))
+        색상앞 = clean(row.get("색상앞", ""))
+        색상뒤 = clean(row.get("색상뒤", ""))
+        모양 = clean(row.get("의약품제형", ""))
+        표시앞 = clean(row.get("표시앞", "")) or clean(row.get("표기내용앞", ""))
+        표시뒤 = clean(row.get("표시뒤", "")) or clean(row.get("표기내용뒤", ""))
+        분류명 = clean(row.get("분류명", ""))
+        업소명 = clean(row.get("업소명", ""))
+        제형 = clean(row.get("제형코드명", ""))
+        보험코드 = clean(row.get("보험코드", ""))
+        분할선앞 = clean(row.get("분할선앞", ""))
 
         # v2: 분할 가능 여부 판단
         if 분할선앞 and 분할선앞 not in ("-", "없음", ""):
@@ -243,42 +246,57 @@ def process_nalgal() -> tuple:
             색상 = f"{색상앞}/{색상뒤}"
 
         각인_parts = []
-        if 표시앞: 각인_parts.append(f"앞면 '{표시앞}'")
-        if 표시뒤: 각인_parts.append(f"뒷면 '{표시뒤}'")
+        if 표시앞:
+            각인_parts.append(f"앞면 '{표시앞}'")
+        if 표시뒤:
+            각인_parts.append(f"뒷면 '{표시뒤}'")
         각인 = ", ".join(각인_parts) if 각인_parts else "각인없음"
 
         parts = ["[낱알식별]"]
-        if 색상:        parts.append(f"{색상}색")
-        if 모양:        parts.append(모양)
-        if 제형:        parts.append(f"({제형})")
-        if 각인_parts:  parts.append(f"각인: {각인}")
-        if 성상:        parts.append(f"성상: {성상}")
-        if 품목명:      parts.append(f"제품명: {품목명}")
-        if 분류명:      parts.append(f"약효분류: {분류명}")
-        if 업소명:      parts.append(f"제조사: {업소명}")
+        if 색상:
+            parts.append(f"{색상}색")
+        if 모양:
+            parts.append(모양)
+        if 제형:
+            parts.append(f"({제형})")
+        if 각인_parts:
+            parts.append(f"각인: {각인}")
+        if 성상:
+            parts.append(f"성상: {성상}")
+        if 품목명:
+            parts.append(f"제품명: {품목명}")
+        if 분류명:
+            parts.append(f"약효분류: {분류명}")
+        if 업소명:
+            parts.append(f"제조사: {업소명}")
         parts.append(분할정보)
 
         # v3: e약은요 미수록 약 보완 — 성분 정보 사전에서 효능·주의·계열 추가
         supp = _get_supplement(품목명)
-        if supp.get("효능"):  parts.append(f"효능: {supp['효능']}")
-        if supp.get("주의"):  parts.append(f"주의: {supp['주의']}")
-        if supp.get("계열"):  parts.append(f"약물계열: {supp['계열']}")
+        if supp.get("효능"):
+            parts.append(f"효능: {supp['효능']}")
+        if supp.get("주의"):
+            parts.append(f"주의: {supp['주의']}")
+        if supp.get("계열"):
+            parts.append(f"약물계열: {supp['계열']}")
 
         sentence = " / ".join(parts)
         if len(sentence) < 20:
             continue
 
         sentences.append(sentence)
-        metadata.append({
-            "type":       "낱알식별",
-            "품목명":     품목명,
-            "업소명":     업소명,
-            "분류명":     분류명,
-            "보험코드":   보험코드,
-            "분할가능":   분할정보,
-            "품목일련번호": str(row.get("품목일련번호", "")),
-            "원문":       sentence,
-        })
+        metadata.append(
+            {
+                "type": "낱알식별",
+                "품목명": 품목명,
+                "업소명": 업소명,
+                "분류명": 분류명,
+                "보험코드": 보험코드,
+                "분할가능": 분할정보,
+                "품목일련번호": str(row.get("품목일련번호", "")),
+                "원문": sentence,
+            }
+        )
 
     return sentences, metadata
 
@@ -290,6 +308,7 @@ def process_nalgal() -> tuple:
 
 _INGREDIENT_RE = re.compile(r"[\(（]([가-힣a-zA-Z·\s]+?)[\)）]")
 
+
 def extract_ingredient(품목명: str) -> str:
     m = _INGREDIENT_RE.search(품목명)
     return m.group(1).strip() if m else ""
@@ -298,22 +317,42 @@ def extract_ingredient(품목명: str) -> str:
 # 음식 상호작용 키워드 → 태그명
 _FOOD_KEYWORDS = {
     "알코올음주": ["술", "음주", "알코올", "주류"],
-    "카페인커피":  ["커피", "카페인", "녹차", "에너지드링크", "홍차"],
-    "유제품":     ["우유", "유제품", "칼슘", "치즈", "요구르트"],
-    "자몽":       ["자몽", "그레이프프루트"],
+    "카페인커피": ["커피", "카페인", "녹차", "에너지드링크", "홍차"],
+    "유제품": ["우유", "유제품", "칼슘", "치즈", "요구르트"],
+    "자몽": ["자몽", "그레이프프루트"],
 }
 
 # 졸음·운전 관련 키워드
 _DROWSY_KEYWORDS = [
-    "졸음", "졸림", "기면", "진정", "수면", "최면", "항히스타민",
-    "벤조디아제핀", "졸피뎀", "트라조돈", "알프라졸람", "클로나제팜",
-    "디아제팜", "로라제팜", "졸음을 유발", "운전 주의", "기계조작 주의",
+    "졸음",
+    "졸림",
+    "기면",
+    "진정",
+    "수면",
+    "최면",
+    "항히스타민",
+    "벤조디아제핀",
+    "졸피뎀",
+    "트라조돈",
+    "알프라졸람",
+    "클로나제팜",
+    "디아제팜",
+    "로라제팜",
+    "졸음을 유발",
+    "운전 주의",
+    "기계조작 주의",
 ]
 
 # 임의 중단 위험 키워드
 _DISCONTINUE_KEYWORDS = [
-    "임의로중단", "갑자기중단", "중단하지마십시오", "끊지마십시오",
-    "의사와상의없이", "중단시", "반드시복용", "지속복용",
+    "임의로중단",
+    "갑자기중단",
+    "중단하지마십시오",
+    "끊지마십시오",
+    "의사와상의없이",
+    "중단시",
+    "반드시복용",
+    "지속복용",
 ]
 
 
@@ -321,13 +360,13 @@ def process_eya() -> tuple:
     df = read_csv("e약은요.csv")
 
     col_map = {
-        "효능":     "이 약의 효능은 무엇입니까?",
-        "용법":     "이 약은 어떻게 사용합니까?",
-        "사전주의":  "이 약을 사용하기 전에 반드시 알아야 할 내용은 무엇입니까?",
-        "주의사항":  "이 약의 사용상 주의사항은 무엇입니까?",
-        "상호작용":  "이 약을 사용하는 동안 주의해야 할 약 또는 음식은 무엇입니까?",
-        "이상반응":  "이 약은 어떤 이상반응이 나타날 수 있습니까?",
-        "보관":     "이 약은 어떻게 보관해야 합니까?",
+        "효능": "이 약의 효능은 무엇입니까?",
+        "용법": "이 약은 어떻게 사용합니까?",
+        "사전주의": "이 약을 사용하기 전에 반드시 알아야 할 내용은 무엇입니까?",
+        "주의사항": "이 약의 사용상 주의사항은 무엇입니까?",
+        "상호작용": "이 약을 사용하는 동안 주의해야 할 약 또는 음식은 무엇입니까?",
+        "이상반응": "이 약은 어떤 이상반응이 나타날 수 있습니까?",
+        "보관": "이 약은 어떻게 보관해야 합니까?",
     }
 
     sentences, metadata = [], []
@@ -346,7 +385,7 @@ def process_eya() -> tuple:
     #     타이레놀정500밀리그람(아세트아미노펜) → 괄호 성분명 있지만
     #       제품명 앞부분 "타이레놀정500밀리그람"이 성분명과 다름 → 고유 브랜드 취급
     _seen: dict = {}
-    _GENERIC_RE = re.compile(r'^[^(（]+[(（]([가-힣a-zA-Z·\s]+?)[)）]')
+    _GENERIC_RE = re.compile(r"^[^(（]+[(（]([가-힣a-zA-Z·\s]+?)[)）]")
 
     def _is_generic_duplicate(제품명: str, 성분명: str, section: str, content: str) -> bool:
         """제네릭 제품의 중복 문장만 제거. 고유 브랜드(타이레놀 등)는 항상 통과.
@@ -361,16 +400,13 @@ def process_eya() -> tuple:
         m = _GENERIC_RE.match(제품명)
         if not m:
             return False
-        앞부분 = re.sub(r'\d+[\s]*(밀리그램|mg|mL|g|mcg|ml|%)', '', 제품명.split('(')[0]).strip()
-        앞부분 = re.sub(r'(정|캡슐|시럽|주사|액|산|현탁|과립|연질|필름코팅|서방)$', '', 앞부분).strip()
+        앞부분 = re.sub(r"\d+[\s]*(밀리그램|mg|mL|g|mcg|ml|%)", "", 제품명.split("(")[0]).strip()
+        앞부분 = re.sub(r"(정|캡슐|시럽|주사|액|산|현탁|과립|연질|필름코팅|서방)$", "", 앞부분).strip()
         성분명_정제 = 성분명.replace(" ", "")
         앞부분_정제 = 앞부분.replace(" ", "")
 
         # exact match이거나, 앞부분이 3자 이하 단어로 성분명 안에 포함되면 제네릭
-        is_generic = (
-            앞부분_정제 == 성분명_정제 or
-            (len(앞부분_정제) <= 3 and 앞부분_정제 in 성분명_정제)
-        )
+        is_generic = 앞부분_정제 == 성분명_정제 or (len(앞부분_정제) <= 3 and 앞부분_정제 in 성분명_정제)
         if is_generic:
             key = (성분명.strip(), section)
             sig = content.replace(" ", "")[:80]
@@ -379,13 +415,14 @@ def process_eya() -> tuple:
                 return True
             seen.add(sig)
         return False
+
     # ────────────────────────────────────────────────────────
 
     for _, row in tqdm(df.iterrows(), total=len(df), desc="e약은요"):
-        제품명   = clean(row.get("제품명", ""))
-        업체명   = clean(row.get("업체명", ""))
-        일련번호  = str(row.get("품목일련번호", ""))
-        성분명   = extract_ingredient(제품명)
+        제품명 = clean(row.get("제품명", ""))
+        업체명 = clean(row.get("업체명", ""))
+        일련번호 = str(row.get("품목일련번호", ""))
+        성분명 = extract_ingredient(제품명)
 
         # v2: 성분명(브랜드명) 병기 prefix
         prefix_str = f"{성분명}({제품명})" if 성분명 else 제품명
@@ -422,17 +459,19 @@ def process_eya() -> tuple:
                 sentence += " / 임의중단금지 반드시의사상담"
 
             sentences.append(sentence)
-            metadata.append({
-                "type":       "e약은요",
-                "section":    section_label,
-                "제품명":     제품명,
-                "성분명":     성분명,
-                "업체명":     업체명,
-                "품목일련번호": 일련번호,
-                "졸음주의":   drowsy,
-                "음식태그":   extra_tags,
-                "원문":       sentence,
-            })
+            metadata.append(
+                {
+                    "type": "e약은요",
+                    "section": section_label,
+                    "제품명": 제품명,
+                    "성분명": 성분명,
+                    "업체명": 업체명,
+                    "품목일련번호": 일련번호,
+                    "졸음주의": drowsy,
+                    "음식태그": extra_tags,
+                    "원문": sentence,
+                }
+            )
 
     return sentences, metadata
 
@@ -443,16 +482,25 @@ def process_eya() -> tuple:
 # ══════════════════════════════════════════════════════
 
 _DRUG_CLASS_MAP = {
-    "NSAIDs진통소염제": ["이부프로펜", "아스피린", "나프록센", "케토프로펜",
-                        "디클로페낙", "인도메타신", "멜록시캄", "셀레콕시브",
-                        "케토롤락", "피록시캄"],
-    "스타틴":           ["아토르바스타틴", "로수바스타틴", "심바스타틴", "프라바스타틴",
-                        "플루바스타틴", "피타바스타틴"],
-    "항응고제":         ["와파린", "아픽사반", "리바록사반", "다비가트란", "에독사반"],
-    "혈압강하제":       ["암로디핀", "발사르탄", "올메사르탄", "로사르탄", "텔미사르탄"],
-    "항우울제":         ["파록세틴", "플루옥세틴", "세르트랄린", "에스시탈로프람"],
-    "수면진정제":       ["졸피뎀", "트리아졸람", "알프라졸람", "디아제팜", "로라제팜"],
+    "NSAIDs진통소염제": [
+        "이부프로펜",
+        "아스피린",
+        "나프록센",
+        "케토프로펜",
+        "디클로페낙",
+        "인도메타신",
+        "멜록시캄",
+        "셀레콕시브",
+        "케토롤락",
+        "피록시캄",
+    ],
+    "스타틴": ["아토르바스타틴", "로수바스타틴", "심바스타틴", "프라바스타틴", "플루바스타틴", "피타바스타틴"],
+    "항응고제": ["와파린", "아픽사반", "리바록사반", "다비가트란", "에독사반"],
+    "혈압강하제": ["암로디핀", "발사르탄", "올메사르탄", "로사르탄", "텔미사르탄"],
+    "항우울제": ["파록세틴", "플루옥세틴", "세르트랄린", "에스시탈로프람"],
+    "수면진정제": ["졸피뎀", "트리아졸람", "알프라졸람", "디아제팜", "로라제팜"],
 }
+
 
 def get_drug_class(성분명: str) -> str:
     for class_name, members in _DRUG_CLASS_MAP.items():
@@ -465,9 +513,9 @@ def process_dur_병용금기(df: pd.DataFrame) -> tuple:
     sentences, metadata = [], []
 
     for _, row in df.iterrows():
-        성분A    = clean(row.get("DUR성분명", ""))
+        성분A = clean(row.get("DUR성분명", ""))
         성분A_영 = clean(row.get("DUR성분명영문", ""))
-        성분B    = clean(row.get("병용금기DUR성분명", ""))
+        성분B = clean(row.get("병용금기DUR성분명", ""))
         성분B_영 = clean(row.get("병용금기DUR성분영문명", ""))
         금기내용 = clean(row.get("금기내용", ""))
         약효분류 = clean(row.get("약효분류코드", ""))
@@ -475,9 +523,9 @@ def process_dur_병용금기(df: pd.DataFrame) -> tuple:
         if not 성분A or not 성분B:
             continue
 
-        사유     = 금기내용 if 금기내용 else "병용 시 위험 증가"
-        class_A  = get_drug_class(성분A)
-        class_B  = get_drug_class(성분B)
+        사유 = 금기내용 if 금기내용 else "병용 시 위험 증가"
+        class_A = get_drug_class(성분A)
+        class_B = get_drug_class(성분B)
 
         for (주성분, 주영문, 주계열), (대상, 대상영문, 대상계열) in [
             ((성분A, 성분A_영, class_A), (성분B, 성분B_영, class_B)),
@@ -489,19 +537,24 @@ def process_dur_병용금기(df: pd.DataFrame) -> tuple:
                 f"성분B: {대상}",
                 f"병용금기사유: {사유}",
             ]
-            if 주계열:   parts.append(f"성분A약효군: {주계열}")
-            if 대상계열:  parts.append(f"성분B약효군: {대상계열}")
-            if 약효분류:  parts.append(f"약효분류: {약효분류}")
+            if 주계열:
+                parts.append(f"성분A약효군: {주계열}")
+            if 대상계열:
+                parts.append(f"성분B약효군: {대상계열}")
+            if 약효분류:
+                parts.append(f"약효분류: {약효분류}")
 
             sentence = " / ".join(parts)
             sentences.append(sentence)
-            metadata.append({
-                "type":   "DUR_병용금기",
-                "성분A":  주성분,
-                "성분B":  대상,
-                "금기내용": 사유,
-                "원문":   sentence,
-            })
+            metadata.append(
+                {
+                    "type": "DUR_병용금기",
+                    "성분A": 주성분,
+                    "성분B": 대상,
+                    "금기내용": 사유,
+                    "원문": sentence,
+                }
+            )
 
     return sentences, metadata
 
@@ -510,65 +563,81 @@ def process_dur_단일성분(df: pd.DataFrame, dur_type: str) -> tuple:
     sentences, metadata = [], []
 
     for _, row in df.iterrows():
-        성분명   = clean(row.get("DUR성분명", ""))
-        성분영문  = clean(row.get("DUR성분명영문", ""))
-        금기내용  = clean(row.get("금기내용", ""))
-        효능군   = clean(row.get("효능군", ""))
-        연령기준  = clean(row.get("연령기준", ""))
-        최대기간  = clean(row.get("최대투여기간", ""))
-        최대용량  = clean(row.get("1일최대용량", ""))
-        등급     = clean(row.get("등급", ""))
-        계열명   = clean(row.get("계열명", ""))
-        제형     = clean(row.get("제형", ""))
-        비고     = clean(row.get("비고", ""))
+        성분명 = clean(row.get("DUR성분명", ""))
+        성분영문 = clean(row.get("DUR성분명영문", ""))
+        금기내용 = clean(row.get("금기내용", ""))
+        효능군 = clean(row.get("효능군", ""))
+        연령기준 = clean(row.get("연령기준", ""))
+        최대기간 = clean(row.get("최대투여기간", ""))
+        최대용량 = clean(row.get("1일최대용량", ""))
+        등급 = clean(row.get("등급", ""))
+        계열명 = clean(row.get("계열명", ""))
+        제형 = clean(row.get("제형", ""))
+        비고 = clean(row.get("비고", ""))
 
         if not 성분명:
             continue
 
         parts = [f"[DUR/{dur_type}]", f"성분명: {성분명}"]
-        if 성분영문: parts.append(f"({성분영문})")
+        if 성분영문:
+            parts.append(f"({성분영문})")
 
         if dur_type == "노인주의":
             parts.append(f"노인주의사항: {금기내용}" if 금기내용 else "노인투여시주의필요")
-            if 제형: parts.append(f"해당제형: {제형}")
+            if 제형:
+                parts.append(f"해당제형: {제형}")
 
         elif dur_type == "임부금기":
             parts.append(f"임부금기사유: {금기내용}" if 금기내용 else "임부에게투여금지")
-            if 등급: parts.append(f"위험등급: {등급}")
-            if 비고: parts.append(f"비고: {비고}")
+            if 등급:
+                parts.append(f"위험등급: {등급}")
+            if 비고:
+                parts.append(f"비고: {비고}")
 
         elif dur_type == "특정연령대금기":
-            if 연령기준: parts.append(f"금기연령: {연령기준}세미만")
+            if 연령기준:
+                parts.append(f"금기연령: {연령기준}세미만")
             parts.append(f"사유: {금기내용}" if 금기내용 else "해당연령대안전성미확립")
-            if 제형: parts.append(f"해당제형: {제형}")
+            if 제형:
+                parts.append(f"해당제형: {제형}")
 
         elif dur_type == "용량주의":
-            if 최대용량: parts.append(f"1일최대용량: {최대용량}")
-            if 금기내용: parts.append(f"주의사항: {금기내용}")
+            if 최대용량:
+                parts.append(f"1일최대용량: {최대용량}")
+            if 금기내용:
+                parts.append(f"주의사항: {금기내용}")
 
         elif dur_type == "투여기간주의":
-            if 최대기간: parts.append(f"최대투여기간: {최대기간}")
-            if 비고:     parts.append(f"적용범위: {비고}")
+            if 최대기간:
+                parts.append(f"최대투여기간: {최대기간}")
+            if 비고:
+                parts.append(f"적용범위: {비고}")
 
         elif dur_type == "효능군중복주의":
-            if 효능군:   parts.append(f"효능군: {효능군}")
-            if 계열명:   parts.append(f"계열: {계열명}")
+            if 효능군:
+                parts.append(f"효능군: {효능군}")
+            if 계열명:
+                parts.append(f"계열: {계열명}")
             parts.append(f"주의사항: {금기내용}" if 금기내용 else "동일효능군중복투여주의")
 
         elif dur_type == "첨가제주의":
-            if 금기내용: parts.append(f"첨가제주의사항: {금기내용}")
-            if 비고:     parts.append(f"적용범위: {비고}")
+            if 금기내용:
+                parts.append(f"첨가제주의사항: {금기내용}")
+            if 비고:
+                parts.append(f"적용범위: {비고}")
 
         sentence = " / ".join(parts)
         sentences.append(sentence)
-        metadata.append({
-            "type":    f"DUR_{dur_type}",
-            "성분명":  성분명,
-            "성분코드": str(row.get("DUR성분코드", "")),
-            "연령기준": 연령기준,
-            "등급":    등급,
-            "원문":    sentence,
-        })
+        metadata.append(
+            {
+                "type": f"DUR_{dur_type}",
+                "성분명": 성분명,
+                "성분코드": str(row.get("DUR성분코드", "")),
+                "연령기준": 연령기준,
+                "등급": 등급,
+                "원문": sentence,
+            }
+        )
 
     return sentences, metadata
 
@@ -579,6 +648,7 @@ def process_dur_단일성분(df: pd.DataFrame, dur_type: str) -> tuple:
 #   - 분할주의:     분할/분쇄/씹기 금지 제형 목록
 #   - 수유부주의:   수유 중 주의 성분 목록
 # ══════════════════════════════════════════════════════
+
 
 def process_dur_동일성분중복() -> tuple:
     """DUR_동일성분중복.xlsx → 제품별 동일성분 중복투여 주의 문장"""
@@ -591,7 +661,7 @@ def process_dur_동일성분중복() -> tuple:
     sentences, metadata = [], []
     # 성분코드 컬럼 목록
     _성분코드_cols = [c for c in df.columns if c.startswith("DUR성분코드")]  # noqa: F841
-    성분명_cols   = [c for c in df.columns if c.startswith("DUR성분명")]
+    성분명_cols = [c for c in df.columns if c.startswith("DUR성분명")]
 
     for _, row in df.iterrows():
         제품명 = clean(str(row.get("제품명", "") or ""))
@@ -615,14 +685,16 @@ def process_dur_동일성분중복() -> tuple:
             f"동일 성분이 포함된 다른 약과 함께 복용하지 마십시오"
         )
         sentences.append(sentence)
-        metadata.append({
-            "type":    "DUR_동일성분중복",
-            "제품명":  제품명,
-            "업소명":  업소명,
-            "제품코드": 제품코드,
-            "성분목록": 성분_str,
-            "원문":    sentence,
-        })
+        metadata.append(
+            {
+                "type": "DUR_동일성분중복",
+                "제품명": 제품명,
+                "업소명": 업소명,
+                "제품코드": 제품코드,
+                "성분목록": 성분_str,
+                "원문": sentence,
+            }
+        )
 
     return sentences, metadata
 
@@ -642,7 +714,7 @@ def process_dur_분할주의() -> tuple:
     for _, row in df.iterrows():
         제품명 = clean(str(row.get("제품명", "") or ""))
         성분명 = clean(str(row.get(성분명_col, "") or ""))
-        제형   = clean(str(row.get("제형", "") or ""))
+        제형 = clean(str(row.get("제형", "") or ""))
         업체명 = clean(str(row.get("업체명", "") or ""))
 
         if not 제품명:
@@ -654,14 +726,16 @@ def process_dur_분할주의() -> tuple:
             f"분할·분쇄·씹기 금지 — 통째로 삼켜야 하는 약"
         )
         sentences.append(sentence)
-        metadata.append({
-            "type":   "DUR_분할주의",
-            "제품명": 제품명,
-            "성분명": 성분명,
-            "제형":   제형,
-            "업체명": 업체명,
-            "원문":   sentence,
-        })
+        metadata.append(
+            {
+                "type": "DUR_분할주의",
+                "제품명": 제품명,
+                "성분명": 성분명,
+                "제형": 제형,
+                "업체명": 업체명,
+                "원문": sentence,
+            }
+        )
 
     return sentences, metadata
 
@@ -680,7 +754,7 @@ def process_dur_수유부주의() -> tuple:
     for _, row in df.iterrows():
         성분명 = clean(str(row.get("성분명", "") or ""))
         _제품명 = clean(str(row.get("제품명", "") or ""))  # noqa: F841
-        비고   = clean(str(row.get("비고", "") or ""))
+        비고 = clean(str(row.get("비고", "") or ""))
 
         if not 성분명:
             continue
@@ -688,19 +762,18 @@ def process_dur_수유부주의() -> tuple:
         # 성분명 기준 대표 1개만
         if 성분명 not in _seen:
             _seen.add(성분명)
-            sentence = (
-                f"[DUR/수유부주의] 성분명: {성분명} / "
-                f"수유 중 주의 — 모유를 통해 영아에게 전달될 수 있음"
-            )
+            sentence = f"[DUR/수유부주의] 성분명: {성분명} / 수유 중 주의 — 모유를 통해 영아에게 전달될 수 있음"
             if 비고 and 비고 != "-":
                 sentence += f" / 비고: {비고}"
             sentences.append(sentence)
-            metadata.append({
-                "type":   "DUR_수유부주의",
-                "성분명": 성분명,
-                "비고":   비고,
-                "원문":   sentence,
-            })
+            metadata.append(
+                {
+                    "type": "DUR_수유부주의",
+                    "성분명": 성분명,
+                    "비고": 비고,
+                    "원문": sentence,
+                }
+            )
 
     return sentences, metadata
 
@@ -709,13 +782,14 @@ def process_dur_수유부주의() -> tuple:
 # 4. 이상사례보고 → adverse_lookup.pkl (FAISS 제외)
 # ══════════════════════════════════════════════════════
 
+
 def process_adverse_lookup() -> dict:
     df = read_csv("이상사례보고_성분정보.csv")
     lookup = {}
 
     for _, row in df.iterrows():
-        한  = clean(row.get("성분명(한)", ""))
-        영  = clean(row.get("성분명(영)", ""))
+        한 = clean(row.get("성분명(한)", ""))
+        영 = clean(row.get("성분명(영)", ""))
         코드 = str(row.get("성분코드", ""))
         if 한:
             lookup[한] = {"성분코드": 코드, "성분명영": 영}
@@ -732,6 +806,7 @@ def process_adverse_lookup() -> dict:
 # 5. 상병분류기호
 # ══════════════════════════════════════════════════════
 
+
 def process_disease() -> tuple:
     df = read_csv("상병분류기호.csv")
     df.columns = [c.replace("\n", "") for c in df.columns]
@@ -743,9 +818,9 @@ def process_disease() -> tuple:
     sentences, metadata = [], []
 
     for _, row in tqdm(df.iterrows(), total=len(df), desc="상병분류기호"):
-        코드   = clean(row.get("상병기호", ""))
-        한글명  = clean(row.get("한글명칭", ""))
-        영문명  = clean(row.get("영문명칭", ""))
+        코드 = clean(row.get("상병기호", ""))
+        한글명 = clean(row.get("한글명칭", ""))
+        영문명 = clean(row.get("영문명칭", ""))
 
         if not 코드 or not 한글명:
             continue
@@ -755,13 +830,15 @@ def process_disease() -> tuple:
             sentence += f" ({영문명})"
 
         sentences.append(sentence)
-        metadata.append({
-            "type":   "상병분류",
-            "상병코드": 코드,
-            "한글명칭": 한글명,
-            "영문명칭": 영문명,
-            "원문":   sentence,
-        })
+        metadata.append(
+            {
+                "type": "상병분류",
+                "상병코드": 코드,
+                "한글명칭": 한글명,
+                "영문명칭": 영문명,
+                "원문": sentence,
+            }
+        )
 
     return sentences, metadata
 
@@ -771,6 +848,7 @@ def process_disease() -> tuple:
 #    nedrug_pil.csv → e약은요와 동일한 섹션별 문장화
 #    크롤러(nedrug_crawler.py)로 생성한 파일 사용
 # ══════════════════════════════════════════════════════
+
 
 def process_nedrug_pil() -> tuple:
     path = os.path.join(DATA_DIR, "nedrug_pil.csv")
@@ -788,25 +866,27 @@ def process_nedrug_pil() -> tuple:
     }
 
     for _, row in tqdm(df.iterrows(), total=len(df), desc="nedrug PIL"):
-        품목명   = clean(str(row.get("품목명",  "") or ""))
-        주성분명_raw = clean(str(row.get("주성분명","") or ""))
-        일련번호  = str(row.get("품목일련번호", ""))
+        품목명 = clean(str(row.get("품목명", "") or ""))
+        주성분명_raw = clean(str(row.get("주성분명", "") or ""))
+        일련번호 = str(row.get("품목일련번호", ""))
 
         # 주성분명 파싱: "[M040353]아세트아미노펜|[M050058]구아이페네신" → "아세트아미노펜, 구아이페네신"
-        성분명_list = re.findall(r'\]([^|\[]+)', 주성분명_raw)
+        성분명_list = re.findall(r"\]([^|\[]+)", 주성분명_raw)
         # 각 성분명에서 끝 쉼표/공백 제거 (원본에 쉼표가 붙어있는 경우 대비)
-        성분명_list = [re.sub(r',\s*$', '', s.strip()) for s in 성분명_list if s.strip()]
+        성분명_list = [re.sub(r",\s*$", "", s.strip()) for s in 성분명_list if s.strip()]
         성분명_list = [s for s in 성분명_list if s]
-        성분명_정제 = ", ".join(성분명_list) if 성분명_list else (
-            extract_ingredient(품목명) or 주성분명_raw.split(",")[0].strip()
+        성분명_정제 = (
+            ", ".join(성분명_list)
+            if 성분명_list
+            else (extract_ingredient(품목명) or 주성분명_raw.split(",")[0].strip())
         )
 
         # prefix: 브랜드명 앞에 + 성분명 최대 3개 병기
         # 성분이 많은 복합제의 경우 prefix가 너무 길어지면 브랜드명이 희석됨
-        브랜드명 = re.sub(r'[\(（].*', '', 품목명).strip()
+        브랜드명 = re.sub(r"[\(（].*", "", 품목명).strip()
         if not 브랜드명:
             브랜드명 = 품목명
-        성분명_short = ", ".join(성분명_list[:3])   # 최대 3개
+        성분명_short = ", ".join(성분명_list[:3])  # 최대 3개
         if len(성분명_list) > 3:
             성분명_short += " 외"
         prefix = f"{브랜드명} {성분명_short}" if 성분명_short else 브랜드명
@@ -839,15 +919,17 @@ def process_nedrug_pil() -> tuple:
                 sentence += " / 임의중단금지 반드시의사상담"
 
             sentences.append(sentence)
-            metadata.append({
-                "type":      "nedrug_PIL",
-                "section":   section_label,
-                "품목명":    품목명,
-                "브랜드명":  브랜드명,
-                "성분명":    성분명_정제,
-                "품목일련번호": 일련번호,
-                "원문":      sentence,
-            })
+            metadata.append(
+                {
+                    "type": "nedrug_PIL",
+                    "section": section_label,
+                    "품목명": 품목명,
+                    "브랜드명": 브랜드명,
+                    "성분명": 성분명_정제,
+                    "품목일련번호": 일련번호,
+                    "원문": sentence,
+                }
+            )
 
     print(f"  nedrug PIL: {len(sentences):,}문장")
     return sentences, metadata
@@ -857,10 +939,11 @@ def process_nedrug_pil() -> tuple:
 # 인덱스 구축
 # ══════════════════════════════════════════════════════
 
+
 def build_drug_info_index():
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("📦 drug_info.index 구축")
-    print("="*60)
+    print("=" * 60)
     s1, m1 = process_nalgal()
     s2, m2 = process_eya()
     s3, m3 = process_nedrug_pil()
@@ -871,9 +954,9 @@ def build_drug_info_index():
 
 
 def build_safety_index():
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🚨 safety.index 구축  (DUR 8종)")
-    print("="*60)
+    print("=" * 60)
     all_s, all_m = [], []
 
     df_byg = read_csv("DUR_병용금기.csv")
@@ -883,13 +966,13 @@ def build_safety_index():
     all_m += m
 
     for dur_type, fname in {
-        "노인주의":      "DUR_노인주의.csv",
-        "임부금기":      "DUR_임부금기.csv",
+        "노인주의": "DUR_노인주의.csv",
+        "임부금기": "DUR_임부금기.csv",
         "특정연령대금기": "DUR_특정연령대금기.csv",
-        "용량주의":      "DUR_용량주의.csv",
-        "투여기간주의":   "DUR_투여기간주의.csv",
+        "용량주의": "DUR_용량주의.csv",
+        "투여기간주의": "DUR_투여기간주의.csv",
         "효능군중복주의": "DUR_효능군중복주의.csv",
-        "첨가제주의":    "DUR_첨가제주의.csv",
+        "첨가제주의": "DUR_첨가제주의.csv",
     }.items():
         df = read_csv(fname)
         s, m = process_dur_단일성분(df, dur_type)
@@ -921,9 +1004,9 @@ def build_safety_index():
 
 
 def build_disease_index():
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🏥 disease.index 구축")
-    print("="*60)
+    print("=" * 60)
     s, m = process_disease()
     print(f"\n  합계: {len(s):,}문장")
     save_index(s, m, "disease")
@@ -950,47 +1033,48 @@ def build_disease_index():
 # ATC코드 → 한글 약효군 매핑 (주요 코드만)
 _ATC_MAP: dict = {
     # 수면진정제 — 졸피뎀(N05CF02), 트리아졸람(N05CD05) 등 커버
-    "N05C":  "수면진정제",
+    "N05C": "수면진정제",
     "N05CD": "수면진정제 벤조디아제핀",
-    "N05CF": "수면제 비벤조디아제핀",   # 졸피뎀(N05CF02) 상위
+    "N05CF": "수면제 비벤조디아제핀",  # 졸피뎀(N05CF02) 상위
     "N05CF02": "수면제 졸피뎀",
     "N05CH": "멜라토닌수용체작용제",
     # 항우울제 — 트라조돈(N06AX05) 커버
-    "N06A":  "항우울제",
+    "N06A": "항우울제",
     "N06AB": "항우울제 SSRI",
-    "N06AX": "항우울제 기타",           # 트라조돈(N06AX05) 상위
+    "N06AX": "항우울제 기타",  # 트라조돈(N06AX05) 상위
     "N06AX05": "항우울제 트라조돈",
     "N06AA": "항우울제 삼환계",
     # 진통제
-    "N02A":  "마약성진통제",
-    "N02B":  "비마약성진통제",
+    "N02A": "마약성진통제",
+    "N02B": "비마약성진통제",
     "N02BE": "아세트아미노펜계 해열진통제",
     "N02BE01": "아세트아미노펜 해열진통제",
     # NSAIDs
-    "M01A":  "NSAIDs 소염진통제",
+    "M01A": "NSAIDs 소염진통제",
     "M01AB": "NSAIDs 아세트산계",
-    "M01AE": "NSAIDs 프로피온산계",     # 이부프로펜(M01AE01) 상위
+    "M01AE": "NSAIDs 프로피온산계",  # 이부프로펜(M01AE01) 상위
     "M01AE01": "이부프로펜 NSAIDs",
     "M01AE02": "나프록센 NSAIDs",
     # 기타
-    "C10A":  "스타틴 고지혈증",
+    "C10A": "스타틴 고지혈증",
     "C10AA": "스타틴",
-    "B01A":  "항응고제·혈소판억제제",
+    "B01A": "항응고제·혈소판억제제",
     "B01AC": "혈소판억제제",
     "B01AF": "항응고제 경구",
-    "C09A":  "ACE억제제",
-    "C09C":  "ARB 혈압강하제",
-    "A10B":  "경구혈당강하제",
-    "A10A":  "인슐린",
-    "J01":   "항생제",
-    "R03":   "호흡기계약물",
+    "C09A": "ACE억제제",
+    "C09C": "ARB 혈압강하제",
+    "A10B": "경구혈당강하제",
+    "A10A": "인슐린",
+    "J01": "항생제",
+    "R03": "호흡기계약물",
     # 항불안제
-    "N05B":  "항불안제",
+    "N05B": "항불안제",
     "N05BA": "항불안제 벤조디아제핀",
     # 향정신성 계열
-    "N05A":  "항정신병약",
-    "N03":   "항뇌전증약",
+    "N05A": "항정신병약",
+    "N03": "항뇌전증약",
 }
+
 
 def _atc_to_korean(atc: str) -> str:
     """ATC 코드를 한글 약효군으로 변환 (7→6→5→4→3→2자리 순 fallback)"""
@@ -1003,20 +1087,19 @@ def _atc_to_korean(atc: str) -> str:
                 return match
     return ""
 
+
 def _parse_주성분명(raw: str) -> str:
     """[M040702]포도당|[M040426]염화나트륨 → 포도당, 염화나트륨"""
     import re
-    names = re.findall(r']([^|]+)', str(raw))
+
+    names = re.findall(r"]([^|]+)", str(raw))
     return ", ".join(n.strip() for n in names if n.strip())
 
 
 def process_drug_meta() -> tuple:
     """의약품허가상세정보 → 품목 식별 문장 생성"""
     try:
-        df = pd.read_excel(
-            os.path.join(DATA_DIR, "의약품허가상세정보.xls"),
-            sheet_name="Sheet0"
-        )
+        df = pd.read_excel(os.path.join(DATA_DIR, "의약품허가상세정보.xls"), sheet_name="Sheet0")
     except FileNotFoundError:
         print("  ⚠️  의약품허가상세정보.xls 없음 — drug_meta 건너뜀")
         return [], []
@@ -1030,22 +1113,22 @@ def process_drug_meta() -> tuple:
     _seen_성분: set = set()
 
     for _, row in tqdm(df.iterrows(), total=len(df), desc="의약품허가상세정보"):
-        품목명   = clean(str(row.get("품목명", "") or ""))
-        주성분명  = _parse_주성분명(row.get("주성분명", ""))
-        _원료성분  = clean(str(row.get("원료성분", "") or ""))  # noqa: F841
-        영문성분  = clean(str(row.get("영문성분명", "") or ""))
-        atc     = clean(str(row.get("ATC코드", "") or ""))
-        성상     = clean(str(row.get("성상", "") or ""))
-        전문일반  = clean(str(row.get("전문일반", "") or ""))
-        마약류   = clean(str(row.get("마약류분류", "") or ""))
-        희귀     = clean(str(row.get("희귀의약품여부", "") or ""))
-        일련번호  = str(row.get("품목일련번호", ""))
+        품목명 = clean(str(row.get("품목명", "") or ""))
+        주성분명 = _parse_주성분명(row.get("주성분명", ""))
+        _원료성분 = clean(str(row.get("원료성분", "") or ""))  # noqa: F841
+        영문성분 = clean(str(row.get("영문성분명", "") or ""))
+        atc = clean(str(row.get("ATC코드", "") or ""))
+        성상 = clean(str(row.get("성상", "") or ""))
+        전문일반 = clean(str(row.get("전문일반", "") or ""))
+        마약류 = clean(str(row.get("마약류분류", "") or ""))
+        희귀 = clean(str(row.get("희귀의약품여부", "") or ""))
+        일련번호 = str(row.get("품목일련번호", ""))
 
         if not 품목명:
             continue
 
-        atc_kor  = _atc_to_korean(atc)
-        특수분류  = []
+        atc_kor = _atc_to_korean(atc)
+        특수분류 = []
         if 마약류 and 마약류 not in ("NaN", "N"):
             특수분류.append(f"마약류({마약류})")
         if 희귀 == "Y":
@@ -1062,27 +1145,35 @@ def process_drug_meta() -> tuple:
         else:
             parts = ["[의약품허가]", f"품목명: {품목명}"]
 
-        if 주성분명:  parts.append(f"주성분: {주성분명}")
-        if 영문성분:  parts.append(f"({영문성분})")
-        if atc_kor:   parts.append(f"약효군: {atc_kor}")
-        if atc:       parts.append(f"ATC: {atc}")
-        if 전문일반:  parts.append(전문일반)
-        if 성상:      parts.append(f"성상: {성상[:60]}")
+        if 주성분명:
+            parts.append(f"주성분: {주성분명}")
+        if 영문성분:
+            parts.append(f"({영문성분})")
+        if atc_kor:
+            parts.append(f"약효군: {atc_kor}")
+        if atc:
+            parts.append(f"ATC: {atc}")
+        if 전문일반:
+            parts.append(전문일반)
+        if 성상:
+            parts.append(f"성상: {성상[:60]}")
 
         sentence = " / ".join(parts)
         sentences.append(sentence)
-        metadata.append({
-            "type":     "의약품허가",
-            "품목명":   품목명,
-            "주성분명": 주성분명,
-            "ATC코드":  atc,
-            "약효군":   atc_kor,
-            "전문일반": 전문일반,
-            "마약류":   마약류,
-            "희귀":     희귀,
-            "품목일련번호": 일련번호,
-            "원문":     sentence,
-        })
+        metadata.append(
+            {
+                "type": "의약품허가",
+                "품목명": 품목명,
+                "주성분명": 주성분명,
+                "ATC코드": atc,
+                "약효군": atc_kor,
+                "전문일반": 전문일반,
+                "마약류": 마약류,
+                "희귀": 희귀,
+                "품목일련번호": 일련번호,
+                "원문": sentence,
+            }
+        )
 
         # ── 문장 2: 성분 대표 문장 (동일 성분 첫 번째만) ──
         # 동일 주성분의 수백 개 제네릭을 대표하는 단일 성분 문장
@@ -1090,26 +1181,31 @@ def process_drug_meta() -> tuple:
         if 성분_key and 성분_key not in _seen_성분:
             _seen_성분.add(성분_key)
             s2_parts = ["[의약품허가/성분]", f"성분명: {주성분명}"]
-            if 영문성분:  s2_parts.append(f"({영문성분})")
-            if atc_kor:   s2_parts.append(f"약효군: {atc_kor}")
-            if atc:       s2_parts.append(f"ATC: {atc}")
+            if 영문성분:
+                s2_parts.append(f"({영문성분})")
+            if atc_kor:
+                s2_parts.append(f"약효군: {atc_kor}")
+            if atc:
+                s2_parts.append(f"ATC: {atc}")
             s2 = " / ".join(s2_parts)
             sentences.append(s2)
-            metadata.append({
-                "type":     "의약품허가_성분",
-                "주성분명": 주성분명,
-                "ATC코드":  atc,
-                "약효군":   atc_kor,
-                "원문":     s2,
-            })
+            metadata.append(
+                {
+                    "type": "의약품허가_성분",
+                    "주성분명": 주성분명,
+                    "ATC코드": atc,
+                    "약효군": atc_kor,
+                    "원문": s2,
+                }
+            )
 
     return sentences, metadata
 
 
 def build_drug_meta_index():
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("💊 drug_meta.index 구축  (의약품허가상세정보)")
-    print("="*60)
+    print("=" * 60)
     s, m = process_drug_meta()
     if not s:
         return
@@ -1121,11 +1217,12 @@ def build_drug_meta_index():
 # 검색
 # ══════════════════════════════════════════════════════
 
+
 def search(query: str, index_name: str, top_k: int = 5):
     import faiss
 
     index_path = os.path.join(OUTPUT_DIR, f"{index_name}.index")
-    meta_path  = os.path.join(OUTPUT_DIR, f"{index_name}_meta.pkl")
+    meta_path = os.path.join(OUTPUT_DIR, f"{index_name}_meta.pkl")
 
     if not os.path.exists(index_path):
         print(f"  ⚠️  {index_name}.index 없음")
@@ -1135,7 +1232,7 @@ def search(query: str, index_name: str, top_k: int = 5):
     with open(meta_path, "rb") as f:
         store = pickle.load(f)
 
-    resp  = client.embeddings.create(model=MODEL, input=[query])
+    resp = client.embeddings.create(model=MODEL, input=[query])
     q_vec = np.array([resp.data[0].embedding], dtype="float32")
     faiss.normalize_L2(q_vec)
 
@@ -1147,38 +1244,38 @@ def search(query: str, index_name: str, top_k: int = 5):
         if idx == -1:
             continue
         meta = store["metadata"][idx]
-        print(f"  [{rank}] score={score:.4f}  type={meta.get('type','')}")
+        print(f"  [{rank}] score={score:.4f}  type={meta.get('type', '')}")
         print(f"       {store['sentences'][idx][:130]}")
 
 
 def run_test_suite(top_k: int = 3):
-    print("\n\n" + "="*70)
+    print("\n\n" + "=" * 70)
     print("🧪 검색 품질 테스트 v4")
-    print("="*70)
+    print("=" * 70)
 
     cases = [
         # (쿼리, 인덱스, 설명)
-        ("흰색 원형 정제 각인 RS",                           "drug_info",  "낱알 외형 검색"),
-        ("타이레놀 효능 해열",                                "drug_info",  "브랜드명 효능 검색"),
-        ("이부프로펜 아스피린 같이 먹어도 되나요",             "safety",     "병용금기 검색"),
-        ("타이레놀과 술 같이 먹어도 되나요",                  "drug_info",  "음주 상호작용"),
-        ("타이레놀과 커피 같이 먹어도 되나요",                "drug_info",  "카페인 상호작용"),
-        ("스틸녹스 먹었는데 속이 쓰린 증상이 나타났어",        "drug_info",  "이상반응 검색"),
-        ("트리티코정은 어떤 약이야",                          "drug_info",  "약물 정보 검색"),
-        ("알약을 분할해서 먹어도 되는지",                      "drug_info",  "분할 복용 가능 여부"),
-        ("부루펜시럽 알러지 어떤 성분 주의해야",              "drug_info",  "알러지 성분 확인"),
-        ("운전해야 하는데 스틸녹스정 먹어도 될까",             "drug_info",  "졸음·운전 주의"),
-        ("처방받은 약을 그만 먹어도 될까",                    "drug_info",  "임의 중단 주의"),
-        ("임산부 금기 약물",                                  "safety",     "임부금기 DUR"),
-        ("노인 주의 수면제",                                  "safety",     "노인주의 DUR"),
-        ("당뇨병 상병코드",                                   "disease",    "상병코드 검색"),
+        ("흰색 원형 정제 각인 RS", "drug_info", "낱알 외형 검색"),
+        ("타이레놀 효능 해열", "drug_info", "브랜드명 효능 검색"),
+        ("이부프로펜 아스피린 같이 먹어도 되나요", "safety", "병용금기 검색"),
+        ("타이레놀과 술 같이 먹어도 되나요", "drug_info", "음주 상호작용"),
+        ("타이레놀과 커피 같이 먹어도 되나요", "drug_info", "카페인 상호작용"),
+        ("스틸녹스 먹었는데 속이 쓰린 증상이 나타났어", "drug_info", "이상반응 검색"),
+        ("트리티코정은 어떤 약이야", "drug_info", "약물 정보 검색"),
+        ("알약을 분할해서 먹어도 되는지", "drug_info", "분할 복용 가능 여부"),
+        ("부루펜시럽 알러지 어떤 성분 주의해야", "drug_info", "알러지 성분 확인"),
+        ("운전해야 하는데 스틸녹스정 먹어도 될까", "drug_info", "졸음·운전 주의"),
+        ("처방받은 약을 그만 먹어도 될까", "drug_info", "임의 중단 주의"),
+        ("임산부 금기 약물", "safety", "임부금기 DUR"),
+        ("노인 주의 수면제", "safety", "노인주의 DUR"),
+        ("당뇨병 상병코드", "disease", "상병코드 검색"),
         # v4 신규: drug_meta 검색 케이스
-        ("스틸녹스 졸피뎀 수면제",                            "drug_meta",  "★v4 약물 식별 — 스틸녹스"),
-        ("트리티코 트라조돈 항우울제",                         "drug_meta",  "★v4 약물 식별 — 트리티코"),
-        ("아세트아미노펜 타이레놀",                            "drug_meta",  "★v4 성분-브랜드 매핑"),
-        ("이부프로펜 부루펜 NSAIDs",                          "drug_meta",  "★v4 NSAIDs 성분 검색"),
-        ("희귀의약품 목록",                                   "drug_meta",  "★v4 희귀의약품 검색"),
-        ("마약류 수면제",                                     "drug_meta",  "★v4 마약류 분류 검색"),
+        ("스틸녹스 졸피뎀 수면제", "drug_meta", "★v4 약물 식별 — 스틸녹스"),
+        ("트리티코 트라조돈 항우울제", "drug_meta", "★v4 약물 식별 — 트리티코"),
+        ("아세트아미노펜 타이레놀", "drug_meta", "★v4 성분-브랜드 매핑"),
+        ("이부프로펜 부루펜 NSAIDs", "drug_meta", "★v4 NSAIDs 성분 검색"),
+        ("희귀의약품 목록", "drug_meta", "★v4 희귀의약품 검색"),
+        ("마약류 수면제", "drug_meta", "★v4 마약류 분류 검색"),
     ]
 
     _INDEX_ALL_V4 = ["drug_info", "safety", "disease", "drug_meta"]  # noqa: F841
@@ -1232,11 +1329,12 @@ if __name__ == "__main__":
         default=None,
         help="기존 .index/.pkl 파일 삭제 후 재구축 (코드 변경 후 사용)",
     )
-    parser.add_argument("--test",   action="store_true", help="14개 테스트 케이스 실행")
+    parser.add_argument("--test", action="store_true", help="14개 테스트 케이스 실행")
     parser.add_argument("--search", action="store_true", help="대화형 검색 모드")
-    parser.add_argument("--query",  "-q", type=str,  default=None, help="단일 쿼리 검색")
+    parser.add_argument("--query", "-q", type=str, default=None, help="단일 쿼리 검색")
     parser.add_argument(
-        "--target", "-t",
+        "--target",
+        "-t",
         choices=["drug_info", "safety", "disease", "drug_meta"],
         default=None,
         help="--query 검색 대상 인덱스 (생략 시 전체 검색)",
@@ -1264,17 +1362,25 @@ if __name__ == "__main__":
                 print(f"   삭제: {lp}")
 
         # 삭제 후 바로 구축
-        if args.rebuild in ("drug_info", "all"):  build_drug_info_index()
-        if args.rebuild in ("safety",    "all"):  build_safety_index()
-        if args.rebuild in ("disease",   "all"):  build_disease_index()
-        if args.rebuild in ("drug_meta", "all"):  build_drug_meta_index()
+        if args.rebuild in ("drug_info", "all"):
+            build_drug_info_index()
+        if args.rebuild in ("safety", "all"):
+            build_safety_index()
+        if args.rebuild in ("disease", "all"):
+            build_disease_index()
+        if args.rebuild in ("drug_meta", "all"):
+            build_drug_meta_index()
 
     # ── --index: 없는 인덱스만 구축 ──────────────────────
     elif args.index:
-        if args.index in ("drug_info", "all"):  build_drug_info_index()
-        if args.index in ("safety",    "all"):  build_safety_index()
-        if args.index in ("disease",   "all"):  build_disease_index()
-        if args.index in ("drug_meta", "all"):  build_drug_meta_index()
+        if args.index in ("drug_info", "all"):
+            build_drug_info_index()
+        if args.index in ("safety", "all"):
+            build_safety_index()
+        if args.index in ("disease", "all"):
+            build_disease_index()
+        if args.index in ("drug_meta", "all"):
+            build_drug_meta_index()
 
     # ── 인덱스 현황 출력 ─────────────────────────────────
     if args.rebuild or args.index:
@@ -1302,17 +1408,14 @@ if __name__ == "__main__":
     # 대화형 검색 모드
     if args.search or args.index is None:
         INDEX_ALL = ["drug_info", "safety", "disease", "drug_meta"]
-        available = [
-            t for t in INDEX_ALL
-            if os.path.exists(os.path.join(OUTPUT_DIR, f"{t}.index"))
-        ]
+        available = [t for t in INDEX_ALL if os.path.exists(os.path.join(OUTPUT_DIR, f"{t}.index"))]
         if not available:
             print("❌ 구축된 인덱스가 없습니다. 먼저 --index all 을 실행하세요.")
             raise SystemExit(1)
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🔍 대화형 검색 모드       종료: q 또는 Ctrl+C")
-        print("="*60)
+        print("=" * 60)
         print(f"  사용 가능 인덱스 : {', '.join(available)}")
         print(f"  결과 수          : {args.top_k}개  (--top-k 로 변경)")
         print()
@@ -1338,10 +1441,10 @@ if __name__ == "__main__":
             if ":" in raw:
                 prefix, query = raw.split(":", 1)
                 prefix = prefix.strip().lower()
-                query  = query.strip()
+                query = query.strip()
             else:
                 prefix = last_target
-                query  = raw
+                query = raw
 
             if not query:
                 continue
@@ -1353,7 +1456,7 @@ if __name__ == "__main__":
                 last_target = prefix
             else:
                 targets = [last_target]
-                query   = raw
+                query = raw
 
             for t in targets:
                 if t not in available:

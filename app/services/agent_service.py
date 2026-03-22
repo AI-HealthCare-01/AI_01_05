@@ -546,26 +546,26 @@ def _fix_answer_formatting(answer: str) -> str:
     # 1단계: 마무리 문장 패턴 앞에 빈 줄 삽입 (같은 줄에 붙어있는 경우)
     # 이 패턴들이 목록 항목 텍스트 바로 뒤에 공백 하나로 붙어있는 경우를 잡음
     closing_patterns = [
-        r'(?<=[다요죠임됨음]) (각 제품마다)',
-        r'(?<=[다요죠임됨음]) (이 정보가 도움)',
-        r'(?<=[다요죠임됨음]) (더 궁금한 점)',
-        r'(?<=[다요죠임됨음]) (궁금한 점이)',
-        r'(?<=[다요죠임됨음]) (혹시 약의 모양)',
-        r'(?<=[다요죠임됨음]) (추가로 궁금)',
-        r'(?<=[다요죠임됨음]) (필요한 정보가)',
-        r'(?<=[다요죠임됨음]) (이외에도)',
-        r'(?<=[다요죠임됨음]) (위 약물들은)',
-        r'(?<=[다요죠임됨음]) (아세트아미노펜은)',
-        r'(?<=[다요죠임됨음]) (따라서)',
-        r'(?<=[다요죠임됨음]) (이 약물)',
-        r'(?<=[다요죠임됨음]) (해당 약물)',
+        r"(?<=[다요죠임됨음]) (각 제품마다)",
+        r"(?<=[다요죠임됨음]) (이 정보가 도움)",
+        r"(?<=[다요죠임됨음]) (더 궁금한 점)",
+        r"(?<=[다요죠임됨음]) (궁금한 점이)",
+        r"(?<=[다요죠임됨음]) (혹시 약의 모양)",
+        r"(?<=[다요죠임됨음]) (추가로 궁금)",
+        r"(?<=[다요죠임됨음]) (필요한 정보가)",
+        r"(?<=[다요죠임됨음]) (이외에도)",
+        r"(?<=[다요죠임됨음]) (위 약물들은)",
+        r"(?<=[다요죠임됨음]) (아세트아미노펜은)",
+        r"(?<=[다요죠임됨음]) (따라서)",
+        r"(?<=[다요죠임됨음]) (이 약물)",
+        r"(?<=[다요죠임됨음]) (해당 약물)",
     ]
 
     for pattern in closing_patterns:
-        answer = re.sub(pattern, r'\n\n\1', answer)
+        answer = re.sub(pattern, r"\n\n\1", answer)
 
     # 2단계: 줄 단위로 처리 - 목록 항목 뒤에 일반 텍스트가 오면 빈 줄 삽입
-    lines = answer.split('\n')
+    lines = answer.split("\n")
     result = []
 
     for i, line in enumerate(lines):
@@ -576,19 +576,19 @@ def _fix_answer_formatting(answer: str) -> str:
             next_stripped = lines[i + 1].strip()
 
             # 현재 줄이 번호 목록 항목인지 (1. 2. 3. 등)
-            is_current_numbered = bool(re.match(r'^\d+[\.\)]\s', current_stripped))
+            is_current_numbered = bool(re.match(r"^\d+[\.\)]\s", current_stripped))
 
             # 현재 줄이 하위 항목(- 또는 *)인지
-            is_current_sub = bool(re.match(r'^[-*]\s', current_stripped))
+            is_current_sub = bool(re.match(r"^[-*]\s", current_stripped))
 
             # 다음 줄이 하위 항목(- 또는 *)인지
-            is_next_sub = bool(re.match(r'^[-*]\s', next_stripped))
+            is_next_sub = bool(re.match(r"^[-*]\s", next_stripped))
 
             # 다음 줄이 빈 줄이 아니고, 목록도 아닌 일반 텍스트인지
             is_next_normal = (
-                next_stripped and
-                not re.match(r'^(\d+[\.\)]\s|[-*]\s)', next_stripped) and
-                not next_stripped.startswith('#')
+                next_stripped
+                and not re.match(r"^(\d+[\.\)]\s|[-*]\s)", next_stripped)
+                and not next_stripped.startswith("#")
             )
 
             # 하위 항목(-) 뒤에 다음 하위 항목(-)이 오면 → 빈 줄 넣지 않음
@@ -597,17 +597,17 @@ def _fix_answer_formatting(answer: str) -> str:
 
             # 번호 목록 항목 뒤에 일반 텍스트가 오면 빈 줄 삽입
             if is_current_numbered and is_next_normal:
-                result.append('')
+                result.append("")
 
             # 하위 항목(-) 뒤에 일반 텍스트(마무리 문장)가 오면 빈 줄 삽입
             if is_current_sub and is_next_normal:
-                result.append('')
+                result.append("")
 
     # 3단계: 하위 항목(-) 사이의 불필요한 빈 줄 제거
     # LLM이 "- 아세트아미노펜\n\n- 카페인무수물" 처럼 빈 줄을 넣는 경우 정리
-    cleaned = '\n'.join(result)
+    cleaned = "\n".join(result)
     # - 항목과 - 항목 사이의 빈 줄(들)을 단일 줄바꿈으로 축소
-    cleaned = re.sub(r'(\n\s*-\s[^\n]+)\n\n+(\s*-\s)', r'\1\n\2', cleaned)
+    cleaned = re.sub(r"(\n\s*-\s[^\n]+)\n\n+(\s*-\s)", r"\1\n\2", cleaned)
     return cleaned
 
 
@@ -644,7 +644,7 @@ def parse_llm_response(content: str) -> LLMChatResponse:
         return LLMChatResponse.safe_default(answer=_fix_answer_formatting(content) if content else "응답 생성 실패")
 
 
-def _build_agent_context(
+def _build_agent_context(  # noqa: C901
     user_message: str,
     user_drugs: list[str],
     nickname: str | None,
@@ -664,7 +664,21 @@ def _build_agent_context(
 
     # 외형/각인 질문 감지 및 선제 검색
     appearance_keywords = ["적힌", "각인", "적인", "새겨진", "찍힌", "써있는", "써져있는", "적혀있는"]
-    color_keywords = ["흰색", "하얀", "하양", "백색", "노란", "노랑", "분홍", "빨간", "파란", "초록", "갈색", "주황", "보라"]
+    color_keywords = [
+        "흰색",
+        "하얀",
+        "하양",
+        "백색",
+        "노란",
+        "노랑",
+        "분홍",
+        "빨간",
+        "파란",
+        "초록",
+        "갈색",
+        "주황",
+        "보라",
+    ]
 
     has_appearance = any(kw in user_message for kw in appearance_keywords)
     has_color = any(kw in user_message for kw in color_keywords)
@@ -682,22 +696,22 @@ def _build_agent_context(
                 break
 
         # 영문 각인 추출 (대문자 연속)
-        eng_match = re.findall(r'[A-Z]{1,10}', user_message)
+        eng_match = re.findall(r"[A-Z]{1,10}", user_message)
         if eng_match:
             query_parts.extend(eng_match)
 
         # 숫자 각인 추출
-        num_match = re.findall(r'\d+', user_message)
+        num_match = re.findall(r"\d+", user_message)
         if num_match:
             query_parts.extend(num_match)
 
         if query_parts and eng_match:
             # 각인이 있는 경우: 전체 데이터에서 직접 정확 매칭 검색
-            import pickle as _pickle
             import json as _json
+            import pickle as _pickle
             import re as _re
 
-            search_query = ' '.join(query_parts)
+            search_query = " ".join(query_parts)
             logger.info(f"[외형 선제검색] query={search_query}")
 
             # drug_info 인덱스에서 직접 검색
@@ -728,11 +742,13 @@ def _build_agent_context(
                                 color_ok = False
 
                         if color_ok:
-                            filtered.append({
-                                "score": 1.0,
-                                "type": store["metadata"][i].get("type", ""),
-                                "sentence": sentence[:300],
-                            })
+                            filtered.append(
+                                {
+                                    "score": 1.0,
+                                    "type": store["metadata"][i].get("type", ""),
+                                    "sentence": sentence[:300],
+                                }
+                            )
 
                 if filtered:
                     search_result = _json.dumps(filtered[:5], ensure_ascii=False, indent=2)
@@ -749,7 +765,8 @@ def _build_agent_context(
         elif query_parts:
             # 각인 없이 색상/모양만 있는 경우: 기존 search_drug_info 사용
             from app.services.drug_agent import search_drug_info as _search_drug_info
-            search_query = ' '.join(query_parts)
+
+            search_query = " ".join(query_parts)
             logger.info(f"[외형 선제검색] query={search_query} (색상/모양만)")
             search_result = _search_drug_info(search_query, top_k=5)
             context_parts.append(f"\n[사전 검색 결과 - 외형 검색 '{search_query}']\n{search_result}")
