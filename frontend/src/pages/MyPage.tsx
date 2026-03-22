@@ -293,7 +293,9 @@ function DeleteConfirmModal({ isOpen, isDeleting, error, onConfirm, onClose }: D
           <p style={{ margin: "0 0 8px" }}>탈퇴하면 아래 데이터가 영구적으로 삭제됩니다:</p>
           <ul style={{ margin: 0, paddingLeft: 20 }}>
             <li>프로필 및 계정 정보</li>
+            <li>일기 및 리포트 기록</li>
             <li>복용 약 기록</li>
+            <li>채팅 기록</li>
             <li>친구 캐릭터</li>
           </ul>
           <p style={{ margin: "8px 0 0", fontWeight: 600 }}>삭제된 데이터는 복구할 수 없습니다.</p>
