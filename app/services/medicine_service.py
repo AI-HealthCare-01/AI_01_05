@@ -52,8 +52,8 @@ class MedicineService:
         self._client = MfdsClient()
 
     async def search(self, keyword: str, limit: int = 20, offset: int = 0) -> dict:
-        qs = Medicine.filter(search_keyword__contains=keyword, is_active=True)
-        total_count = await qs.count()
+        base_qs = Medicine.filter(search_keyword__contains=keyword, is_active=True)
+        total_count = await base_qs.count()
 
         if total_count == 0:
             easy, pill = await asyncio.gather(
@@ -63,11 +63,32 @@ class MedicineService:
             merged = self._merge(easy, pill)
             if merged:
                 await self._cache_from_api(merged)
-                qs = Medicine.filter(search_keyword__contains=keyword, is_active=True)
-                total_count = await qs.count()
+                base_qs = Medicine.filter(search_keyword__contains=keyword, is_active=True)
+                total_count = await base_qs.count()
 
-        results = await qs.offset(offset).limit(limit).values("item_seq", "item_name", "entp_name")
-        return {"items": list(results), "total_count": total_count}
+        startswith_qs = Medicine.filter(search_keyword__startswith=keyword, is_active=True).order_by("search_keyword")
+        startswith_count = await startswith_qs.count()
+
+        startswith_items: list[dict] = []
+        if offset < startswith_count:
+            startswith_items = (
+                await startswith_qs.offset(offset).limit(limit).values("item_seq", "item_name", "entp_name")
+            )
+
+        remaining_limit = max(0, limit - len(startswith_items))
+        contains_offset = max(0, offset - startswith_count)
+        contains_items: list[dict] = []
+        if remaining_limit > 0:
+            contains_items = await (
+                Medicine.filter(search_keyword__contains=keyword, is_active=True)
+                .exclude(search_keyword__startswith=keyword)
+                .order_by("search_keyword")
+                .offset(contains_offset)
+                .limit(remaining_limit)
+                .values("item_seq", "item_name", "entp_name")
+            )
+
+        return {"items": [*startswith_items, *contains_items], "total_count": total_count}
 
     async def get_detail(self, item_seq: str) -> Medicine | None:
         return await Medicine.get_or_none(item_seq=item_seq, is_active=True)

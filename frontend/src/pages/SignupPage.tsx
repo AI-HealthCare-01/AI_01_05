@@ -114,7 +114,10 @@ export default function SignupPage() {
           email: form.email,
           gender: form.gender,
           birthday: form.birthday || null,
-          agreements: agreements!,
+          agreements: {
+            ...agreements!,
+            sms_agreed: agreements!.sms_agreed,
+          },
         },
         tempToken,
       )

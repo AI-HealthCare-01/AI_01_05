@@ -26,6 +26,7 @@ class User(models.Model):
     privacy_agreed = fields.BooleanField(default=False)
     sensitive_agreed = fields.BooleanField(default=False)
     marketing_agreed = fields.BooleanField(default=False)
+    sms_agreed = fields.BooleanField(default=False)
     onboarding_completed = fields.BooleanField(default=False)
 
     class Meta:

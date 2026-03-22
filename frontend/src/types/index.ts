@@ -52,6 +52,8 @@ export interface UserMe {
   gender: "MALE" | "FEMALE" | "UNKNOWN";
   created_at: string;
   onboarding_completed: boolean;
+  marketing_agreed: boolean;
+  sms_agreed: boolean;
 }
 
 export interface ApiError {

@@ -17,6 +17,7 @@ export interface SignupRequest {
     terms_of_service: boolean
     privacy_policy: boolean
     sensitive_policy: boolean
+    sms_agreed: boolean
     terms_of_marketing: boolean
   }
 }
@@ -25,6 +26,7 @@ export interface AgreementState {
   terms_of_service: boolean
   privacy_policy: boolean
   sensitive_policy: boolean
+  sms_agreed: boolean
   terms_of_marketing: boolean
   all: boolean
 }

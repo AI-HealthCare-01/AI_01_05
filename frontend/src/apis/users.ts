@@ -6,6 +6,8 @@ export interface UpdateUserPayload {
   email?: string | null;
   gender?: "MALE" | "FEMALE" | "UNKNOWN";
   birthday?: string | null;
+  marketing_agreed?: boolean;
+  sms_agreed?: boolean;
 }
 
 export function getMyInfo() {

@@ -27,6 +27,12 @@ const TERMS = [
     content: `수집 항목: 정신 건강 관련 상담 내용\n\n수집 목적: 맞춤형 정신 건강 서비스 제공\n\n보유 기간: 회원 탈퇴 후 즉시 파기\n\n민감정보는 암호화되어 저장되며, 제3자에게 제공되지 않습니다.\n귀하는 민감정보 수집·이용에 동의하지 않을 권리가 있으나, 거부 시 핵심 서비스 이용이 제한됩니다.`,
   },
   {
+    key: 'sms_agreed' as const,
+    label: '문자 알림 수신 동의',
+    required: false,
+    content: '수신 항목: 복약 알림\n\n발송 목적: 복약 시간 안내 문자 발송\n\n보유 기간: 동의 철회 시까지\n\n본 동의는 선택사항으로, 동의하지 않으셔도 서비스 이용에는 제한이 없습니다.\n\n동의 여부 및 알림 설정은 마이페이지에서 언제든지 변경 또는 철회하실 수 있습니다.',
+  },
+  {
     key: 'terms_of_marketing' as const,
     label: '마케팅 및 이벤트 정보 수신 동의',
     required: false,
@@ -38,6 +44,7 @@ const INITIAL: AgreementState = {
   terms_of_service: false,
   privacy_policy: false,
   sensitive_policy: false,
+  sms_agreed: false,
   terms_of_marketing: false,
   all: false,
 }
@@ -50,12 +57,19 @@ export default function AgreementModal({ onConfirm, onClose }: Props) {
   const requiredDone = state.terms_of_service && state.privacy_policy && state.sensitive_policy
 
   useEffect(() => {
-    const all = requiredDone && state.terms_of_marketing
+    const all = requiredDone && state.sms_agreed && state.terms_of_marketing
     setState((s) => ({ ...s, all }))
-  }, [state.terms_of_service, state.privacy_policy, state.sensitive_policy, state.terms_of_marketing])
+  }, [state.terms_of_service, state.privacy_policy, state.sensitive_policy, state.sms_agreed, state.terms_of_marketing])
 
   const toggleAll = (checked: boolean) =>
-    setState({ terms_of_service: checked, privacy_policy: checked, sensitive_policy: checked, terms_of_marketing: checked, all: checked })
+    setState({
+      terms_of_service: checked,
+      privacy_policy: checked,
+      sensitive_policy: checked,
+      sms_agreed: checked,
+      terms_of_marketing: checked,
+      all: checked,
+    })
 
   const toggle = (key: keyof Omit<AgreementState, 'all'>, checked: boolean) => {
     setState((s) => ({ ...s, [key]: checked }))
