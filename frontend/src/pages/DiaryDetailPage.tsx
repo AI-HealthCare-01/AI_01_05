@@ -2,12 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { createDiaryText, getDiaryByDate, updateDiaryEntry } from "../apis/diary";
+import { upsertMood } from "../apis/moods";
 import Button from "../components/Button";
 import { EmptyState, ErrorMessage, Loading } from "../components/CommonUI";
-import { COLORS, MOOD_COLORS, TIME_SLOT_LABELS } from "../constants/theme";
+import { COLORS, MOOD_COLORS, MOOD_EMOJI_MAP, TIME_SLOT_LABELS } from "../constants/theme";
 import { formatDateLabel } from "../utils/date";
 
-type WriteMethod = "text";
+const ALL_SLOTS = ["MORNING", "LUNCH", "EVENING", "BEDTIME"] as const;
+type TimeSlot = (typeof ALL_SLOTS)[number];
+
 
 export function DiaryDetailPage() {
   const { entryDate = "" } = useParams<{ entryDate: string }>();
@@ -19,6 +22,8 @@ export function DiaryDetailPage() {
 
   const [entries, setEntries] = useState<Array<{ entryId: number; source: string; title: string; content: string; createdAt: string }>>([]);
   const [moods, setMoods] = useState<Array<{ mood_level: number; time_slot?: string }>>([]);
+  const [editingSlot, setEditingSlot] = useState<TimeSlot | null>(null);
+  const [moodSaving, setMoodSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
@@ -108,31 +113,91 @@ export function DiaryDetailPage() {
           <h1 style={{ margin: 0, fontSize: 20 }}>{entryDate ? formatDateLabel(entryDate) : "일기 상세"}</h1>
         </div>
       </div>
-      {moods.length > 0 ? (
-        <section style={{ background: COLORS.cardBg, borderRadius: 12, border: `1px solid ${COLORS.border}`, padding: "10px 12px" }}>
-          <p style={{ margin: "0 0 8px", fontSize: 12, color: COLORS.subText, fontWeight: 700 }}>오늘의 기분</p>
-          <div style={{ display: "flex", gap: "12px" }}>
-            {moods.map((mood, index) => (
-              <div
-                key={`${mood.time_slot ?? "SLOT"}-${index}`}
-                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}
-              >
+      <section style={{ background: COLORS.cardBg, borderRadius: 12, border: `1px solid ${COLORS.border}`, padding: "10px 12px" }}>
+        <p style={{ margin: "0 0 8px", fontSize: 12, color: COLORS.subText, fontWeight: 700 }}>오늘의 기분</p>
+        <div style={{ display: "flex", gap: "12px" }}>
+          {ALL_SLOTS.map((slot) => {
+            const mood = moods.find((m) => m.time_slot === slot);
+            const level = mood?.mood_level ?? null;
+            const isEditing = editingSlot === slot;
+            return (
+              <div key={slot} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
                 <div
+                  onClick={() => setEditingSlot(isEditing ? null : slot)}
                   style={{
-                    width: "28px",
-                    height: "28px",
+                    width: "32px",
+                    height: "32px",
                     borderRadius: "50%",
-                    background: MOOD_COLORS[mood.mood_level] ?? COLORS.border,
+                    background: level ? (MOOD_COLORS[level] ?? COLORS.border) : "#D9D9D9",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    fontSize: level ? 16 : 12,
+                    border: isEditing ? "2px solid #99A988" : "2px solid transparent",
+                    transition: "all 0.15s ease",
                   }}
-                />
+                >
+                  {level ? MOOD_EMOJI_MAP[level] : "?"}
+                </div>
                 <span style={{ fontSize: "10px", color: COLORS.subText }}>
-                  {TIME_SLOT_LABELS[mood.time_slot ?? ""] ?? mood.time_slot}
+                  {TIME_SLOT_LABELS[slot]}
                 </span>
               </div>
-            ))}
+            );
+          })}
+        </div>
+
+        {editingSlot && (
+          <div style={{
+            display: "flex",
+            gap: 6,
+            justifyContent: "center",
+            marginTop: 10,
+            padding: "8px 6px",
+            background: "#FAFAFA",
+            borderRadius: 12,
+            border: `1px solid ${COLORS.border}`,
+          }}>
+            {[1, 2, 3, 4, 5, 6, 7].map((lv) => {
+              const currentLevel = moods.find((m) => m.time_slot === editingSlot)?.mood_level ?? null;
+              return (
+                <button
+                  key={lv}
+                  disabled={moodSaving}
+                  onClick={async () => {
+                    if (!entryDate) return;
+                    setMoodSaving(true);
+                    try {
+                      await upsertMood({ log_date: entryDate, time_slot: editingSlot, mood_level: lv });
+                      setMoods((prev) => {
+                        const filtered = prev.filter((m) => m.time_slot !== editingSlot);
+                        return [...filtered, { mood_level: lv, time_slot: editingSlot }];
+                      });
+                      setEditingSlot(null);
+                    } catch { /* ignore */ } finally {
+                      setMoodSaving(false);
+                    }
+                  }}
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: "50%",
+                    border: currentLevel === lv ? `2px solid ${MOOD_COLORS[lv]}` : "1px solid #eee",
+                    background: currentLevel === lv ? `${MOOD_COLORS[lv]}33` : "#fff",
+                    fontSize: 16,
+                    cursor: "pointer",
+                    padding: 0,
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  {MOOD_EMOJI_MAP[lv]}
+                </button>
+              );
+            })}
           </div>
-        </section>
-      ) : null}
+        )}
+      </section>
 
       {loading ? <Loading /> : null}
       {error ? <ErrorMessage message={error} onRetry={() => void fetchDiary()} /> : null}
