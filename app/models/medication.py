@@ -22,10 +22,24 @@ class MedicationPrescription(models.Model):
 class MedicationLog(models.Model):
     log_id = fields.BigIntField(primary_key=True)
     prescription = fields.ForeignKeyField(
-        "models.MedicationPrescription", related_name="logs", on_delete=fields.CASCADE
+        "models.MedicationPrescription",
+        related_name="logs",
+        on_delete=fields.CASCADE,
+        null=True,
     )
-    user = fields.ForeignKeyField("models.User", related_name="medication_logs", on_delete=fields.CASCADE)
+    user_medication = fields.ForeignKeyField(
+        "models.UserMedication",
+        related_name="logs",
+        on_delete=fields.CASCADE,
+        null=True,
+    )
+    user = fields.ForeignKeyField(
+        "models.User",
+        related_name="medication_logs",
+        on_delete=fields.CASCADE,
+    )
     log_date = fields.DateField()
+    time_slot = fields.CharField(max_length=20, null=True)
     taken_at = fields.DatetimeField(null=True)
     is_taken = fields.BooleanField(default=False)
     created_at = fields.DatetimeField(auto_now_add=True)
@@ -33,4 +47,4 @@ class MedicationLog(models.Model):
 
     class Meta:
         table = "medication_logs"
-        unique_together = (("prescription_id", "log_date"),)
+        unique_together = (("user_medication_id", "log_date", "time_slot"),)
