@@ -430,6 +430,8 @@ export default function MainPage() {
 
   const [todayMedications, setTodayMedications] = useState<MedicationUiItem[]>([]);
   const [isSavingMedication, setIsSavingMedication] = useState(false);
+  const medicationToggleInFlightRef = useRef<Set<string>>(new Set());
+  const [pendingMedicationToggleKeys, setPendingMedicationToggleKeys] = useState<Record<string, boolean>>({});
   const [pawStampTokenBySlot, setPawStampTokenBySlot] = useState<Record<UiSlot, number>>({
     morning: 0,
     lunch: 0,
@@ -627,6 +629,14 @@ export default function MainPage() {
   };
 
   const handleMedicationToggle = async (medicationId: number, checked: boolean, timeSlot: UiSlot) => {
+    const requestKey = `${medicationId}_${timeSlot}`;
+    if (medicationToggleInFlightRef.current.has(requestKey)) {
+      return;
+    }
+
+    medicationToggleInFlightRef.current.add(requestKey);
+    setPendingMedicationToggleKeys((prev) => ({ ...prev, [requestKey]: true }));
+
     try {
       setIsSavingMedication(true);
       setError("");
@@ -636,7 +646,15 @@ export default function MainPage() {
       const message = patchError instanceof Error ? patchError.message : "복약 상태 변경에 실패했습니다.";
       setError(message);
     } finally {
-      setIsSavingMedication(false);
+      medicationToggleInFlightRef.current.delete(requestKey);
+      setPendingMedicationToggleKeys((prev) => {
+        const next = { ...prev };
+        delete next[requestKey];
+        return next;
+      });
+      if (medicationToggleInFlightRef.current.size === 0) {
+        setIsSavingMedication(false);
+      }
     }
   };
 
@@ -1224,10 +1242,11 @@ export default function MainPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, height: "auto", overflowY: "visible" }}>
                     {medications.map((med) => {
                       const { line1, line2 } = formatMedicationDisplay(med.name, med.dosage);
+                      const isPending = Boolean(pendingMedicationToggleKeys[med.id]);
                       return (
                       <div key={med.id}>
                         <div
-                          onClick={() => !isSavingMedication && handleMedicationToggle(med.medicationId, med.checked, med.timeSlot)}
+                          onClick={() => !isPending && !isSavingMedication && handleMedicationToggle(med.medicationId, med.checked, med.timeSlot)}
                           style={{
                             display: "flex",
                             alignItems: "center",
@@ -1238,8 +1257,8 @@ export default function MainPage() {
                             border: med.checked ? "1px solid #C5D4B8" : "1px solid #E8E8E8",
                             background: med.checked ? "#F0F5EE" : "#FFFFFF",
                             color: med.checked ? "#9aaa8a" : "#3a3228",
-                            cursor: isSavingMedication ? "not-allowed" : "pointer",
-                            opacity: isSavingMedication ? 0.6 : 1,
+                            cursor: isPending || isSavingMedication ? "not-allowed" : "pointer",
+                            opacity: isPending || isSavingMedication ? 0.6 : 1,
                             transition: "background 0.2s ease, border-color 0.2s ease, opacity 0.15s ease",
                           }}
                         >
