@@ -63,8 +63,12 @@ export function useCoachMark({
 
   useEffect(() => {
     if (!enabled) return;
-    measure();
-  }, [enabled, measure]);
+    // rAF 2회로 레이아웃 완료 후 측정
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => measure());
+    });
+    return () => cancelAnimationFrame(id);
+  }, [enabled, measure, currentIndex]);
 
   // 화면 크기/스크롤이 바뀌면 대상 위치를 재측정한다.
   useEffect(() => {
@@ -80,8 +84,13 @@ export function useCoachMark({
 
   useEffect(() => {
     if (!enabled || seen || !ready) return;
-    setIsOpen(true);
-  }, [enabled, ready, seen]);
+    // 레이아웃 안정화 후 오픈
+    const id = requestAnimationFrame(() => {
+      measure();
+      setIsOpen(true);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [enabled, ready, seen, measure]);
 
   const closeAndPersist = useCallback(() => {
     localStorage.setItem(storageKey, "true");
