@@ -39,4 +39,4 @@ docs/data/faiss/
 *.index
 *.pkl
 adverse_lookup.pkl
-docs/
+
