@@ -14,7 +14,7 @@ class LlmService:
         if not text:
             return ""
 
-        provider = (config.LLM_PROVIDER or "stub").lower()
+        provider = "openai" if config.OPENAI_API_KEY else "stub"
         if provider == "stub":
             return self._stub_chat_summary(text=text, entry_date=entry_date)
         if provider == "openai":
@@ -27,9 +27,15 @@ class LlmService:
             return await self._openai_chat_completion(prompt)
         return self._stub_chat_summary(text=text, entry_date=entry_date)
 
-    async def summarize_report(self, diary_texts: Iterable[str], start_date: str, end_date: str) -> dict:
+    async def summarize_report(
+        self,
+        diary_texts: Iterable[str],
+        start_date: str,
+        end_date: str,
+        mood_text: str = "",
+    ) -> dict:
         text = self._join_texts(diary_texts)
-        if not text:
+        if not text and not mood_text:
             return {
                 "summary": (
                     f"{start_date} ~ {end_date} 기간 동안의 기록이 충분하지 않아 전체 요약을 생성하기 어렵습니다."
@@ -38,21 +44,25 @@ class LlmService:
                 "clinician_note": "기록 부족으로 해석에 제한이 있습니다.",
             }
 
-        provider = (config.LLM_PROVIDER or "stub").lower()
+        provider = "openai" if config.OPENAI_API_KEY else "stub"
         if provider == "stub":
             return self._stub_report_summary(text=text, start_date=start_date, end_date=end_date)
         if provider == "openai":
+            mood_section = f"\n\n기분 기록:\n{mood_text}" if mood_text else ""
             prompt = (
-                "다음 기간의 일기 기록을 바탕으로 감정 리포트를 작성해줘.\n"
+                "다음 기간의 일기 기록과 기분 기록을 바탕으로 감정 리포트를 작성해줘.\n"
                 "사용자도 읽고, 의료진도 참고할 수 있도록 아래 3개 항목으로 나눠서 작성해.\n\n"
                 "작성 원칙:\n"
                 "- 기록에 없는 내용은 지어내지 말 것\n"
                 "- 진단처럼 단정하지 말 것\n"
                 "- 사용자용 문장은 부드럽고 자연스럽게 작성\n"
                 "- 의료진 참고 문장은 짧고 관찰 중심으로 작성\n"
+                "- 기분 기록의 숫자는 1(매우 나쁨)~7(매우 좋음) 척도임\n"
+                "- 기분 흐름 요약에는 실제 기분 기록 데이터의 변화 패턴을 반영할 것\n"
                 "- 반드시 JSON 형식으로만 반환\n\n"
                 f"기간: {start_date} ~ {end_date}\n"
-                f"원문:\n{text}\n\n"
+                f"일기 원문:\n{text or '(일기 기록 없음)'}"
+                f"{mood_section}\n\n"
                 "반환 형식:\n"
                 "{"
                 '"summary": "기간 전체 기록 요약 3~4문장", '
@@ -76,7 +86,7 @@ class LlmService:
 
     async def summarize_chat_as_diary(self, conversation: str, entry_date: str) -> dict:
         """사용자가 직접 작성한 기록을 일기 형식(title + content)으로 정리한다."""
-        provider = (config.LLM_PROVIDER or "stub").lower()
+        provider = "openai" if config.OPENAI_API_KEY else "stub"
         if provider == "stub":
             return self._stub_diary_summary(conversation=conversation, entry_date=entry_date)
         if provider == "openai":
@@ -112,7 +122,7 @@ class LlmService:
         return {"title": f"{entry_date} 기록", "content": f"오늘 작성한 기록 요약: {preview}"}
 
     async def generate_title(self, content: str) -> str:
-        provider = (config.LLM_PROVIDER or "stub").lower()
+        provider = "openai" if config.OPENAI_API_KEY else "stub"
         if provider == "stub":
             return self._stub_title(content)
         if provider == "openai":
@@ -125,15 +135,15 @@ class LlmService:
         return self._stub_title(content)
 
     async def _openai_chat_completion(self, prompt: str) -> str:
-        if not config.LLM_API_KEY:
+        if not config.OPENAI_API_KEY:
             raise ValueError("LLM_NOT_CONFIGURED")
 
         headers = {
-            "Authorization": f"Bearer {config.LLM_API_KEY}",
+            "Authorization": f"Bearer {config.OPENAI_API_KEY}",
             "Content-Type": "application/json",
         }
         payload = {
-            "model": config.LLM_MODEL,
+            "model": config.OPENAI_MODEL,
             "messages": [
                 {
                     "role": "system",
