@@ -32,14 +32,11 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
       style={{
         position: "sticky",
         bottom: 0,
-        display: "flex",
-        alignItems: "flex-end",
-        gap: 8,
-        padding: "12px 16px",
         background: "#FFFFFF",
         borderTop: "1px solid #E0E0E0",
       }}
     >
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: "12px 16px 8px" }}>
       <textarea
         ref={inputRef}
         value={text}
@@ -93,6 +90,10 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
         </svg>
       </button>
+      </div>
+      <p style={{ fontSize: 11, color: "#9E9E9E", textAlign: "center", padding: "0 16px 10px", margin: 0 }}>
+        본 정보는 참고용이며 의사의 진료를 대체할 수 없습니다. 정확한 진단은 전문의와 상담하세요.
+      </p>
     </div>
   );
 }
