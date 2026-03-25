@@ -326,3 +326,15 @@ class RAGService:
         except Exception as e:
             logger.warning("PDF 수집 실패 (%s): %s", pdf_path, e)
             return 0
+
+
+# ── 싱글턴 인스턴스 ───────────────────────────────────────────
+_rag_service: RAGService | None = None
+
+
+def get_rag_service() -> RAGService:
+    """RAG 서비스 싱글턴 반환."""
+    global _rag_service
+    if _rag_service is None:
+        _rag_service = RAGService()
+    return _rag_service

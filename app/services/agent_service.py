@@ -136,10 +136,10 @@ def search_rag_sync(query: str, n_results: int = 3) -> str:
         query: 검색 쿼리
         n_results: 반환할 결과 수
     """
-    from app.services.rag_service import RAGService
+    from app.services.rag_service import get_rag_service
 
     async def _search():
-        rag = RAGService()
+        rag = get_rag_service()
         results = await rag.search(query, n_results)
         return "\n".join(results) if results else "관련 가이드라인 없음"
 
@@ -454,6 +454,9 @@ ALL_TOOLS = [
     check_all_drug_combinations,
 ]
 
+# character_id별 컴파일된 agent 캐시
+_agent_cache: dict[int | None, object] = {}
+
 
 def create_agent(character_id: int | None = None) -> StateGraph:
     """LangGraph ReAct Agent 생성."""
@@ -530,6 +533,14 @@ def create_agent(character_id: int | None = None) -> StateGraph:
     graph.add_edge("tools", "agent")
 
     return graph.compile()
+
+
+def get_or_create_agent(character_id: int | None = None):
+    """character_id별 agent 캐싱 — 매 요청마다 재생성 방지."""
+    if character_id not in _agent_cache:
+        _agent_cache[character_id] = create_agent(character_id)
+        logger.info("Agent 생성 및 캐시 저장 (character_id=%s)", character_id)
+    return _agent_cache[character_id]
 
 
 def _fix_answer_formatting(answer: str) -> str:
@@ -801,7 +812,7 @@ async def run_agent(
     user_id: int | None = None,
 ) -> LLMChatResponse:
     """Agent 실행 및 LLMChatResponse 반환."""
-    agent = create_agent(character_id)
+    agent = get_or_create_agent(character_id)
 
     user_content = _build_agent_context(user_message, user_drugs, nickname, intimacy, user_id)
     messages = _convert_chat_history(chat_history)
